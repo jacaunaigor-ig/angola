@@ -106,6 +106,16 @@ router.get(
   warRoomController.obterApuramentoParalelo
 );
 
+router.post(
+  '/dia-d/casos-juridicos',
+  warRoomController.criarCasoJuridico
+);
+
+router.get(
+  '/dia-d/casos-juridicos',
+  warRoomController.listarCasosJuridicos
+);
+
 // ==============================================================================
 // 6. INTELIGÊNCIA TERRITORIAL OFICIAL & ZONAMENTO TRANSPARENTE (DPA 2016 / 2024)
 // ==============================================================================
