@@ -66,8 +66,23 @@ router.get(
 );
 
 // ==============================================================================
-// 4. GESTÃO DE PROMESSAS E DISCURSOS TERRITORIALIZADOS
+// 4. GESTÃO DE PROMESSAS E DISCURSOS COM IA (ANTHROPIC + FLUXO DE APROVAÇÃO)
 // ==============================================================================
+router.post(
+  '/discursos/gerar',
+  discursosController.gerarDiscursoComIA
+);
+
+router.patch(
+  '/discursos/:id/status',
+  discursosController.atualizarStatusDiscurso
+);
+
+router.get(
+  '/discursos/historico/:municipio',
+  discursosController.listarHistoricoMunicipio
+);
+
 router.get(
   '/discurso-territorializado/:municipio',
   discursosController.gerarDiscursoMunicipio

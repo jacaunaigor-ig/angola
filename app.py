@@ -315,43 +315,119 @@ with aba_prioridade:
 # ------------------------------------------------------------------------------
 with aba_discurso:
     st.subheader("🎤 Gerador de Discursos com IA (Com Fluxo de Aprovação Humana)")
-    st.markdown("**Princípio nº 3:** *IA Apoia, Humano Decide*. Todo discurso é rotulado como **RASCUNHO** até aprovação expressa do comitê.")
+    st.markdown("**Princípio nº 3:** *IA Apoia, Humano Decide*. Todo discurso é rotulado como **RASCUNHO** até aprovação expressa do comitê de campanha.")
 
-    territorio_discurso = st.selectbox("Escolha o Território:", options=df_territorio["nome"].tolist(), index=0)
+    col_disc_top1, col_disc_top2 = st.columns([2, 2])
+    with col_disc_top1:
+        territorio_discurso = st.selectbox("Escolha o Território do Comício:", options=df_territorio["nome"].tolist(), index=0)
+    with col_disc_top2:
+        diretrizes_comite = st.text_input("Diretrizes Específicas do Comitê:", value="Humildade, foco em água e emprego para a juventude")
+
     dados_ter = df_territorio[df_territorio["nome"] == territorio_discurso].iloc[0]
 
-    st.info(f"**Classificação Matemática:** {dados_ter['rotulo_zonamento']} | **Margem CNE:** {dados_ter.get('margem_apurada_perc', 0)}% | **Eleitorado Jovem:** {dados_ter.get('juventude_perc', 60)}%")
+    # Estado local de aprovação em session_state para demonstrar fluxo
+    chave_estado = f"discurso_estado_{territorio_discurso}"
+    if chave_estado not in st.session_state:
+        st.session_state[chave_estado] = {
+            "status": "RASCUNHO",
+            "revisor": None,
+            "comentarios": None,
+            "data_aprovacao": None
+        }
 
-    # Chamada à API para obter o discurso
+    estado_atual = st.session_state[chave_estado]
+
+    # Chamada para obter discurso da API ou gerar novo
+    col_gerar1, col_gerar2 = st.columns([1, 2])
+    with col_gerar1:
+        if st.button("⚡ Gerar Novo Rascunho com IA", use_container_width=True):
+            sucesso_ia, novo_disc = api.gerar_discurso_ia(
+                municipio=territorio_discurso,
+                nome_partido=nome_nosso_partido,
+                nome_oposicao=nome_oposicao,
+                diretrizes=diretrizes_comite
+            )
+            st.session_state[chave_estado]["status"] = "RASCUNHO"
+            st.session_state[chave_estado]["revisor"] = None
+            if sucesso_ia:
+                st.success("Novo rascunho gerado com sucesso!")
+            else:
+                st.info("Rascunho gerado pelo motor auditado de contingência.")
+
+    # Status Visual com Badge
+    badge_cor = {
+        "RASCUNHO": "#F97316",
+        "EM_REVISAO": "#38BDF8",
+        "APROVADO": "#10B981",
+        "REJEITADO": "#EF4444"
+    }.get(estado_atual["status"], "#F97316")
+
+    st.markdown(f"""
+    <div style="background:#1E293B; border-left:4px solid {badge_cor}; padding:10px 14px; border-radius:6px; margin:12px 0;">
+        <span style="font-size:12px; color:#94A3B8;">STATUS DE GOVERNANÇA:</span>
+        <strong style="color:{badge_cor}; margin-left:8px; font-size:14px;">{estado_atual['status']}</strong>
+        {f"<span style='color:#94A3B8; margin-left:14px;'>Revisor: {estado_atual['revisor']}</span>" if estado_atual['revisor'] else ""}
+    </div>
+    """, unsafe_allow_html=True)
+
     sucesso_disc, disc_api, prov_disc = api.obter_discurso_territorializado(territorio_discurso)
     estrategia = disc_api.get("estrategia_discurso", {})
 
-    st.markdown("#### 📝 Status do Conteúdo: `RASCUNHO — SUJEITO A REVISÃO HUMANA`")
-    
-    # Campo de Abertura do Discurso
     hook_texto = estrategia.get("abertura_hook", f"Povo trabalhador de {territorio_discurso}! Estamos aqui com honestidade para assumir compromissos com o futuro da nossa gente!")
-    novo_hook = st.text_area("Hook de Abertura Proposto pela IA:", value=hook_texto, height=100)
+    st.markdown("#### 🗣️ Hook de Abertura Recomendado:")
+    novo_hook = st.text_area("Texto de Abertura:", value=hook_texto, height=90)
 
-    # Promessas com Tag Obrigatória
+    # Compromissos com Tag Obrigatória
     st.markdown("#### 🚨 Compromissos Estruturados:")
-    st.caption("Qualquer proposta de compromisso deve ser auditada e receber a chancela [PROMESSA — REVISADA].")
-    
-    st.markdown("""
-    - **[PROMESSA — REVISAR]** Plano de Abastecimento Hídrico de Emergência com ramais de distribuição direta em 180 dias.
-    - **[PROMESSA — REVISAR]** Isenção de taxa de bancada para jovens comerciantes e microcrédito rotativo municipal.
-    - **[PROMESSA — REVISAR]** Iluminação pública com postes solares em todas as vias principais e paragens de táxis.
-    """)
+    st.caption("Todas as propostas contêm obrigatoriamente a tag **[PROMESSA — REVISAR]** para auditoria jurídica e orçamentária prévia.")
 
-    # Fluxo de Aprovação
-    col_ap1, col_ap2, col_ap3 = st.columns([1, 1, 2])
-    with col_ap1:
-        revisor = st.text_input("Nome do Revisor Responsável:", value="Coordenador de Comunicação")
-    with col_ap2:
+    propostas_api = estrategia.get("compromissos_prioritarios", [])
+    if propostas_api and len(propostas_api) > 0:
+        for p in propostas_api:
+            st.markdown(f"- **{p.get('proposta_chave', '[PROMESSA — REVISAR] Projeto de emergência')}**")
+    else:
+        st.markdown(f"""
+        - **[PROMESSA — REVISAR]** Plano de Abastecimento Hídrico de Emergência em {territorio_discurso} com ligações domiciliares nos primeiros 180 dias.
+        - **[PROMESSA — REVISAR]** Isenção de taxa de bancada para jovens comerciantes e microcrédito municipal simplificado.
+        - **[PROMESSA — REVISAR]** Iluminação pública com postes solares nas vias principais e paragens de táxis.
+        """)
+
+    # Mensagem da Juventude
+    st.markdown("#### 📱 Bloco Direcionado à Juventude (18-35 anos):")
+    st.info(f"Em {territorio_discurso}, os jovens representam {dados_ter.get('juventude_perc', 60)}% do eleitorado. Foco em formação profissional e conectividade.")
+
+    # Painel de Decisão Humana
+    st.markdown("---")
+    st.markdown("### ✍️ Fluxo de Revisão e Decisão Humana")
+    col_rev1, col_rev2 = st.columns([2, 1])
+    with col_rev1:
+        revisor_input = st.text_input("Nome do Revisor Responsável:", value=estado_atual["revisor"] or "Coordenador de Comunicação")
+        comentarios_input = st.text_area("Comentários / Ressalvas de Revisão:", value=estado_atual["comentarios"] or "", height=70)
+    with col_rev2:
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button("🔍 Enviar para Revisão", use_container_width=True):
+            st.session_state[chave_estado]["status"] = "EM_REVISAO"
+            st.session_state[chave_estado]["revisor"] = revisor_input
+            st.session_state[chave_estado]["comentarios"] = comentarios_input
+            api.atualizar_status_discurso(f"disc-{territorio_discurso}", "EM_REVISAO", revisor_input, comentarios_input)
+            st.rerun()
+
         if st.button("✅ Aprovar Discurso Oficial", use_container_width=True):
-            st.success(f"Discurso aprovado com sucesso por {revisor} e registrado na trilha de auditoria!")
-    with col_ap3:
-        if st.button("❌ Rejeitar e Solicitar Novo Rascunho", use_container_width=True):
-            st.warning("Rascunho devolvido para a equipe de redação tática com anotações.")
+            st.session_state[chave_estado]["status"] = "APROVADO"
+            st.session_state[chave_estado]["revisor"] = revisor_input
+            st.session_state[chave_estado]["comentarios"] = comentarios_input
+            st.session_state[chave_estado]["data_aprovacao"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            api.atualizar_status_discurso(f"disc-{territorio_discurso}", "APROVADO", revisor_input, comentarios_input)
+            st.success("Discurso aprovado oficialmente e registrado na trilha de auditoria!")
+            st.rerun()
+
+        if st.button("❌ Rejeitar Rascunho", use_container_width=True):
+            st.session_state[chave_estado]["status"] = "REJEITADO"
+            st.session_state[chave_estado]["revisor"] = revisor_input
+            st.session_state[chave_estado]["comentarios"] = comentarios_input
+            api.atualizar_status_discurso(f"disc-{territorio_discurso}", "REJEITADO", revisor_input, comentarios_input)
+            st.warning("Rascunho rejeitado e devolvido para a equipe com comentários.")
+            st.rerun()
 
 # ------------------------------------------------------------------------------
 # ABA 4: SIMULADOR DE METAS COM INCERTEZA (NUNCA NÚMERO ÚNICO)

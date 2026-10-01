@@ -127,6 +127,37 @@ class ApiClient:
 
         return False, {}, "SIMULADO (MODO DEMONSTRAÇÃO)"
 
+    def gerar_discurso_ia(self, municipio: str, nome_partido: str = "Nosso Partido", nome_oposicao: str = "Oposição Consolidada", diretrizes: str = "") -> Tuple[bool, Dict[str, Any]]:
+        """Solicita a geração de um novo rascunho de discurso via IA ao backend."""
+        try:
+            payload = {
+                "municipio": municipio,
+                "nome_partido": nome_partido,
+                "nome_oposicao": nome_oposicao,
+                "diretrizes_cliente": diretrizes
+            }
+            resp = requests.post(f"{self.base_url}/discursos/gerar", json=payload, timeout=8.0)
+            if resp.status_code in [200, 201]:
+                return True, resp.json().get("discurso", {})
+        except Exception as e:
+            pass
+        return False, {}
+
+    def atualizar_status_discurso(self, discurso_id: str, status: str, responsavel: str, comentarios: str = "") -> Tuple[bool, str]:
+        """Atualiza o status de aprovação humana de um discurso."""
+        try:
+            payload = {
+                "status": status,
+                "responsavel_revisao": responsavel,
+                "comentarios_revisao": comentarios
+            }
+            resp = requests.patch(f"{self.base_url}/discursos/{discurso_id}/status", json=payload, timeout=TIMEOUT_SECONDS)
+            if resp.status_code == 200:
+                return True, "Status atualizado com sucesso."
+            return False, resp.json().get("detalhes", "Erro ao atualizar status.")
+        except Exception as e:
+            return False, str(e)
+
     def simular_zonamento(self, votos_partido: int, votos_oposicao: int, total_validos: int, limiar_bastiao: float, limiar_oposicao: float) -> Dict[str, Any]:
         """Envia parâmetros para o motor de zonamento e retorna a classificação com fórmula."""
         try:

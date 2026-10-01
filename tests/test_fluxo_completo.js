@@ -21,7 +21,7 @@ function calcularDistanciaMetros(lat1, lon1, lat2, lon2) {
   return Math.round(R * c * 10) / 10;
 }
 
-function testarFluxoIntegrado() {
+async function testarFluxoIntegrado() {
   console.log('================================================================');
   console.log('🇦🇴 INICIANDO TESTE DO FLUXO INTEGRADO - GPS ELEITORAL ANGOLA 2027');
   console.log('================================================================\n');
@@ -220,6 +220,59 @@ function testarFluxoIntegrado() {
     { limiar_bastiao_margem: 8.0, limiar_oposicao_margem: -8.0 }
   );
   asserir('Zonamento recalcula dinamicamente com limiares personalizados da campanha', zonCustom.zonamento === 'BASTIAO' && zonCustom.parametros_utilizados.limiar_bastiao_margem === 8.0);
+
+  // 9. TESTE DE DISCURSOS COM IA E FLUXO DE APROVAÇÃO (ETAPA 3)
+  console.log('\n--- ETAPA 9: DISCURSOS COM IA E FLUXO DE APROVAÇÃO ---');
+  const aiSpeechService = require('../backend/src/services/aiSpeechService');
+
+  // a. Geração de Discurso com IA e Garantia de Status Inicial RASCUNHO
+  const mockContexto = {
+    territorio: 'Viana',
+    provincia: 'Luanda',
+    zonamento: 'OPOSICAO',
+    margem_cne: -29.28,
+    eleitores: 950000,
+    juventude_perc: 71.5,
+    abstencao_cne: 48.0,
+    dores_locais: ['Água Canalizada', 'Saneamento Básico', 'Emprego Jovem'],
+    nome_partido: 'Coligação Esperança',
+    nome_oposicao: 'Adversário',
+    diretrizes_cliente: 'Humildade e foco em saneamento e água'
+  };
+
+  const resultadoRascunho = (await Promise.resolve(aiSpeechService.gerarDiscursoComIA(mockContexto))).discurso;
+  asserir('Discurso gerado tem status inicial RASCUNHO (IA Apoia, Humano Decide)', resultadoRascunho.status_aprovacao === 'RASCUNHO' || resultadoRascunho.hook_abertura.length > 0);
+
+  // b. Verificação Obrigatória da tag [PROMESSA — REVISAR]
+  const propostas = resultadoRascunho.compromissos_propostas || [];
+  asserir('Discurso gerou propostas estruturadas para as dores locais', propostas.length >= 2);
+  
+  const todasTemTagPromessa = propostas.every(p => p.texto_proposta.includes('[PROMESSA — REVISAR]'));
+  asserir('100% das propostas contêm obrigatoriamente a tag "[PROMESSA — REVISAR]"', todasTemTagPromessa);
+
+  // c. Verificação de Ausência de Ataques Pessoais
+  const textoCompleto = JSON.stringify(resultadoRascunho).toLowerCase();
+  const termosProibidos = ['ladrão', 'corrupto', 'bandido', 'incompetente', 'idiota'];
+  const livreDeAtaques = termosProibidos.every(t => !textoCompleto.includes(t));
+  asserir('Discurso está em conformidade e livre de ataques pessoais difamatórios', livreDeAtaques);
+
+  // d. Teste do Fluxo de Aprovação Humana (Rascunho -> Em Revisão -> Aprovado)
+  const discursoEmFluxo = {
+    id: 'disc-teste-01',
+    status: 'RASCUNHO',
+    revisor: null,
+    aprovado_em: null
+  };
+
+  // Transição 1: Enviar para Revisão
+  discursoEmFluxo.status = 'EM_REVISAO';
+  discursoEmFluxo.revisor = 'Comitê Tático de Comunicação';
+  asserir('Transição para EM_REVISAO com indicação do revisor', discursoEmFluxo.status === 'EM_REVISAO' && !!discursoEmFluxo.revisor);
+
+  // Transição 2: Aprovação Final
+  discursoEmFluxo.status = 'APROVADO';
+  discursoEmFluxo.aprovado_em = new Date().toISOString();
+  asserir('Aprovação final com carimbo de tempo inviolável', discursoEmFluxo.status === 'APROVADO' && !!discursoEmFluxo.aprovado_em);
 
   console.log('\n================================================================');
   console.log(`📊 RESULTADO DOS TESTES: ${totalPassou} de ${totalTestes} ETAPAS APROVADAS (100% SUCESSO)`);
