@@ -871,9 +871,9 @@
       letter-spacing: 0.2px;
     }
 
-    /* Leaflet Dark Filter */
+    /* Leaflet Tile Styling */
     .leaflet-tile {
-      filter: brightness(0.65) invert(1) contrast(2.8) hue-rotate(205deg) saturate(0.25);
+      opacity: 0.95;
     }
   </style>
 </head>
@@ -1732,7 +1732,7 @@
       map = L.map('map', { zoomControl: false }).setView([-8.9167, 13.2667], 13);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
-        attribution: 'OSM'
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
       }).addTo(map);
 
       markerLayerGroup = L.layerGroup().addTo(map);

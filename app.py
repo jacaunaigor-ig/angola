@@ -407,8 +407,12 @@ with aba_mapa:
         csv_bytes = df_territorio.to_csv(index=False).encode('utf-8')
         st.download_button("📥 Exportar CSV", data=csv_bytes, file_name=f"matriz_{versao_selecionada}.csv", mime="text/csv", use_container_width=True)
 
-    # Renderização do Mapa Folium em Dark Matter
-    mapa = folium.Map(location=[-12.20, 17.50], zoom_start=6, tiles="CartoDB dark_matter")
+    # Renderização do Mapa Folium com OpenStreetMap Oficial
+    mapa = folium.Map(
+        location=[-12.20, 17.50],
+        zoom_start=6,
+        tiles="OpenStreetMap"
+    )
 
     def estilo_feature(feature):
         p = feature.get("properties", {})
@@ -431,9 +435,9 @@ with aba_mapa:
 
         return {
             "fillColor": cor,
-            "color": "#F8FAFC",
-            "weight": 1.4,
-            "fillOpacity": 0.68
+            "color": "#0F172A",
+            "weight": 2.0,
+            "fillOpacity": 0.58
         }
 
     folium.GeoJson(
