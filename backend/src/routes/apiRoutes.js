@@ -19,6 +19,12 @@ const { query } = require('../config/db');
 router.get('/health', async (req, res) => {
   const heapMb = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
   const uptimeSegundos = Math.round(process.uptime());
+  const observabilidade = {
+    uptime_segundos: uptimeSegundos,
+    uso_memoria_heap_mb: heapMb,
+    pid: process.pid,
+    plataforma: process.platform,
+  };
 
   try {
     const postgisCheck = await query('SELECT PostGIS_Full_Version() AS versao_postgis, NOW() AS horario_servidor;');
@@ -29,26 +35,16 @@ router.get('/health', async (req, res) => {
       base_dados: 'CONECTADA',
       postgis: postgisCheck.rows[0].versao_postgis,
       horario_servidor: postgisCheck.rows[0].horario_servidor,
-      observabilidade: {
-        uptime_segundos: uptimeSegundos,
-        uso_memoria_heap_mb: heapMb,
-        pid: process.pid,
-        plataforma: process.platform
-      }
+      observabilidade,
     });
   } catch (err) {
-    // Se o banco estiver fora, a API responde em modo degradado/demonstração
-    return res.status(200).json({
-      status: 'ONLINE_DEGRADADO',
+    return res.status(503).json({
+      status: 'DEGRADADO',
       versao_api: '2.0.0',
       ambiente: process.env.NODE_ENV || 'development',
-      base_dados: 'DESCONECTADA_MODO_DEMO',
-      aviso: 'Banco PostGIS inacessível; operando com dados auditados em cache local.',
-      observabilidade: {
-        uptime_segundos: uptimeSegundos,
-        uso_memoria_heap_mb: heapMb,
-        pid: process.pid
-      }
+      base_dados: 'DESCONECTADA',
+      aviso: 'PostgreSQL/PostGIS inacessível. O War Room pode operar com ficheiros locais auditados, mas a API não está saudável.',
+      observabilidade,
     });
   }
 });

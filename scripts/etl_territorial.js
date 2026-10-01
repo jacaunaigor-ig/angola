@@ -20,6 +20,11 @@ const BBOX_ANGOLA = {
   maxLat: -4.3
 };
 
+function sqlLiteral(valor) {
+  if (valor === null || valor === undefined) return 'NULL';
+  return `'${String(valor).replace(/'/g, "''")}'`;
+}
+
 function validarCoordenadaAngola(lon, lat) {
   if (typeof lon !== 'number' || typeof lat !== 'number' || isNaN(lon) || isNaN(lat)) {
     return { valido: false, motivo: 'Coordenadas não são números válidos.' };
@@ -121,8 +126,8 @@ ON CONFLICT (codigo) DO UPDATE SET ativo_para_campanha_2027 = EXCLUDED.ativo_par
   // Inserir Regra Padrão de Zonamento Matemático
   sqlBuffer += `INSERT INTO regras_zonamento (nome_regra, formula_codigo, descricao_formula, limiar_bastiao_margem, limiar_oposicao_margem, padrao_sistema, ativo)
 VALUES (
-    '${REGRAS_PADRAO.nome}',
-    '${REGRAS_PADRAO.codigo}',
+    '${REGRAS_PADRAO.nome.replace(/'/g, "''")}',
+    '${REGRAS_PADRAO.codigo.replace(/'/g, "''")}',
     '${REGRAS_PADRAO.formula_texto.replace(/'/g, "''")}',
     ${REGRAS_PADRAO.limiar_bastiao_margem},
     ${REGRAS_PADRAO.limiar_oposicao_margem},
@@ -186,9 +191,9 @@ VALUES (
     populacao_total, populacao_18_mais, juventude_perc, eleitores_registados_cne, proveniencia_dados, fonte_referencia, data_referencia, metadados
 ) VALUES (
     (SELECT id FROM versoes_malha WHERE codigo = 'DPA_2016_18P'),
-    '${prop.codigo_dpa}',
-    '${prop.nome}',
-    '${prop.nome.toUpperCase()}',
+    ${sqlLiteral(prop.codigo_dpa)},
+    ${sqlLiteral(prop.nome)},
+    ${sqlLiteral(String(prop.nome || '').toUpperCase())},
     'PROVINCIA',
     ST_SetSRID(ST_MakePoint(${cLon}, ${cLat}), 4326)::geography,
     ST_SetSRID(ST_GeomFromGeoJSON('${geomJsonStr}'), 4326),
@@ -199,7 +204,7 @@ VALUES (
     'OFICIAL',
     'CNE Eleições 2022 / INE Projeções População',
     '2022-08-29',
-    '${JSON.stringify({ capital: prop.capital, regiao: prop.regiao, zonamento_calculado: calculo.zonamento, margem_cne: calculo.margem_perc })}'
+    ${sqlLiteral(JSON.stringify({ capital: prop.capital, regiao: prop.regiao, zonamento_calculado: calculo.zonamento, margem_cne: calculo.margem_perc }))}
 ) ON CONFLICT (versao_malha_id, codigo_oficial) DO UPDATE SET
     populacao_total = EXCLUDED.populacao_total,
     populacao_18_mais = EXCLUDED.populacao_18_mais,
@@ -213,7 +218,7 @@ VALUES (
     votos_partido_referencia, votos_oposicao_referencia, votos_partido_referencia_perc, votos_oposicao_referencia_perc,
     margem_apurada_perc, zonamento_calculado, formula_explicativa, proveniencia, fonte_detalhada, data_referencia
 ) VALUES (
-    (SELECT id FROM unidades_territoriais WHERE codigo_oficial = '${prop.codigo_dpa}' AND versao_malha_id = (SELECT id FROM versoes_malha WHERE codigo = 'DPA_2016_18P')),
+    (SELECT id FROM unidades_territoriais WHERE codigo_oficial = ${sqlLiteral(prop.codigo_dpa)} AND versao_malha_id = (SELECT id FROM versoes_malha WHERE codigo = 'DPA_2016_18P')),
     2022,
     ${dadosCNE.eleitores_registados},
     ${dadosCNE.votantes_total},
@@ -251,9 +256,9 @@ VALUES (
     populacao_total, proveniencia_dados, fonte_referencia, data_referencia, metadados
 ) VALUES (
     (SELECT id FROM versoes_malha WHERE codigo = 'DPA_2024_21P'),
-    '${prop.codigo_dpa}',
-    '${prop.nome}',
-    '${prop.nome.toUpperCase()}',
+    ${sqlLiteral(prop.codigo_dpa)},
+    ${sqlLiteral(prop.nome)},
+    ${sqlLiteral(String(prop.nome || '').toUpperCase())},
     'PROVINCIA',
     ST_SetSRID(ST_MakePoint(${cLon}, ${cLat}), 4326)::geography,
     ST_SetSRID(ST_GeomFromGeoJSON('${geomJsonStr}'), 4326),
@@ -261,7 +266,7 @@ VALUES (
     'OFICIAL',
     'Lei da Divisão Político-Administrativa 2024',
     '2024-03-01',
-    '${JSON.stringify({ capital: prop.capital, nova_provincia: prop.codigo_dpa === 'AO-ICB' || prop.codigo_dpa === 'AO-MXL' || prop.codigo_dpa === 'AO-CDO' })}'
+    ${sqlLiteral(JSON.stringify({ capital: prop.capital, nova_provincia: prop.codigo_dpa === 'AO-ICB' || prop.codigo_dpa === 'AO-MXL' || prop.codigo_dpa === 'AO-CDO' }))}
 ) ON CONFLICT (versao_malha_id, codigo_oficial) DO UPDATE SET
     metadados = EXCLUDED.metadados;\n\n`;
   });
@@ -274,8 +279,8 @@ VALUES (
       sqlBuffer += `INSERT INTO correspondencia_territorial (
     unidade_origem_id, unidade_destino_id, tipo_relacao, notas_explicativas
 ) VALUES (
-    (SELECT id FROM unidades_territoriais WHERE nome = '${corr.provincia_2016}' AND versao_malha_id = (SELECT id FROM versoes_malha WHERE codigo = 'DPA_2016_18P') LIMIT 1),
-    (SELECT id FROM unidades_territoriais WHERE nome = '${dest.nome}' AND versao_malha_id = (SELECT id FROM versoes_malha WHERE codigo = 'DPA_2024_21P') LIMIT 1),
+    (SELECT id FROM unidades_territoriais WHERE nome = ${sqlLiteral(corr.provincia_2016)} AND versao_malha_id = (SELECT id FROM versoes_malha WHERE codigo = 'DPA_2016_18P') LIMIT 1),
+    (SELECT id FROM unidades_territoriais WHERE nome = ${sqlLiteral(dest.nome)} AND versao_malha_id = (SELECT id FROM versoes_malha WHERE codigo = 'DPA_2024_21P') LIMIT 1),
     '${sqlTipo}',
     'Transição DPA 2016 para DPA 2024: ${dest.tipo}'
 ) ON CONFLICT DO NOTHING;\n\n`;
@@ -286,6 +291,12 @@ VALUES (
   fs.mkdirSync(path.dirname(OUTPUT_REPORT_PATH), { recursive: true });
   fs.mkdirSync(path.dirname(OUTPUT_SQL_PATH), { recursive: true });
 
+  const totalAuditados = relatorio.auditoria_qualidade.total_registros_analisados || 0;
+  const foraSrid = relatorio.auditoria_qualidade.total_fora_srid_4326 || 0;
+  relatorio.auditoria_qualidade.conformidade_srid_4326_perc = totalAuditados
+    ? Number((((totalAuditados - foraSrid) / totalAuditados) * 100).toFixed(2))
+    : 0;
+
   fs.writeFileSync(OUTPUT_REPORT_PATH, JSON.stringify(relatorio, null, 2), 'utf-8');
   fs.writeFileSync(OUTPUT_SQL_PATH, sqlBuffer, 'utf-8');
 
@@ -293,7 +304,7 @@ VALUES (
   console.log(`✅ RELATÓRIO DE QUALIDADE GERADO: ${OUTPUT_REPORT_PATH}`);
   console.log(`✅ SCRIPT SQL CONSOLIDADO GERADO: ${OUTPUT_SQL_PATH}`);
   console.log(`📊 Total Registros Auditados: ${relatorio.auditoria_qualidade.total_registros_analisados}`);
-  console.log(`🧭 Conformidade SRID 4326: 100%`);
+  console.log(`🧭 Conformidade SRID 4326: ${relatorio.auditoria_qualidade.conformidade_srid_4326_perc}%`);
   console.log(`🗳️ Zonamento Calculado por Fórmula: ${relatorio.resumo_zonamento_calculado.bastioes} Bastiões, ${relatorio.resumo_zonamento_calculado.campos_batalha} Campos de Batalha, ${relatorio.resumo_zonamento_calculado.oposicao} Oposição.`);
   console.log('================================================================\n');
 

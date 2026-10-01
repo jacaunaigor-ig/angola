@@ -10,6 +10,12 @@ const BBOX_ANGOLA = {
   maxLat: -4.3,
 };
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function isUuid(valor) {
+  return typeof valor === 'string' && UUID_RE.test(valor.trim());
+}
+
 const SENTIMENTOS_VALIDOS = ['POSITIVO', 'NEUTRO', 'NEGATIVO'];
 const DORES_VALIDAS = [
   'AGUA',
@@ -76,10 +82,10 @@ function validarConsultaProximidade(req, res, next) {
 function validarSincronizacaoVisitas(req, res, next) {
   const { campanha_id, visitas } = req.body;
 
-  if (!campanha_id) {
+  if (!isUuid(campanha_id)) {
     return res.status(400).json({
-      erro: 'Identificador de campanha ausente.',
-      detalhes: 'O campo "campanha_id" (UUID) é obrigatório.',
+      erro: 'Identificador de campanha inválido.',
+      detalhes: 'O campo "campanha_id" deve ser um UUID válido.',
     });
   }
 
@@ -103,17 +109,17 @@ function validarSincronizacaoVisitas(req, res, next) {
     const v = visitas[i];
     const index = i + 1;
 
-    if (!v.id || typeof v.id !== 'string') {
+    if (!isUuid(v.id)) {
       return res.status(400).json({
         erro: `Item #${index} inválido.`,
-        detalhes: 'Cada visita deve conter um "id" UUIDv4 gerado localmente.',
+        detalhes: 'Cada visita deve conter um "id" UUID gerado localmente (sem prefixo urn:uuid:).',
       });
     }
 
-    if (!v.ativista_id || typeof v.ativista_id !== 'string') {
+    if (!isUuid(v.ativista_id)) {
       return res.status(400).json({
         erro: `Item #${index} inválido.`,
-        detalhes: 'Campo "ativista_id" é obrigatório em cada visita.',
+        detalhes: 'Campo "ativista_id" deve ser um UUID válido.',
       });
     }
 
@@ -152,5 +158,6 @@ function validarSincronizacaoVisitas(req, res, next) {
 module.exports = {
   validarConsultaProximidade,
   validarSincronizacaoVisitas,
+  isUuid,
   BBOX_ANGOLA,
 };

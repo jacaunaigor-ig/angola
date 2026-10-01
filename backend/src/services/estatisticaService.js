@@ -60,7 +60,7 @@ function calcularMargemErroAmostral(n, populacaoN = 1000000, proporcaoP = 0.5) {
     margem_erro_perc: margemErroPerc,
     nivel_confianca: '95%',
     representatividade,
-    texto_formatado: `n = ${tamanhoAmostra.toLocaleString()} (±${margemErroPerc} p.p., 95% de confiança)`,
+        texto_formatado: `n = ${tamanhoAmostra.toLocaleString('pt-PT')} (±${margemErroPerc} p.p., 95% de confiança)`,
     aviso_metodologico: `Amostra de ${tamanhoAmostra} entrevistas. Margem de erro de ±${margemErroPerc} pontos percentuais para um intervalo de confiança de 95%.`
   };
 }
