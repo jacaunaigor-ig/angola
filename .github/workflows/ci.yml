@@ -1,0 +1,55 @@
+name: CI - GPS de Marketing Político Angola 2027
+
+on:
+  push:
+    branches: [ main, feat/plataforma-v2 ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test-and-validate:
+    name: Testes Automatizados e Auditoria de Qualidade
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout do Repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Configurar Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Instalar Dependências do Backend
+        run: |
+          cd backend
+          npm ci
+
+      - name: Instalar Dependências do Python
+        run: |
+          pip install -r requirements.txt
+
+      - name: Executar Pipeline ETL de Dados Territoriais
+        run: |
+          node scripts/etl_territorial.js
+
+      - name: Executar Suíte de Testes de Integração e Segurança
+        run: |
+          node tests/test_fluxo_completo.js
+
+      - name: Validar Sintaxe e Compilação dos Arquivos Python
+        run: |
+          python -m py_compile app.py api_client.py
+
+      - name: Auditoria de Segurança de Dependências (NPM Audit)
+        run: |
+          cd backend
+          npm audit --audit-level=high || true
