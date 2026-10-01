@@ -1,108 +1,122 @@
-# 🇦🇴 GPS de Marketing Político — Angola 2027
+# 🇦🇴 GPS de Marketing Político — Angola 2027 (Plataforma v2)
 
-> **Plataforma B2B de Inteligência Territorial, Micro-Targeting Eleitoral, Operações Mobile Offline-First e Painel de Apuramento do Dia D.**
+> **Plataforma B2B Demonstrável e Vendável de Inteligência Territorial, Micro-Targeting Eleitoral, Operações Mobile Offline-First, IA com Governança Humana e Apuramento Paralelo do Dia D.**
 
----
-
-## 🏛️ Visão Geral da Arquitetura
-
-O sistema é desenhado especificamente para a realidade territorial, demográfica e de infraestrutura de conectividade das Eleições Gerais de Angola em 2027:
-
-1. **Inteligência Territorial e Micro-Targeting:** Classificação histórica de assembleias e municípios (*🟢 Bastiões Seguros, 🟡 Campos de Batalha, 🔴 Zonas de Oposição*), com camada de demografia jovem focada no eleitorado de 18 a 35 anos.
-2. **Logística de Terreno Offline-First:** Coleta porta-a-porta via aplicativo móvel resiliente, permitindo aos brigadistas registrar visitas sem acesso à internet, com sincronização atómica e idempotente (`BEGIN / COMMIT`, `ON CONFLICT (id) DO NOTHING`).
-3. **Gestão de Promessas e Discursos:** Cruzamento das carências registradas em campo (*Água, Energia, Emprego, Saneamento, Estradas, Saúde*) para geração automatizada da cábula do candidato por município.
-4. **Painel do Dia D & Apuramento Paralelo:** Telemetria de afluência horária e submissão fotográfica de atas com validação de geofencing (**PostGIS ST_DWithin ≤ 300m**) e cálculo de hash **SHA-256** anti-fraude.
+[![CI - Testes e Qualidade](https://github.com/jacaunaigor-ig/angola/actions/workflows/ci.yml/badge.svg)](https://github.com/jacaunaigor-ig/angola/actions)
+![Status dos Testes](https://img.shields.io/badge/Testes-61%2F61%20Passaram-10B981)
+![PostGIS](https://img.shields.io/badge/PostGIS-SRID%204326-38BDF8)
+![Segurança](https://img.shields.io/badge/Segurança-JWT%20%7C%20RBAC%20%7C%20RLS-818CF8)
 
 ---
 
-## 📦 Estrutura do Projeto
+## 🏛️ Princípios Inegociáveis da Plataforma
+
+1. **Honestidade dos Dados:** Cada número e mapa possui etiquetação de proveniência (`OFICIAL`, `ESTIMADO`, `SIMULADO`). Quando o banco está desconectado, o sistema assume explicitamente o selo **`MODO DEMONSTRAÇÃO (DADOS AUDITADOS)`**.
+2. **Agregação e Privacidade:** Operamos sob a Lei n.º 22/11 de Angola. As visitas de campo sofrem perturbação proposital de coordenadas (~110m) e não gravam nomes, números de BI ou preferências individuais.
+3. **IA Apoia, Humano Decide:** Discursos gerados com Anthropic Claude são rotulados obrigatoriamente como **`RASCUNHO`** e toda proposta recebe a chancela obrigatória **`[PROMESSA — REVISAR]`**, exigindo aprovação expressa do comitê de campanha.
+4. **Neutralidade Técnica:** Rótulos da campanha ("Nosso Partido", "Oposição Consolidada"), cores e limiares de margem são 100% configuráveis.
+5. **Transparência Matemática:** O zonamento político é calculado por fórmula auditável e visível ($\text{Margem} = \% \text{Partido} - \% \text{Oponente}$), eliminando classificações subjetivas digitadas à mão.
+
+---
+
+## 📦 Estrutura do Repositório
 
 ```text
 projeto_angola/
+├── .github/workflows/ci.yml             # Pipeline de CI (Lint + Testes + Compilação + Audit)
 ├── backend/                              # API RESTful em Node.js e Express
+│   ├── migrations/                      # 6 Migrations versionadas (node-pg-migrate)
 │   ├── src/
 │   │   ├── config/db.js                 # Pool PostgreSQL resiliente
 │   │   ├── controllers/
-│   │   │   ├── visitasController.js     # Sincronização offline atómica
-│   │   │   ├── locaisVotoController.js  # Consultas espaciais PostGIS
-│   │   │   ├── dashboardController.js   # Resumo tático do BottomSheet
-│   │   │   ├── discursosController.js   # Cábula e promessas territorializadas
-│   │   │   └── warRoomController.js     # War Room e apuramento do Dia D
-│   │   └── server.js                    # Inicialização e Graceful Shutdown
-│   ├── Dockerfile                       # Container do Backend
+│   │   │   ├── visitasController.js     # Sincronização offline-first com controle de qualidade
+│   │   │   ├── locaisVotoController.js  # Consultas espaciais PostGIS (ST_DWithin em metros)
+│   │   │   ├── dashboardController.js   # Resumo tático com estatística amostral (n e margem)
+│   │   │   ├── discursosController.js   # Discursos com IA (Anthropic) e fluxo de aprovação
+│   │   │   ├── territorioController.js  # Malha versionada DPA 2016/2024 e De-Para
+│   │   │   └── warRoomController.js     # War Room, apuramento Dia D e casos jurídicos
+│   │   ├── middleware/
+│   │   │   ├── auth.js                  # Autenticação JWT, perfis RBAC e Rate Limiting
+│   │   │   ├── validator.js             # Validação estrita de esquemas e limites
+│   │   │   └── errorHandler.js          # Tratamento centralizado de erros
+│   │   ├── services/
+│   │   │   ├── aiSpeechService.js       # Integração com Anthropic Claude (System Prompt auditado)
+│   │   │   ├── zonamentoService.js      # Motor matemático transparente de zonamento
+│   │   │   └── estatisticaService.js    # Cálculo formal de margem de erro com FPCF (n e e)
+│   │   ├── utils/logger.js              # Logs estruturados em JSON com sanitização de segredos
+│   │   └── server.js                    # Inicialização com rate limiter e observabilidade
 │   └── tests/api_requests.http          # Coleção de testes REST
-├── database/                            # Scripts SQL PostgreSQL / PostGIS
-│   ├── 01_schema_postgis.sql            # Tabelas, enums, triggers e índices GiST/GIN
-│   ├── 02_seed_angola_data.sql          # Dados de teste (Luanda, Huambo, Lobito)
-│   └── 03_seed_municipios_angola.sql    # Matriz oficial de municípios e assembleias
+├── data/
+│   ├── raw/                             # Dados brutos oficiais com proveniência auditada
+│   │   ├── README.md                    # Dicionário de dados brutos
+│   │   ├── malha_angola_dpa2016.geojson # Malha das 18 províncias históricas (Lei 18/16)
+│   │   ├── malha_angola_dpa2024.geojson # Malha das 21 províncias da DPA 2024
+│   │   ├── de_para_dpa_2016_2024.json   # Tabela de correspondência territorial
+│   │   ├── populacao_projecoes_ine.json # Projeções oficiais do INE Angola (18+ e juventude)
+│   │   └── resultados_eleitorais_cne_2022.json # Resultados oficiais CNE das Eleições 2022
+│   └── relatorio_qualidade_carga.json   # Relatório emitido pelo ETL (100% SRID 4326)
+├── database/                            # Scripts de migração e cargas SQL
+│   ├── 01_schema_postgis.sql            # Esquema base e funções espaciais
+│   ├── 02_seed_angola_data.sql          # Dados de teste Luanda, Huambo e Lobito
+│   ├── 03_seed_municipios_angola.sql    # Matriz oficial CNE
+│   └── 04_carga_territorial_oficial.sql # Carga gerada pelo ETL com DPA 2016/2024
+├── docs/                                # Documentação Técnica e de Negócio
+│   ├── auditoria.md                     # Relatório de auditoria técnica (Passo 0)
+│   ├── legal.md                         # Marco legal eleitoral e conformidade com a CNE
+│   ├── privacidade.md                   # Política de minimização, retenção e privacidade
+│   └── demo_guide.md                    # Roteiro de demonstração comercial e vendas B2B
 ├── mobile/                              # Aplicação Móvel & Simulador
 │   ├── App.js                           # App React Native / Expo
 │   ├── preview.html                     # Simulador Mobile interativo
-│   └── src/
-│       ├── screens/                     # 3 Ecrãs: Mapa, Porta-a-Porta e Dia D
-│       ├── services/offlineStorage.js   # Gestão de fila offline e UUIDv4
-│       └── theme/theme.js               # Design System Dark Mode (#0F172A)
-├── app.py                               # Sala de Guerra Executiva (Streamlit Dark Mode)
-├── docker-compose.yml                   # Orquestração: PostGIS + API + Streamlit + Nginx
-├── render.yaml                          # Blueprint para Deploy 1-Click no Render.com
-└── tests/test_fluxo_completo.js         # Suíte de 20 testes de integração (100% OK)
+│   └── src/screens/                     # 3 Ecrãs: Mapa, Porta-a-Porta e Dia D
+├── scripts/
+│   ├── etl_territorial.js               # Pipeline ETL com auditoria de qualidade
+│   └── integrar_cartografia.js          # Conversão cartográfica
+├── app.py                               # War Room Executivo Web (Streamlit Dark Mode)
+├── api_client.py                        # Cliente HTTP da API para o War Room
+├── docker-compose.yml                   # Orquestração de microsserviços
+├── render.yaml                          # Blueprint de deploy em nuvem
+├── requirements.txt                     # Dependências Python
+└── tests/test_fluxo_completo.js         # Suíte com 61 testes automatizados (100% OK)
 ```
 
 ---
 
-## 🚀 Como Executar Localmente
+## 🚀 Como Executar
 
-### Opção 1: Via Docker Compose (Recomendado para Produção)
-
-```bash
-# Inicia PostGIS, Backend Node.js, War Room Streamlit e Simulador Mobile
-docker compose up -d
-```
-- **Painel War Room (Streamlit):** [http://localhost:8501](http://localhost:8501)
-- **API RESTful (Node.js):** [http://localhost:3001/api/health](http://localhost:3001/api/health)
-- **Simulador Mobile:** [http://localhost:8080](http://localhost:8080)
-
----
-
-### Opção 2: Execução Manual dos Serviços
-
-#### 1. Base de Dados (PostgreSQL + PostGIS)
-Execute os scripts da pasta `database/` no seu banco:
-```bash
-psql -U postgres -d angola_geomarketing -f database/01_schema_postgis.sql
-psql -U postgres -d angola_geomarketing -f database/02_seed_angola_data.sql
-psql -U postgres -d angola_geomarketing -f database/03_seed_municipios_angola.sql
-```
-
-#### 2. Backend Node.js
-```bash
-cd backend
-npm install
-npm run dev
-```
-
-#### 3. Painel Executivo War Room (Streamlit)
-```bash
-pip install -r requirements.txt
-streamlit run app.py
-```
-
-#### 4. Testes de Integração Ponta a Ponta
+### 1. Suíte de Testes Automatizada (61 Testes de Integração)
 ```bash
 node tests/test_fluxo_completo.js
 ```
 
+### 2. Executar o Pipeline ETL Territorial
+```bash
+node scripts/etl_territorial.js
+```
+
+### 3. Iniciar o Backend API (Node.js + Express)
+```bash
+cd backend
+npm install
+npm run migrate:up   # Aplica as 6 migrations versionadas
+npm run dev          # Inicia servidor na porta 3001
+```
+
+### 4. Iniciar a Sala de Guerra (Streamlit Dark Mode)
+```bash
+pip install -r requirements.txt
+streamlit run app.py
+```
+Acesse no navegador: [http://localhost:8501](http://localhost:8501)
+
+### 5. Simulador Mobile Interativo
+Abra com duplo clique no navegador: `mobile/preview.html`
+
 ---
 
-## 🎨 Design System Tático (Dark Mode)
+## 📖 Documentação Adicional
 
-- **Fundo Principal:** `#0F172A` (Azul-Noite profundo)
-- **Bastiões Seguros:** `#10B981` (Verde Esmeralda)
-- **Campos de Batalha:** `#F97316` (Laranja Alerta)
-- **Zonas Críticas (Oposição):** `#EF4444` (Vermelho Carmim)
-- **Tipografia:** `Inter, SF Pro, system-ui`
-
----
-
-## 📄 Licença
-Distribuído sob licença proprietária para uso em campanhas e consultoria política.
+- [Relatório de Auditoria Técnica](docs/auditoria.md)
+- [Guia de Demonstração e Vendas B2B](docs/demo_guide.md)
+- [Marco Jurídico e Legislação Eleitoral CNE](docs/legal.md)
+- [Política de Privacidade e Retenção de Dados](docs/privacidade.md)
