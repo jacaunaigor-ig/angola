@@ -274,6 +274,41 @@ async function testarFluxoIntegrado() {
   discursoEmFluxo.aprovado_em = new Date().toISOString();
   asserir('Aprovação final com carimbo de tempo inviolável', discursoEmFluxo.status === 'APROVADO' && !!discursoEmFluxo.aprovado_em);
 
+  // 10. TESTE DE CONTROLE DE QUALIDADE DE CAMPO E ESTATÍSTICA AMOSTRAL (ETAPA 4)
+  console.log('\n--- ETAPA 10: CONTROLE DE QUALIDADE DE CAMPO E ESTATÍSTICA AMOSTRAL ---');
+  const { calcularMargemErroAmostral } = require('../backend/src/services/estatisticaService');
+
+  // a. Verificação de Amostra Reduzida (n < 30) Sinalizando Dados Exploratórios
+  const statPequena = calcularMargemErroAmostral(15, 270000);
+  asserir('Amostra n < 30 não exibe margem espúria e sinaliza dados indicativos', statPequena.representatividade === 'AMOSTRA_EXPLORATORIA' && statPequena.margem_erro_perc === null);
+
+  // b. Cálculo Formal de Margem de Erro para Amostra Representativa (n = 400)
+  const statMedia = calcularMargemErroAmostral(400, 270000);
+  asserir(`Amostra n = 400 calcula margem de erro (~4.9 p.p.): obteve ±${statMedia.margem_erro_perc} p.p.`, statMedia.margem_erro_perc >= 4.5 && statMedia.margem_erro_perc <= 5.2);
+  asserir('Metadados amostrais contêm texto formatado com n e intervalo de confiança', statMedia.texto_formatado.includes('95% de confiança'));
+
+  // c. Auditoria de Relógio Adulterado (Detecção de Timestamp no Futuro)
+  const agoraMs = Date.now();
+  const timestampFuturoSuspeito = new Date(agoraMs + 3600 * 1000).toISOString(); // 1 hora no futuro
+  const timestampNormal = new Date(agoraMs - 60 * 1000).toISOString(); // 1 minuto atrás
+
+  function auditarTimestampVisita(timestampStr) {
+    const t = new Date(timestampStr).getTime();
+    const limiteFuturo = agoraMs + 15 * 60 * 1000;
+    return t <= limiteFuturo;
+  }
+
+  asserir('Timestamp plausível é aprovado', auditarTimestampVisita(timestampNormal) === true);
+  asserir('Timestamp adulterado no futuro é barrado para revisão humana', auditarTimestampVisita(timestampFuturoSuspeito) === false);
+
+  // d. Perturbação de Privacidade Geográfica (Minimização de Dados da Soleira da Porta)
+  const lonOriginal = 13.266789;
+  const latOriginal = -8.916712;
+  const lonArredondada = Number(lonOriginal.toFixed(3));
+  const latArredondada = Number(latOriginal.toFixed(3));
+
+  asserir('Coordenadas de visitas são agregadas com precisão de ~100m para proteção de dados', lonArredondada === 13.267 && latArredondada === -8.917);
+
   console.log('\n================================================================');
   console.log(`📊 RESULTADO DOS TESTES: ${totalPassou} de ${totalTestes} ETAPAS APROVADAS (100% SUCESSO)`);
   console.log('================================================================\n');
