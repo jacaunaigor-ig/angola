@@ -6,6 +6,7 @@ const locaisVotoController = require('../controllers/locaisVotoController');
 const dashboardController = require('../controllers/dashboardController');
 const discursosController = require('../controllers/discursosController');
 const warRoomController = require('../controllers/warRoomController');
+const territorioController = require('../controllers/territorioController');
 const {
   validarConsultaProximidade,
   validarSincronizacaoVisitas,
@@ -88,6 +89,34 @@ router.post(
 router.get(
   '/dia-d/apuramento-paralelo',
   warRoomController.obterApuramentoParalelo
+);
+
+// ==============================================================================
+// 6. INTELIGÊNCIA TERRITORIAL OFICIAL & ZONAMENTO TRANSPARENTE (DPA 2016 / 2024)
+// ==============================================================================
+router.get(
+  '/territorio/relatorio-qualidade',
+  territorioController.obterRelatorioQualidade
+);
+
+router.get(
+  '/territorio/versoes',
+  territorioController.listarVersoesMalha
+);
+
+router.get(
+  '/territorio/correspondencia',
+  territorioController.obterCorrespondencia
+);
+
+router.get(
+  '/territorio/unidades',
+  territorioController.listarUnidades
+);
+
+router.post(
+  '/zonamento/simular',
+  territorioController.simularZonamento
 );
 
 module.exports = router;

@@ -174,6 +174,53 @@ function testarFluxoIntegrado() {
   asserir(`Filtro de segurança identificou ${totalSuspeitas} ata suspeita para impugnação`, totalSuspeitas === 1);
   asserir('Cálculo percentual consolidado sem perda de precisão', typeof percVitoriaProjetada === 'number');
 
+  // 8. TESTE DE DADOS TERRITORIAIS VERSIONADOS, ETL E ZONAMENTO TRANSPARENTE (ETAPA 1)
+  console.log('\n--- ETAPA 8: DADOS TERRITORIAIS VERSIONADOS, ETL E ZONAMENTO TRANSPARENTE ---');
+  const { calcularZonamento, REGRAS_PADRAO } = require('../backend/src/services/zonamentoService');
+
+  // a. Validação do Relatório de Qualidade do ETL
+  const reportPath = path.join(__dirname, '..', 'data', 'relatorio_qualidade_carga.json');
+  asserir('Relatório de qualidade de carga ETL gerado e presente', fs.existsSync(reportPath));
+
+  const relatorioData = JSON.parse(fs.readFileSync(reportPath, 'utf-8'));
+  asserir('ETL auditou com 100% de conformidade SRID 4326', relatorioData.auditoria_qualidade.conformidade_srid_4326_perc === 100);
+  asserir('ETL não detectou geometrias inválidas nem nulos obrigatórios', relatorioData.auditoria_qualidade.total_geometrias_invalidas === 0 && relatorioData.auditoria_qualidade.total_nulos_detectados === 0);
+
+  // b. Validação da Malha Versionada (DPA 2016 com 18 províncias vs DPA 2024 com 21 províncias)
+  const dpa2016Path = path.join(__dirname, '..', 'data', 'raw', 'malha_angola_dpa2016.geojson');
+  const dpa2024Path = path.join(__dirname, '..', 'data', 'raw', 'malha_angola_dpa2024.geojson');
+  const deParaPath = path.join(__dirname, '..', 'data', 'raw', 'de_para_dpa_2016_2024.json');
+
+  const dpa2016 = JSON.parse(fs.readFileSync(dpa2016Path, 'utf-8'));
+  const dpa2024 = JSON.parse(fs.readFileSync(dpa2024Path, 'utf-8'));
+  const dePara = JSON.parse(fs.readFileSync(deParaPath, 'utf-8'));
+
+  asserir(`DPA 2016 contém exatamente 18 províncias históricas (${dpa2016.features.length})`, dpa2016.features.length === 18);
+  asserir(`DPA 2024 contém exatamente 21 províncias (${dpa2024.features.length})`, dpa2024.features.length === 21);
+  
+  const novasProvincias = ['Icolo e Bengo', 'Moxico Leste', 'Cuando'];
+  const todasCriadas = novasProvincias.every(np => dpa2024.features.some(f => f.properties.nome === np));
+  asserir('DPA 2024 contempla as 3 novas províncias (Icolo e Bengo, Moxico Leste, Cuando)', todasCriadas);
+  asserir('Tabela de correspondência De-Para mapeia desmembramentos territoriais', dePara.correspondencias_provincias.length >= 18);
+
+  // c. Validação do Cálculo Determinístico de Zonamento (Sem Classificações Manuais)
+  const zonLuanda = calcularZonamento({ votos_partido: 783100, votos_oposicao: 1471600, total_validos: 2351200 });
+  asserir('Zonamento Luanda (-29.28% <= -15%): OPOSICAO calculado matematicamente', zonLuanda.zonamento === 'OPOSICAO' && zonLuanda.margem_perc === -29.28);
+  asserir('Zonamento Luanda contém fórmula explicativa visível', zonLuanda.formula_aplicada.includes('Margem de -29.28%'));
+
+  const zonHuambo = calcularZonamento({ votos_partido: 257500, votos_oposicao: 248890, total_validos: 522000 });
+  asserir('Zonamento Huambo (+1.65% entre -15% e +15%): CAMPO_BATALHA calculado matematicamente', zonHuambo.zonamento === 'CAMPO_BATALHA' && zonHuambo.margem_perc === 1.65);
+
+  const zonHuila = calcularZonamento({ votos_partido: 388456, votos_oposicao: 164249, total_validos: 581000 });
+  asserir('Zonamento Huíla (+38.59% >= +15%): BASTIAO calculado matematicamente', zonHuila.zonamento === 'BASTIAO' && zonHuila.margem_perc === 38.59);
+
+  // d. Validação de Limiares Configuráveis por Campanha
+  const zonCustom = calcularZonamento(
+    { votos_partido: 550, votos_oposicao: 450, total_validos: 1000 },
+    { limiar_bastiao_margem: 8.0, limiar_oposicao_margem: -8.0 }
+  );
+  asserir('Zonamento recalcula dinamicamente com limiares personalizados da campanha', zonCustom.zonamento === 'BASTIAO' && zonCustom.parametros_utilizados.limiar_bastiao_margem === 8.0);
+
   console.log('\n================================================================');
   console.log(`📊 RESULTADO DOS TESTES: ${totalPassou} de ${totalTestes} ETAPAS APROVADAS (100% SUCESSO)`);
   console.log('================================================================\n');
