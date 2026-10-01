@@ -3,126 +3,231 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>GPS Eleitoral Angola 2027 — Simulador Mobile Interativo</title>
-  <!-- Leaflet CSS para Mapa Vetorial Leve -->
+  <title>GPS Eleitoral Angola 2027 — Mobile Flagship Interface</title>
+  
+  <!-- Leaflet CSS & JS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <!-- Google Fonts: Inter -->
+  
+  <!-- Google Fonts: Plus Jakarta Sans & Inter -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+
   <style>
     :root {
-      --bg: #0F172A;
-      --surface: #1E293B;
-      --surface-elevated: #334155;
-      --border: #334155;
+      --bg: #080D1A;
+      --surface: rgba(18, 27, 47, 0.85);
+      --surface-solid: #121B2F;
+      --surface-elevated: #1E2B45;
+      --surface-hover: #263554;
+      --border: rgba(255, 255, 255, 0.08);
+      --border-focus: #38BDF8;
       --bastaio: #10B981;
+      --bastaio-glow: rgba(16, 185, 129, 0.25);
       --batalha: #F97316;
+      --batalha-glow: rgba(249, 115, 22, 0.25);
       --oposicao: #EF4444;
+      --oposicao-glow: rgba(239, 68, 68, 0.25);
       --accent: #38BDF8;
+      --accent-glow: rgba(56, 189, 248, 0.3);
       --text-primary: #F8FAFC;
       --text-secondary: #94A3B8;
+      --text-muted: #64748B;
+      --glass: rgba(18, 27, 47, 0.75);
+      --glass-blur: blur(16px);
     }
 
     * {
       box-sizing: border-box;
       margin: 0;
       padding: 0;
-      font-family: 'Inter', -apple-system, sans-serif;
+      font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, sans-serif;
       -webkit-tap-highlight-color: transparent;
+      user-select: none;
     }
 
     body {
-      background-color: #030712;
+      background: radial-gradient(circle at 50% 20%, #0F1D38 0%, #050811 100%);
       display: flex;
       justify-content: center;
       align-items: center;
       min-height: 100vh;
       color: var(--text-primary);
-      padding: 10px;
+      padding: 16px;
+      overflow-x: hidden;
     }
 
-    /* Moldura Mobile do Simulador */
+    /* Container com Moldura de Smartphone Flagship Titanium */
+    .device-wrapper {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
     .mobile-frame {
       width: 100%;
-      max-width: 414px;
-      height: 94vh;
-      max-height: 896px;
+      max-width: 416px;
+      height: 890px;
       background-color: var(--bg);
       display: flex;
       flex-direction: column;
       position: relative;
       overflow: hidden;
-      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
-      border: 1px solid #1e293b;
+      border-radius: 48px;
+      border: 10px solid #1E293B;
+      box-shadow: 
+        0 0 0 2px rgba(255, 255, 255, 0.1),
+        0 25px 60px -15px rgba(0, 0, 0, 0.8),
+        0 0 40px -10px var(--accent-glow);
     }
 
-    @media (min-width: 500px) {
-      .mobile-frame {
-        border-radius: 40px;
-        border: 8px solid #1e293b;
-      }
-    }
-
-    /* Top Bar */
-    .top-bar {
+    /* Barra Superior / Dynamic Island */
+    .status-bar-container {
+      background: rgba(8, 13, 26, 0.85);
+      backdrop-filter: var(--glass-blur);
+      padding: 8px 18px 4px 18px;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 12px 16px;
-      background-color: var(--surface);
+      z-index: 2000;
       border-bottom: 1px solid var(--border);
-      z-index: 1000;
+    }
+
+    .status-time {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: -0.2px;
+      color: var(--text-primary);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .dynamic-island {
+      background: #000000;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 20px;
+      padding: 4px 12px;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .dynamic-island:hover {
+      transform: scale(1.04);
+      border-color: var(--accent);
+    }
+
+    .island-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--bastaio);
+      box-shadow: 0 0 8px var(--bastaio);
+      animation: pulseGlow 2s infinite;
+    }
+
+    .island-text {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      color: #F8FAFC;
+    }
+
+    .status-icons {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    @keyframes pulseGlow {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.85); }
+    }
+
+    /* Sub-header com Seletor e Indicador de Nuvem */
+    .sub-nav {
+      background: var(--surface);
+      backdrop-filter: var(--glass-blur);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border);
+      z-index: 1500;
+    }
+
+    .app-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-logo {
+      width: 32px;
+      height: 32px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #10B981, #0284C7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
     }
 
     .brand-title {
       font-size: 13px;
       font-weight: 800;
-      letter-spacing: 0.5px;
+      letter-spacing: 0.3px;
       color: var(--text-primary);
     }
 
-    .brand-sub {
+    .brand-meta {
       font-size: 10px;
-      color: var(--text-secondary);
+      color: var(--accent);
+      font-weight: 600;
     }
 
-    .sync-badge {
-      font-size: 11px;
-      font-weight: 600;
-      padding: 4px 10px;
-      border-radius: 9999px;
+    .sync-pill-btn {
       background: var(--surface-elevated);
       border: 1px solid var(--border);
-      cursor: pointer;
+      padding: 5px 12px;
+      border-radius: 9999px;
       display: flex;
       align-items: center;
       gap: 6px;
+      cursor: pointer;
       transition: all 0.2s;
     }
 
-    .sync-badge:hover {
-      background: #475569;
+    .sync-pill-btn:hover {
+      background: var(--surface-hover);
+      border-color: var(--accent);
     }
 
     .sync-dot {
-      width: 8px;
-      height: 8px;
+      width: 7px;
+      height: 7px;
       border-radius: 50%;
       background: var(--bastaio);
     }
 
     .sync-dot.offline {
       background: var(--batalha);
-      animation: pulse 1.5s infinite;
+      animation: pulseGlow 1.2s infinite;
     }
 
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.4; }
+    .sync-text {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-primary);
     }
 
-    /* Conteúdo dos Ecrãs */
+    /* Container de Ecrãs */
     .screens-container {
       flex: 1;
       position: relative;
@@ -136,6 +241,7 @@
       flex: 1;
       overflow-y: auto;
       flex-direction: column;
+      position: relative;
     }
 
     .screen.active {
@@ -143,731 +249,999 @@
     }
 
     /* ========================================================
-       ECRÃ 1: MAPA & BOTTOMSHEET
+       ECRÃ 1: MAPA TÁTICO & BOTTOMSHEET ULTRA-MODERNO
        ======================================================== */
-    .search-box {
-      padding: 10px 14px;
-      background-color: var(--surface);
+    .map-hud-bar {
+      position: absolute;
+      top: 12px;
+      left: 14px;
+      right: 14px;
       display: flex;
       gap: 8px;
-      border-bottom: 1px solid var(--border);
-      z-index: 500;
+      z-index: 600;
     }
 
-    .search-input {
+    .hud-search-input {
       flex: 1;
-      background-color: var(--surface-elevated);
+      background: rgba(18, 27, 47, 0.88);
+      backdrop-filter: var(--glass-blur);
       border: 1px solid var(--border);
-      border-radius: 10px;
+      border-radius: 12px;
       color: var(--text-primary);
-      padding: 8px 12px;
-      font-size: 13px;
+      padding: 9px 14px;
+      font-size: 12px;
       outline: none;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
     }
 
-    .btn-filter {
-      background-color: var(--accent);
-      color: #0F172A;
-      font-weight: 700;
+    .hud-search-input:focus {
+      border-color: var(--accent);
+    }
+
+    .hud-btn {
+      background: rgba(56, 189, 248, 0.9);
+      color: #080D1A;
+      font-weight: 800;
       font-size: 12px;
       padding: 0 14px;
-      border-radius: 10px;
+      border-radius: 12px;
       border: none;
       cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.2s;
     }
 
-    .quick-pills {
+    .hud-btn:hover {
+      background: #7DD3FC;
+    }
+
+    .quick-chips-row {
+      position: absolute;
+      top: 58px;
+      left: 14px;
+      right: 14px;
       display: flex;
       gap: 6px;
-      padding: 8px 14px;
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
       overflow-x: auto;
       white-space: nowrap;
-      z-index: 500;
+      z-index: 600;
+      padding-bottom: 4px;
     }
 
-    .quick-pill {
-      font-size: 11px;
-      padding: 4px 10px;
-      border-radius: 9999px;
-      background: var(--surface-elevated);
-      color: var(--text-secondary);
+    .quick-chips-row::-webkit-scrollbar { display: none; }
+
+    .chip-item {
+      background: rgba(18, 27, 47, 0.85);
+      backdrop-filter: blur(12px);
       border: 1px solid var(--border);
+      color: var(--text-secondary);
+      font-size: 11px;
+      font-weight: 600;
+      padding: 5px 12px;
+      border-radius: 20px;
       cursor: pointer;
+      transition: all 0.2s;
     }
 
-    .quick-pill.active {
+    .chip-item.active {
       background: var(--accent);
-      color: #0F172A;
-      font-weight: 700;
+      color: #080D1A;
+      font-weight: 800;
       border-color: var(--accent);
+      box-shadow: 0 0 10px var(--accent-glow);
     }
 
     #map {
       flex: 1;
       width: 100%;
-      background: #090d16;
+      background: #060913;
       z-index: 100;
     }
 
-    /* BottomSheet Dinâmico */
+    /* Floating HUD telemetry widgets */
+    .telemetry-tag {
+      position: absolute;
+      bottom: 252px;
+      left: 14px;
+      background: rgba(8, 13, 26, 0.85);
+      backdrop-filter: var(--glass-blur);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 6px 10px;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 11px;
+      color: var(--text-secondary);
+      z-index: 500;
+    }
+
+    .telemetry-val {
+      color: var(--bastaio);
+      font-weight: 700;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* BottomSheet Dinâmico com Glassmorphism */
     .bottom-sheet {
       position: absolute;
       bottom: 0;
       left: 0;
       right: 0;
-      background-color: var(--surface);
-      border-top-left-radius: 24px;
-      border-top-right-radius: 24px;
-      border-top: 1px solid var(--border);
-      box-shadow: 0 -10px 25px rgba(0,0,0,0.5);
+      background: rgba(18, 27, 47, 0.94);
+      backdrop-filter: var(--glass-blur);
+      border-top-left-radius: 32px;
+      border-top-right-radius: 32px;
+      border-top: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow: 0 -15px 35px rgba(0, 0, 0, 0.7);
       z-index: 1000;
-      transition: height 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      transition: height 0.35s cubic-bezier(0.16, 1, 0.3, 1);
       height: 240px;
       display: flex;
       flex-direction: column;
     }
 
     .bottom-sheet.expanded {
-      height: 520px;
+      height: 540px;
     }
 
-    .sheet-handle {
+    .sheet-handle-wrap {
       width: 100%;
-      padding: 10px 0;
+      padding: 10px 0 6px 0;
       display: flex;
       justify-content: center;
       cursor: pointer;
     }
 
-    .sheet-bar {
-      width: 44px;
+    .sheet-handle-bar {
+      width: 48px;
       height: 5px;
       border-radius: 3px;
-      background: var(--surface-elevated);
+      background: #334155;
     }
 
     .sheet-body {
-      padding: 0 16px 20px 16px;
+      padding: 0 18px 24px 18px;
       overflow-y: auto;
       flex: 1;
     }
 
-    .sheet-header {
+    .sheet-title-row {
       display: flex;
       justify-content: space-between;
       align-items: center;
       margin-bottom: 12px;
     }
 
-    .risk-badge {
+    .risk-badge-modern {
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      padding: 4px 10px;
+      padding: 5px 12px;
       border-radius: 9999px;
       font-size: 11px;
-      font-weight: 700;
-      border: 1.5px solid var(--batalha);
-      color: var(--batalha);
-      background: rgba(249, 115, 22, 0.15);
+      font-weight: 800;
+      letter-spacing: 0.3px;
     }
 
-    .progress-bar {
+    .card-glass {
+      background: rgba(30, 43, 69, 0.6);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px 14px;
+      margin-bottom: 12px;
+    }
+
+    .progress-track {
       height: 6px;
-      background: rgba(255,255,255,0.1);
-      border-radius: 3px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 4px;
       overflow: hidden;
       margin-top: 6px;
     }
 
-    .progress-fill {
+    .progress-fill-bar {
       height: 100%;
       background: var(--accent);
-      border-radius: 3px;
+      border-radius: 4px;
       transition: width 0.4s ease;
     }
 
-    /* ========================================================
-       ECRÃ 2: PORTA-A-PORTA (ATIVISTAS)
-       ======================================================== */
-    .door-content {
-      padding: 16px;
+    /* Botões de Ação Rápida */
+    .action-grid-2 {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
+      gap: 8px;
+      margin-top: 14px;
     }
 
-    .gps-box {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 10px;
+    .btn-action-primary {
+      background: linear-gradient(135deg, #0284C7, #38BDF8);
+      color: #080D1A;
+      font-weight: 800;
+      font-size: 13px;
+      padding: 13px;
+      border-radius: 14px;
+      border: none;
+      cursor: pointer;
       display: flex;
-      justify-content: space-between;
       align-items: center;
+      justify-content: center;
+      gap: 6px;
+      box-shadow: 0 4px 14px rgba(56, 189, 248, 0.35);
+      transition: all 0.2s;
+    }
+
+    .btn-action-secondary {
+      background: var(--surface-elevated);
+      border: 1px solid rgba(56, 189, 248, 0.4);
+      color: var(--accent);
+      font-weight: 700;
       font-size: 12px;
+      padding: 13px;
+      border-radius: 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+
+    .btn-action-primary:hover { transform: translateY(-1px); }
+    .btn-action-secondary:hover { background: var(--surface-hover); }
+
+    /* ========================================================
+       ECRÃ 2: PORTA-A-PORTA (ATIVISTAS DE TERRENO)
+       ======================================================== */
+    .door-scroll {
+      padding: 16px;
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .target-meter-card {
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(30, 43, 69, 0.6));
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      border-radius: 14px;
+      padding: 12px 14px;
       margin-bottom: 14px;
     }
 
-    .sentiment-grid {
-      display: flex;
+    .sentiment-selector {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
       gap: 8px;
       margin-bottom: 16px;
     }
 
-    .sentiment-card {
-      flex: 1;
-      background: var(--surface);
+    .sentiment-touch-card {
+      background: var(--surface-solid);
       border: 2px solid var(--border);
-      border-radius: 14px;
-      padding: 16px 8px;
+      border-radius: 16px;
+      padding: 14px 6px;
       text-align: center;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
-    .sentiment-card .emoji {
+    .sentiment-touch-card:active {
+      transform: scale(0.95);
+    }
+
+    .sentiment-touch-card .emoji-big {
       font-size: 32px;
-      margin-bottom: 6px;
       display: block;
+      margin-bottom: 4px;
     }
 
-    .sentiment-card .label {
+    .sentiment-touch-card .touch-label {
       font-size: 11px;
       font-weight: 700;
       color: var(--text-secondary);
     }
 
-    .sentiment-card.active-pos {
+    .sentiment-touch-card.active-pos {
       border-color: var(--bastaio);
       background: rgba(16, 185, 129, 0.15);
+      box-shadow: 0 0 16px var(--bastaio-glow);
     }
-    .sentiment-card.active-pos .label { color: var(--bastaio); }
+    .sentiment-touch-card.active-pos .touch-label { color: var(--bastaio); }
 
-    .sentiment-card.active-neu {
+    .sentiment-touch-card.active-neu {
       border-color: var(--batalha);
       background: rgba(249, 115, 22, 0.15);
+      box-shadow: 0 0 16px var(--batalha-glow);
     }
-    .sentiment-card.active-neu .label { color: var(--batalha); }
+    .sentiment-touch-card.active-neu .touch-label { color: var(--batalha); }
 
-    .sentiment-card.active-neg {
+    .sentiment-touch-card.active-neg {
       border-color: var(--oposicao);
       background: rgba(239, 68, 68, 0.15);
+      box-shadow: 0 0 16px var(--oposicao-glow);
     }
-    .sentiment-card.active-neg .label { color: var(--oposicao); }
+    .sentiment-touch-card.active-neg .touch-label { color: var(--oposicao); }
 
-    .chip-container {
+    /* Seletor de Idade em Pílulas */
+    .age-pill-row {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 16px;
+    }
+
+    .age-pill-btn {
+      flex: 1;
+      background: var(--surface-solid);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      border-radius: 10px;
+      padding: 8px 4px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.2s;
+    }
+
+    .age-pill-btn.selected {
+      background: rgba(56, 189, 248, 0.15);
+      border-color: var(--accent);
+      color: var(--accent);
+      box-shadow: 0 0 10px var(--accent-glow);
+    }
+
+    /* Tags de Dores Locais */
+    .dores-tags-grid {
       display: flex;
       flex-wrap: wrap;
       gap: 6px;
-      margin-bottom: 14px;
+      margin-bottom: 16px;
     }
 
-    .chip {
-      background: var(--surface);
+    .dor-tag-btn {
+      background: var(--surface-solid);
       border: 1px solid var(--border);
-      padding: 8px 12px;
-      border-radius: 9999px;
-      font-size: 12px;
-      cursor: pointer;
       color: var(--text-secondary);
-    }
-
-    .chip.selected {
-      border-color: var(--batalha);
-      background: rgba(249, 115, 22, 0.2);
-      color: var(--text-primary);
+      padding: 7px 12px;
+      border-radius: 9999px;
+      font-size: 11px;
       font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.2s;
     }
 
-    .btn-save-visit {
-      background: var(--bastaio);
-      color: #0F172A;
+    .dor-tag-btn.selected {
+      background: rgba(249, 115, 22, 0.18);
+      border-color: var(--batalha);
+      color: #FED7AA;
+      box-shadow: 0 0 10px var(--batalha-glow);
+    }
+
+    /* Gravador de Nota de Voz Simulada */
+    .voice-memo-card {
+      background: var(--surface-solid);
+      border: 1px dashed var(--border);
+      border-radius: 12px;
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      cursor: pointer;
+    }
+
+    .voice-waves {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+    }
+
+    .v-bar {
+      width: 3px;
+      height: 12px;
+      background: var(--accent);
+      border-radius: 2px;
+    }
+
+    .v-bar.active {
+      animation: soundWave 0.8s infinite alternate ease-in-out;
+    }
+
+    @keyframes soundWave {
+      0% { height: 4px; }
+      100% { height: 18px; }
+    }
+
+    /* Botão Principal de Gravação */
+    .btn-record-huge {
+      background: linear-gradient(135deg, #10B981, #059669);
+      color: #080D1A;
       font-size: 15px;
       font-weight: 800;
-      padding: 14px;
-      border-radius: 14px;
+      padding: 15px;
+      border-radius: 16px;
       width: 100%;
       border: none;
       cursor: pointer;
-      margin-top: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+      transition: all 0.2s;
     }
+
+    .btn-record-huge:hover { transform: translateY(-1px); }
 
     /* ========================================================
-       ECRÃ 3: DIA D & ATAS
+       ECRÃ 3: PAINEL DO DIA D (APURAMENTO & FRAUDE AUDIT)
        ======================================================== */
-    .dia-d-content {
+    .diad-scroll {
       padding: 16px;
+      flex: 1;
+      overflow-y: auto;
     }
 
-    .tab-pills {
+    .countdown-banner {
+      background: linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(30, 43, 69, 0.8));
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      border-radius: 14px;
+      padding: 10px 14px;
       display: flex;
-      background: var(--surface);
-      border-radius: 10px;
-      padding: 4px;
+      align-items: center;
+      justify-content: space-between;
       margin-bottom: 14px;
     }
 
-    .tab-pill {
-      flex: 1;
-      padding: 8px;
-      text-align: center;
-      font-size: 12px;
-      font-weight: 600;
-      border-radius: 8px;
-      cursor: pointer;
-      color: var(--text-secondary);
+    .countdown-timer {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
+      font-weight: 800;
+      color: #F87171;
     }
 
-    .tab-pill.active {
-      background: var(--surface-elevated);
-      color: var(--text-primary);
-    }
-
-    .geofence-alert {
+    .geofence-status-box {
       border: 1.5px solid var(--bastaio);
       background: rgba(16, 185, 129, 0.1);
-      border-radius: 12px;
-      padding: 12px;
+      border-radius: 14px;
+      padding: 12px 14px;
       margin-bottom: 14px;
       display: flex;
       gap: 10px;
-      font-size: 12px;
-      transition: all 0.3s;
+      align-items: center;
     }
 
-    .geofence-alert.suspeita {
+    .geofence-status-box.suspeita {
       border-color: var(--oposicao);
       background: rgba(239, 68, 68, 0.12);
     }
 
-    .vote-inputs {
+    /* Scanner Viewfinder da Foto da Ata */
+    .scanner-viewfinder {
+      position: relative;
+      border: 2px dashed rgba(56, 189, 248, 0.5);
+      background: rgba(18, 27, 47, 0.7);
+      border-radius: 18px;
+      padding: 24px 16px;
+      text-align: center;
+      cursor: pointer;
+      margin-bottom: 16px;
+      overflow: hidden;
+    }
+
+    .scanner-laser {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: #38BDF8;
+      box-shadow: 0 0 10px #38BDF8, 0 0 20px #38BDF8;
+      animation: scanLaser 2.4s infinite alternate ease-in-out;
+    }
+
+    @keyframes scanLaser {
+      0% { top: 5%; }
+      100% { top: 95%; }
+    }
+
+    .vote-inputs-2x2 {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
-      gap: 10px;
+      gap: 8px;
       margin-bottom: 14px;
     }
 
-    .vote-box {
-      background: var(--surface);
+    .vote-cell {
+      background: var(--surface-solid);
       border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 8px;
+      border-radius: 12px;
+      padding: 8px 12px;
     }
 
-    .vote-box label {
-      font-size: 11px;
+    .vote-cell label {
+      font-size: 10px;
       color: var(--text-secondary);
+      font-weight: 600;
       display: block;
-      margin-bottom: 4px;
+      margin-bottom: 2px;
     }
 
-    .vote-box input {
+    .vote-cell input {
       width: 100%;
       background: transparent;
       border: none;
       color: var(--text-primary);
       font-size: 16px;
-      font-weight: 700;
+      font-weight: 800;
+      font-family: 'JetBrains Mono', monospace;
       outline: none;
     }
 
-    .photo-area {
-      border: 2px dashed var(--border);
-      border-radius: 14px;
-      padding: 20px;
-      text-align: center;
-      cursor: pointer;
-      margin-bottom: 16px;
-      background: var(--surface);
-    }
-
-    .photo-area.captured {
-      border-color: var(--bastaio);
-      background: rgba(16, 185, 129, 0.1);
-    }
-
-    /* Modal de Discurso Territorializado */
-    .modal-overlay {
+    /* ========================================================
+       MODAL DE DISCURSO TÁTICO & TELEPROMPTER
+       ======================================================== */
+    .modal-backdrop {
       position: absolute;
       top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(3, 7, 18, 0.85);
-      backdrop-filter: blur(4px);
-      z-index: 2000;
+      background: rgba(4, 7, 15, 0.88);
+      backdrop-filter: blur(8px);
+      z-index: 2500;
       display: none;
-      justify-content: center;
       align-items: flex-end;
     }
 
-    .modal-overlay.active {
+    .modal-backdrop.active {
       display: flex;
     }
 
-    .modal-card {
-      background: var(--surface);
-      border-top-left-radius: 24px;
-      border-top-right-radius: 24px;
-      border: 1px solid var(--border);
+    .modal-drawer {
+      background: #0E172A;
+      border-top-left-radius: 28px;
+      border-top-right-radius: 28px;
+      border-top: 1px solid rgba(255, 255, 255, 0.15);
       width: 100%;
-      max-height: 80vh;
+      max-height: 82vh;
       overflow-y: auto;
-      padding: 20px 16px;
-      box-shadow: 0 -15px 30px rgba(0,0,0,0.6);
+      padding: 20px 18px 30px 18px;
+      box-shadow: 0 -20px 40px rgba(0,0,0,0.8);
     }
 
-    .speech-quote {
-      background: var(--surface-elevated);
+    .teleprompter-box {
+      background: #1E293B;
       border-left: 4px solid var(--accent);
-      border-radius: 8px;
-      padding: 12px;
-      font-style: italic;
-      font-size: 13px;
-      line-height: 20px;
+      border-radius: 10px;
+      padding: 14px;
+      font-size: 14px;
+      line-height: 22px;
+      color: #F8FAFC;
       margin: 10px 0;
+      font-style: italic;
     }
 
-    /* Bottom Navigation */
-    .bottom-nav {
-      display: flex;
-      background: var(--surface);
+    .teleprompter-box.large-font {
+      font-size: 19px;
+      line-height: 28px;
+    }
+
+    /* Barra Inferior de Navegação Estilo iOS/Android Flagship */
+    .bottom-tab-bar {
+      background: rgba(18, 27, 47, 0.95);
+      backdrop-filter: var(--glass-blur);
       border-top: 1px solid var(--border);
-      padding: 8px 0;
-      z-index: 1000;
+      display: flex;
+      padding: 8px 0 12px 0;
+      z-index: 1800;
     }
 
-    .nav-btn {
+    .tab-item-btn {
       flex: 1;
       display: flex;
       flex-direction: column;
       align-items: center;
-      color: var(--text-secondary);
       background: none;
       border: none;
+      color: var(--text-muted);
       cursor: pointer;
-      font-size: 11px;
-      font-weight: 600;
       gap: 3px;
+      transition: all 0.2s;
     }
 
-    .nav-btn.active {
-      color: var(--text-primary);
+    .tab-item-btn.active {
+      color: var(--accent);
     }
 
-    .nav-icon {
-      font-size: 18px;
+    .tab-icon {
+      font-size: 20px;
+      transition: transform 0.2s;
     }
 
-    /* Leaflet Dark Custom Theme */
+    .tab-item-btn.active .tab-icon {
+      transform: scale(1.15);
+    }
+
+    .tab-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.2px;
+    }
+
+    /* Leaflet Dark Filter */
     .leaflet-tile {
-      filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3);
+      filter: brightness(0.65) invert(1) contrast(2.8) hue-rotate(205deg) saturate(0.25);
     }
   </style>
 </head>
 <body>
 
-  <div class="mobile-frame">
-    <!-- BARRA SUPERIOR -->
-    <div class="top-bar">
-      <div style="display:flex; align-items:center; gap:8px;">
-        <span style="font-size: 20px;">🇦🇴</span>
-        <div>
-          <div class="brand-title">GPS ELEITORAL 2027</div>
-          <div class="brand-sub">Inteligência Territorial & Offline-First</div>
+  <div class="device-wrapper">
+    <div class="mobile-frame">
+      
+      <!-- STATUS BAR & DYNAMIC ISLAND -->
+      <div class="status-bar-container">
+        <span class="status-time" id="clockLive">09:41</span>
+        
+        <div class="dynamic-island" onclick="expandirDynamicIsland()">
+          <div class="island-dot" id="islandDot"></div>
+          <span class="island-text" id="islandLabel">🇦🇴 GPS ATIVO • TALATONA</span>
+        </div>
+
+        <div class="status-icons">
+          <span>5G</span>
+          <span>98% ⚡</span>
         </div>
       </div>
-      <div class="sync-badge" onclick="dispararSincronizacao()" title="Clique para sincronizar visitas acumuladas">
-        <div id="syncDot" class="sync-dot"></div>
-        <span id="syncText">Nuvem OK</span>
-      </div>
-    </div>
 
-    <!-- ÁREA DE ECRÃS -->
-    <div class="screens-container">
-
-      <!-- ========================================================
-           ECRÃ 1: MAPA & BOTTOMSHEET DINÂMICO
-           ======================================================== -->
-      <div id="screen1" class="screen active">
-        <div class="search-box">
-          <input type="text" id="inputMunicipio" class="search-input" value="Talatona" placeholder="Pesquisar (ex: Huambo, Viana, Lobito...)">
-          <button class="btn-filter" onclick="pesquisarMunicipio()">Filtrar</button>
-        </div>
-
-        <!-- Atalhos Rápidos para Municípios Estratégicos -->
-        <div class="quick-pills">
-          <span class="quick-pill active" onclick="selecionarMunicipioDireto('Talatona')">Talatona</span>
-          <span class="quick-pill" onclick="selecionarMunicipioDireto('Viana')">Viana</span>
-          <span class="quick-pill" onclick="selecionarMunicipioDireto('Cacuaco')">Cacuaco</span>
-          <span class="quick-pill" onclick="selecionarMunicipioDireto('Luanda')">Luanda</span>
-          <span class="quick-pill" onclick="selecionarMunicipioDireto('Huambo')">Huambo</span>
-          <span class="quick-pill" onclick="selecionarMunicipioDireto('Lubango')">Lubango</span>
-          <span class="quick-pill" onclick="selecionarMunicipioDireto('Lobito')">Lobito</span>
-          <span class="quick-pill" onclick="selecionarMunicipioDireto('Cabinda')">Cabinda</span>
-        </div>
-
-        <div id="map"></div>
-
-        <!-- Painel Inferior (BottomSheet) -->
-        <div id="bottomSheet" class="bottom-sheet">
-          <div class="sheet-handle" onclick="toggleBottomSheet()">
-            <div class="sheet-bar"></div>
+      <!-- SUB-HEADER DE MARCA & SINCRONIZAÇÃO -->
+      <div class="sub-nav">
+        <div class="app-brand">
+          <div class="brand-logo">🇦🇴</div>
+          <div>
+            <div class="brand-title">GPS ELEITORAL 2027</div>
+            <div class="brand-meta">Terminal Tático de Campo</div>
           </div>
-          <div class="sheet-body">
-            <div class="sheet-header">
+        </div>
+
+        <div class="sync-pill-btn" onclick="dispararSincronizacao()" title="Clique para sincronizar com a base central">
+          <div class="sync-dot" id="syncDot"></div>
+          <span class="sync-text" id="syncText">Nuvem OK</span>
+        </div>
+      </div>
+
+      <!-- CONTAINER PRINCIPAL DE TELAS -->
+      <div class="screens-container">
+
+        <!-- ========================================================
+             ECRÃ 1: CENTRO DE COMANDO & MAPA TÁTICO
+             ======================================================== -->
+        <div id="screen1" class="screen active">
+          <!-- Floating Search HUD -->
+          <div class="map-hud-bar">
+            <input type="text" id="inputMunicipio" class="hud-search-input" value="Talatona" placeholder="Pesquisar território (Huambo, Viana...)">
+            <button class="hud-btn" onclick="pesquisarMunicipio()">🔍 Filtrar</button>
+          </div>
+
+          <!-- Quick Territory Chips -->
+          <div class="quick-chips-row">
+            <span class="chip-item active" onclick="selecionarMunicipioDireto('Talatona')">Talatona</span>
+            <span class="chip-item" onclick="selecionarMunicipioDireto('Viana')">Viana</span>
+            <span class="chip-item" onclick="selecionarMunicipioDireto('Cacuaco')">Cacuaco</span>
+            <span class="chip-item" onclick="selecionarMunicipioDireto('Luanda')">Luanda</span>
+            <span class="chip-item" onclick="selecionarMunicipioDireto('Huambo')">Huambo</span>
+            <span class="chip-item" onclick="selecionarMunicipioDireto('Lubango')">Lubango</span>
+            <span class="chip-item" onclick="selecionarMunicipioDireto('Lobito')">Lobito</span>
+            <span class="chip-item" onclick="selecionarMunicipioDireto('Cabinda')">Cabinda</span>
+          </div>
+
+          <!-- Map Container -->
+          <div id="map"></div>
+
+          <!-- Floating GPS Status Tag -->
+          <div class="telemetry-tag">
+            <span>🛰️ GLONASS/GPS:</span>
+            <span class="telemetry-val">16 Sats (±3.8m)</span>
+          </div>
+
+          <!-- BottomSheet Dinâmico com Acrylic Glass -->
+          <div id="bottomSheet" class="bottom-sheet">
+            <div class="sheet-handle-wrap" onclick="toggleBottomSheet()">
+              <div class="sheet-handle-bar"></div>
+            </div>
+
+            <div class="sheet-body">
+              <div class="sheet-title-row">
+                <div>
+                  <div style="font-size:10px; color:var(--text-muted); text-transform:uppercase; font-weight:700;">Diagnóstico Estratégico</div>
+                  <h3 id="sheetMunicipioNome" style="font-size:18px; font-weight:800;">Talatona, Luanda</h3>
+                </div>
+                <div id="sheetBadge" class="risk-badge-modern" style="background:rgba(249,115,22,0.18); border:1.5px solid var(--batalha); color:var(--batalha);">
+                  🟡 CAMPO DE BATALHA
+                </div>
+              </div>
+
+              <!-- Juventude -->
+              <div class="card-glass">
+                <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:2px;">
+                  <span style="color:var(--text-secondary);">Eleitorado Jovem (18-35 anos)</span>
+                  <strong id="sheetPercJovem" style="color:var(--accent);">62% do Eleitorado</strong>
+                </div>
+                <div class="progress-track">
+                  <div id="sheetProgressJovem" class="progress-fill-bar" style="width: 62%;"></div>
+                </div>
+              </div>
+
+              <!-- Dores e Demandas -->
+              <div style="font-size:12px; font-weight:700; color:var(--text-secondary); margin-bottom:8px;">🚨 PRINCIPAIS DORES REGISTRADAS:</div>
+              <div id="doresList"></div>
+
+              <!-- Ações Rápidas -->
+              <div class="action-grid-2">
+                <button class="btn-action-primary" onclick="mudarEcra('screen2')">
+                  <span>🚶</span> Iniciar Porta-a-Porta
+                </button>
+                <button class="btn-action-secondary" onclick="abrirModalDiscurso()">
+                  <span>🎤</span> Cábula de IA
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ========================================================
+             ECRÃ 2: PORTA-A-PORTA (ATIVISTAS DE TERRENO)
+             ======================================================== -->
+        <div id="screen2" class="screen">
+          <div class="door-scroll">
+            
+            <!-- Meta Diária e Status do Brigadista -->
+            <div class="target-meter-card">
+              <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;">
+                <span style="font-weight:700; color:var(--bastaio);">🎯 META DA BRIGADA 04</span>
+                <strong style="color:var(--text-primary);">42 / 60 Residências (70%)</strong>
+              </div>
+              <div class="progress-track">
+                <div class="progress-fill-bar" style="width: 70%; background:var(--bastaio);"></div>
+              </div>
+            </div>
+
+            <!-- GPS Tag & Privacidade -->
+            <div style="display:flex; justify-content:space-between; align-items:center; background:var(--surface-solid); border:1px solid var(--border); padding:8px 12px; border-radius:10px; margin-bottom:12px; font-size:11px;">
+              <div style="display:flex; align-items:center; gap:6px;">
+                <span style="color:var(--bastaio);">📍</span>
+                <span id="labelCoords" style="font-family:'JetBrains Mono'; color:var(--text-primary);">-8.9167, 13.2667</span>
+              </div>
+              <span style="color:var(--bastaio); font-weight:700;">±3.8m</span>
+            </div>
+
+            <!-- Termo de Minimização e Privacidade -->
+            <div style="background:rgba(56, 189, 248, 0.08); border:1px solid var(--accent); border-radius:10px; padding:8px 12px; font-size:10px; line-height:14px; margin-bottom:14px;">
+              <strong style="color:var(--accent);">🔒 PRIVACIDADE LEI N.º 22/11:</strong>
+              <span style="color:var(--text-secondary);">Coleta restrita a carências públicas agregadas. Não gravamos nomes, BIs ou escolhas individuais.</span>
+            </div>
+
+            <!-- 1. Sentimento Táctil -->
+            <div style="font-size:12px; font-weight:800; letter-spacing:0.3px; margin-bottom:8px;">1. SENTIMENTO DO ELEITOR:</div>
+            <div class="sentiment-selector">
+              <div class="sentiment-touch-card" id="btnPos" onclick="selecionarSentimento('POSITIVO')">
+                <span class="emoji-big">🙂</span>
+                <span class="touch-label">Apoio (Verde)</span>
+              </div>
+              <div class="sentiment-touch-card" id="btnNeu" onclick="selecionarSentimento('NEUTRO')">
+                <span class="emoji-big">😐</span>
+                <span class="touch-label">Indeciso</span>
+              </div>
+              <div class="sentiment-touch-card" id="btnNeg" onclick="selecionarSentimento('NEGATIVO')">
+                <span class="emoji-big">🙁</span>
+                <span class="touch-label">Rejeição</span>
+              </div>
+            </div>
+
+            <!-- 2. Faixa Etária -->
+            <div style="font-size:12px; font-weight:800; letter-spacing:0.3px; margin-bottom:8px;">2. FAIXA ETÁRIA:</div>
+            <div class="age-pill-row">
+              <div class="age-pill-btn selected" onclick="selecionarIdade(this, '18-24')">18-24 (Jovem)</div>
+              <div class="age-pill-btn" onclick="selecionarIdade(this, '25-35')">25-35 (Jovem)</div>
+              <div class="age-pill-btn" onclick="selecionarIdade(this, '36-50')">36-50</div>
+              <div class="age-pill-btn" onclick="selecionarIdade(this, '50+')">50+</div>
+            </div>
+
+            <!-- 3. Queixas Locais -->
+            <div style="font-size:12px; font-weight:800; letter-spacing:0.3px; margin-bottom:8px;">3. CARÊNCIAS / DORES DA COMUNIDADE:</div>
+            <div class="dores-tags-grid">
+              <div class="dor-tag-btn" onclick="toggleDorChip(this, 'AGUA')">💧 Falta de Água</div>
+              <div class="dor-tag-btn" onclick="toggleDorChip(this, 'ENERGIA')">⚡ Cortes de Luz</div>
+              <div class="dor-tag-btn" onclick="toggleDorChip(this, 'EMPREGO')">💼 Desemprego Jovem</div>
+              <div class="dor-tag-btn" onclick="toggleDorChip(this, 'SANEAMENTO')">🚯 Saneamento & Valas</div>
+              <div class="dor-tag-btn" onclick="toggleDorChip(this, 'ESTRADAS')">🚧 Vias & Buracos</div>
+              <div class="dor-tag-btn" onclick="toggleDorChip(this, 'SAUDE')">🏥 Posto de Saúde</div>
+            </div>
+
+            <!-- Gravador Simulado de Nota de Voz -->
+            <div class="voice-memo-card" onclick="simularGravacaoVoz()">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span style="font-size:18px;">🎙️</span>
+                <div>
+                  <div style="font-size:11px; font-weight:700;" id="voiceLabel">Gravar Nota de Voz do Eleitor</div>
+                  <div style="font-size:9px; color:var(--text-muted);">Transcreve áudio para tags de carência</div>
+                </div>
+              </div>
+              <div class="voice-waves" id="voiceWaves">
+                <div class="v-bar"></div>
+                <div class="v-bar"></div>
+                <div class="v-bar"></div>
+                <div class="v-bar"></div>
+              </div>
+            </div>
+
+            <!-- Botão de Registro Offline -->
+            <button class="btn-record-huge" onclick="salvarVisitaLocal()">
+              <span>💾</span> Gravar Visita no Telemóvel (Offline)
+            </button>
+          </div>
+        </div>
+
+        <!-- ========================================================
+             ECRÃ 3: PAINEL DO DIA D (APURAMENTO PARALELO & GEOFENCE)
+             ======================================================== -->
+        <div id="screen3" class="screen">
+          <div class="diad-scroll">
+            
+            <!-- Live Countdown -->
+            <div class="countdown-banner">
               <div>
-                <div style="font-size:11px; color:var(--text-secondary); text-transform:uppercase;">Diagnóstico Tático</div>
-                <h3 id="sheetMunicipioNome" style="font-size:18px;">Talatona, Luanda</h3>
+                <div style="font-size:10px; color:#FCA5A5; font-weight:700;">TEMPO PARA FECHO DAS URNAS:</div>
+                <div class="countdown-timer" id="clockCountdown">02h : 18m : 42s</div>
               </div>
-              <div id="sheetBadge" class="risk-badge">🟡 CAMPO DE BATALHA</div>
+              <span style="background:rgba(239,68,68,0.25); color:#EF4444; font-size:10px; font-weight:800; padding:4px 8px; border-radius:6px; border:1px solid #EF4444;">
+                AO VIVO
+              </span>
             </div>
 
-            <!-- Juventude -->
-            <div style="background:var(--surface-elevated); padding:10px; border-radius:10px; margin-bottom:12px;">
-              <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;">
-                <span style="color:var(--text-secondary);">Eleitorado Jovem (18-35 anos)</span>
-                <strong id="sheetPercJovem" style="color:var(--accent);">62% do Município</strong>
-              </div>
-              <div class="progress-bar">
-                <div id="sheetProgressJovem" class="progress-fill" style="width: 62%;"></div>
-              </div>
+            <!-- Alternador de Distância Teste -->
+            <div style="display:flex; justify-content:space-between; align-items:center; background:var(--surface-solid); padding:8px 12px; border-radius:10px; margin-bottom:12px; border:1px solid var(--border);">
+              <span style="font-size:11px; color:var(--text-secondary);">Auditoria Espacial:</span>
+              <button id="btnToggleDistancia" onclick="alternarDistanciaTeste()" style="background:var(--surface-elevated); color:var(--text-primary); border:1px solid var(--border); padding:4px 10px; border-radius:8px; font-size:11px; font-weight:700; cursor:pointer;">
+                📍 48m (Na Mesa)
+              </button>
             </div>
 
-            <!-- Dores do Município -->
-            <div style="font-size:13px; font-weight:700; margin-bottom:8px;">🚨 Principais Dores (Discurso Recomendado):</div>
-            <div id="doresList">
-              <!-- Preenchido dinamicamente via JS -->
-            </div>
-
-            <button class="btn-save-visit" style="margin-top:14px; background:var(--accent);" onclick="mudarEcra('screen2')">
-              🚶 Iniciar Coleta Porta-a-Porta
-            </button>
-            <button class="btn-save-visit" style="margin-top:8px; background:var(--surface-elevated); border:1px solid var(--accent); color:var(--accent);" onclick="abrirModalDiscurso()">
-              🎤 Cábula de Discurso Territorializado
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- ========================================================
-           ECRÃ 2: REGISTO PORTA-A-PORTA (OFFLINE-FIRST)
-           ======================================================== -->
-      <div id="screen2" class="screen">
-        <div class="door-content">
-          <div style="font-size:11px; color:var(--text-secondary); text-transform:uppercase;">Brigada de Terreno 04</div>
-          <h2 style="font-size:20px; margin-bottom:12px;">Registo Porta-a-Porta</h2>
-
-          <div class="gps-box">
-            <div style="display:flex; align-items:center; gap:6px;">
-              <span style="color:var(--bastaio);">📍</span>
-              <span id="labelCoords">Lat: -8.9167, Lon: 13.2667</span>
-            </div>
-            <span style="color:var(--bastaio); font-weight:700;">Margem ±3.8m</span>
-          </div>
-
-          <!-- Termo de Consentimento e Minimização de Dados -->
-          <div style="background:rgba(56, 189, 248, 0.08); border:1px solid var(--accent); border-radius:10px; padding:10px; font-size:11px; margin-bottom:12px; line-height:15px;">
-            <strong style="color:var(--accent);">🔒 Consentimento & Retenção de Dados:</strong><br>
-            <span style="color:var(--text-secondary);">Dados agregados por território. Não coletamos nomes, números de BI nem preferências individuais. Retenção estrita ao ciclo de 2027.</span>
-          </div>
-
-          <div style="font-size:13px; font-weight:700; margin-bottom:8px;">1. Humor do Eleitor (Sentimento)</div>
-          <div class="sentiment-grid">
-            <div class="sentiment-card" id="btnPos" onclick="selecionarSentimento('POSITIVO')">
-              <span class="emoji">🙂</span>
-              <span class="label">Apoio (Verde)</span>
-            </div>
-            <div class="sentiment-card" id="btnNeu" onclick="selecionarSentimento('NEUTRO')">
-              <span class="emoji">😐</span>
-              <span class="label">Indeciso</span>
-            </div>
-            <div class="sentiment-card" id="btnNeg" onclick="selecionarSentimento('NEGATIVO')">
-              <span class="emoji">🙁</span>
-              <span class="label">Rejeição</span>
-            </div>
-          </div>
-
-          <div style="font-size:13px; font-weight:700; margin-bottom:8px;">2. Faixa Etária</div>
-          <div style="display:flex; gap:6px; margin-bottom:14px;">
-            <button class="chip selected" style="flex:1" onclick="selecionarIdade(this, '18-24')">18-24 Jovem</button>
-            <button class="chip" style="flex:1" onclick="selecionarIdade(this, '25-35')">25-35 Jovem</button>
-            <button class="chip" style="flex:1" onclick="selecionarIdade(this, '36-50')">36-50</button>
-            <button class="chip" style="flex:1" onclick="selecionarIdade(this, '50+')">50+</button>
-          </div>
-
-          <div style="font-size:13px; font-weight:700; margin-bottom:8px;">3. Queixas na Porta</div>
-          <div class="chip-container">
-            <div class="chip" onclick="toggleDorChip(this, 'AGUA')">💧 Água</div>
-            <div class="chip" onclick="toggleDorChip(this, 'ENERGIA')">⚡ Luz</div>
-            <div class="chip" onclick="toggleDorChip(this, 'EMPREGO')">💼 Emprego</div>
-            <div class="chip" onclick="toggleDorChip(this, 'SANEAMENTO')">🚯 Saneamento</div>
-            <div class="chip" onclick="toggleDorChip(this, 'ESTRADAS')">🚧 Estradas</div>
-            <div class="chip" onclick="toggleDorChip(this, 'SAUDE')">🏥 Posto Saúde</div>
-          </div>
-
-          <button class="btn-save-visit" onclick="salvarVisitaLocal()">
-            💾 Gravar Visita no Telemóvel (Offline)
-          </button>
-        </div>
-      </div>
-
-      <!-- ========================================================
-           ECRÃ 3: PAINEL DO DIA D & ATAS
-           ======================================================== -->
-      <div id="screen3" class="screen">
-        <div class="dia-d-content">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-            <div>
-              <div style="font-size:10px; color:var(--accent); font-weight:800;">🇦🇴 CNE DIA D</div>
-              <h2 style="font-size:20px;">Painel de Votação</h2>
-            </div>
-            <span style="background:rgba(239,68,68,0.2); color:var(--oposicao); font-size:10px; font-weight:800; padding:4px 8px; border-radius:6px; border:1px solid var(--oposicao)">AO VIVO</span>
-          </div>
-
-          <!-- Controle de Teste de Distância Geofencing -->
-          <div style="display:flex; justify-content:space-between; align-items:center; background:var(--surface); padding:8px 12px; border-radius:8px; margin-bottom:10px; border:1px solid var(--border);">
-            <span style="font-size:11px; color:var(--text-secondary);">Simular Distância GPS:</span>
-            <button id="btnToggleDistancia" onclick="alternarDistanciaTeste()" style="background:var(--surface-elevated); color:var(--text-primary); border:1px solid var(--border); padding:4px 8px; border-radius:6px; font-size:11px; cursor:pointer;">
-              📍 48m (Na Mesa)
-            </button>
-          </div>
-
-          <!-- Validação Geofence -->
-          <div id="geofenceBox" class="geofence-alert">
-            <span id="geofenceIcon" style="font-size:20px;">📍</span>
-            <div>
-              <strong id="geofenceTitle" style="color:var(--bastaio);">Dentro do Perímetro Oficial (48m)</strong>
-              <div id="geofenceSub" style="font-size:11px; color:var(--text-secondary); margin-top:2px;">
-                Assembleia oficial de voto. Distância autorizada para submissão de atas.
+            <!-- Geofencing Box -->
+            <div id="geofenceBox" class="geofence-status-box">
+              <span id="geofenceIcon" style="font-size:22px;">📍</span>
+              <div>
+                <strong id="geofenceTitle" style="color:var(--bastaio); font-size:12px;">Dentro do Perímetro Oficial (48m)</strong>
+                <div id="geofenceSub" style="font-size:10px; color:var(--text-secondary); margin-top:2px;">
+                  Coordenada compatível com cadastro da CNE. Transmissão autorizada.
+                </div>
               </div>
             </div>
-          </div>
 
-          <div class="tab-pills">
-            <div class="tab-pill active" onclick="alternarAbaDiaD('afluencia')">📊 Afluência Horária</div>
-            <div class="tab-pill" onclick="alternarAbaDiaD('ata')">📝 Ata de Apuramento</div>
-          </div>
-
-          <div id="abaAfluencia">
-            <div style="background:var(--surface); padding:12px; border-radius:12px; margin-bottom:10px; border:1px solid var(--border);">
-              <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;">
-                <strong>14:00 (Alerta Abstenção)</strong>
-                <span style="color:var(--oposicao); font-weight:700;">51%</span>
-              </div>
-              <div class="progress-bar"><div class="progress-fill" style="width:51%; background:var(--oposicao);"></div></div>
-            </div>
-
-            <div style="background:var(--surface); padding:12px; border-radius:12px; margin-bottom:10px; border:1px solid var(--border);">
-              <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;">
-                <strong>17:00 (Fecho Estimado)</strong>
-                <span style="color:var(--bastaio); font-weight:700;">68%</span>
-              </div>
-              <div class="progress-bar"><div class="progress-fill" style="width:68%; background:var(--bastaio);"></div></div>
-            </div>
-          </div>
-
-          <div id="abaAta" style="display:none;">
-            <div class="vote-inputs">
-              <div class="vote-box">
+            <!-- Inserção dos Votos da Ata Oficial -->
+            <div style="font-size:12px; font-weight:800; margin-bottom:8px;">CONTAGEM DA ATA OFICIAL:</div>
+            <div class="vote-inputs-2x2">
+              <div class="vote-cell">
                 <label style="color:var(--bastaio);">Nosso Partido:</label>
                 <input type="number" id="votoFav" value="184">
               </div>
-              <div class="vote-box">
-                <label style="color:var(--oposicao);">Oposição:</label>
+              <div class="vote-cell">
+                <label style="color:var(--oposicao);">Oponente Principal:</label>
                 <input type="number" id="votoOpo" value="142">
               </div>
-              <div class="vote-box">
-                <label>Nulos:</label>
+              <div class="vote-cell">
+                <label>Votos Nulos:</label>
                 <input type="number" id="votoNulo" value="6">
               </div>
-              <div class="vote-box">
-                <label>Brancos:</label>
+              <div class="vote-cell">
+                <label>Votos Brancos:</label>
                 <input type="number" id="votoBranco" value="2">
               </div>
             </div>
 
-            <div id="cameraBox" class="photo-area" onclick="fotografarAta()">
-              <div style="font-size:28px; margin-bottom:6px;">📸</div>
-              <strong id="cameraTitle">Tirar Foto da Ata Oficial</strong>
-              <div id="cameraSub" style="font-size:11px; color:var(--text-secondary); margin-top:4px;">Gera carimbo temporal e Hash SHA-256</div>
+            <!-- Scanner Viewfinder com Laser Animado -->
+            <div id="cameraBox" class="scanner-viewfinder" onclick="fotografarAta()">
+              <div class="scanner-laser"></div>
+              <div style="font-size:30px; margin-bottom:4px;">📸</div>
+              <strong id="cameraTitle" style="font-size:13px;">Escanear / Fotografar Ata Assinada</strong>
+              <div id="cameraSub" style="font-size:10px; color:var(--text-muted); margin-top:3px;">
+                Gera carimbo temporal e Hash SHA-256 inviolável
+              </div>
             </div>
 
-            <button class="btn-save-visit" style="background:var(--accent);" onclick="enviarAta()">
-              🔒 Assinar e Transmitir Ata
+            <!-- Botão de Transmissão da Ata -->
+            <button class="btn-action-primary" style="width:100%; padding:14px; margin-bottom:8px;" onclick="enviarAta()">
+              🔒 Assinar & Transmitir Ata à Central
+            </button>
+
+            <!-- Botão de Despacho Jurídico -->
+            <button class="btn-action-secondary" style="width:100%; padding:12px;" onclick="acionarEquipeJuridica()">
+              ⚖️ Protocolar Caso no Comitê Jurídico
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- MODAL DE DISCURSO TÁTICO & TELEPROMPTER -->
+      <div id="modalDiscurso" class="modal-backdrop">
+        <div class="modal-drawer">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <div>
+              <div style="font-size:9px; color:var(--accent); font-weight:800; letter-spacing:1px;">INTELIGÊNCIA ELEITORAL DE IA</div>
+              <h3 id="modalMunicipioTitulo" style="font-size:17px; font-weight:800;">Discurso Tático</h3>
+            </div>
+            <button onclick="fecharModalDiscurso()" style="background:none; border:none; color:var(--text-secondary); font-size:22px; cursor:pointer;">✕</button>
+          </div>
+
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <div id="modalBadgeTom" class="risk-badge-modern" style="border:1.5px solid var(--accent); color:var(--accent);">
+              🟡 TOM TÁTICO
+            </div>
+            <button onclick="toggleTeleprompterFont()" style="background:var(--surface-elevated); color:var(--text-primary); border:1px solid var(--border); border-radius:8px; padding:4px 10px; font-size:11px; font-weight:700; cursor:pointer;">
+              🔎 Modo Teleprompter
+            </button>
+          </div>
+
+          <div style="font-size:11px; color:var(--text-secondary); font-weight:700;">🗣️ HOOK DE ABERTURA SUGERIDO:</div>
+          <div id="modalHook" class="teleprompter-box">
+            "Povo trabalhador! Estamos aqui para assumir compromissos com quem acorda cedo e precisa de água, luz e dignidade!"
+          </div>
+
+          <div style="font-size:11px; color:var(--text-secondary); font-weight:700; margin-top:12px;">🎯 COMPROMISSOS COM AS DORES LOCAIS:</div>
+          <div id="modalCompromissos" style="font-size:11px; line-height:17px; margin-top:6px;"></div>
+
+          <div style="font-size:11px; color:var(--text-secondary); font-weight:700; margin-top:12px;">📱 FOCO NA JUVENTUDE (18-35 ANOS):</div>
+          <div id="modalJuventude" style="background:var(--surface-elevated); padding:10px; border-radius:10px; font-size:11px; margin-top:6px; line-height:16px;"></div>
+
+          <div style="font-size:11px; color:var(--oposicao); font-weight:700; margin-top:12px;">⚠️ ARMADILHAS / O QUE NÃO DIZER:</div>
+          <div id="modalArmadilhas" style="background:rgba(239,68,68,0.1); border:1px solid var(--oposicao); border-radius:10px; padding:10px; font-size:11px; margin-top:6px; line-height:16px;"></div>
+
+          <div style="display:flex; gap:8px; margin-top:16px;">
+            <button class="btn-action-primary" style="flex:1;" onclick="copiarDiscurso()">
+              📋 Copiar Discurso
+            </button>
+            <button class="btn-action-secondary" style="flex:1;" onclick="fecharModalDiscurso()">
+              Fechar
             </button>
           </div>
         </div>
       </div>
 
-    </div>
-
-    <!-- MODAL DE DISCURSO TERRITORIALIZADO -->
-    <div id="modalDiscurso" class="modal-overlay">
-      <div class="modal-card">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-          <div>
-            <div style="font-size:10px; color:var(--accent); font-weight:800; letter-spacing:1px;">INTELIGÊNCIA TÁTICA</div>
-            <h3 id="modalMunicipioTitulo" style="font-size:18px;">Discurso: Talatona</h3>
-          </div>
-          <button onclick="fecharModalDiscurso()" style="background:none; border:none; color:var(--text-secondary); font-size:22px; cursor:pointer;">✕</button>
-        </div>
-
-        <div id="modalBadgeTom" class="risk-badge" style="margin-bottom:12px;">🟡 TOM DE PRAGMATISMO</div>
-
-        <div style="font-size:12px; color:var(--text-secondary); margin-bottom:6px; font-weight:700;">🗣️ HOOK DE ABERTURA SUGERIDO:</div>
-        <div id="modalHook" class="speech-quote">
-          "Povo trabalhador de Talatona! Vim aqui olhar nos vossos olhos e assumir compromissos práticos com quem precisa de água, luz e segurança!"
-        </div>
-
-        <div style="font-size:12px; color:var(--text-secondary); margin-top:12px; margin-bottom:6px; font-weight:700;">🎯 3 COMPROMISSOS COM AS DORES LOCAIS:</div>
-        <div id="modalCompromissos" style="font-size:12px; line-height:18px; margin-bottom:12px;">
-          <!-- Preenchido via JS -->
-        </div>
-
-        <div style="font-size:12px; color:var(--text-secondary); margin-bottom:6px; font-weight:700;">📱 RECADOS PARA A JUVENTUDE (18-35 ANOS):</div>
-        <div id="modalJuventude" style="background:var(--surface-elevated); padding:10px; border-radius:8px; font-size:11px; margin-bottom:12px; line-height:16px;">
-          <!-- Preenchido via JS -->
-        </div>
-
-        <div style="font-size:12px; color:var(--oposicao); margin-bottom:6px; font-weight:700;">⚠️ ARMADILHAS / O QUE NÃO DIZER:</div>
-        <div id="modalArmadilhas" style="background:rgba(239,68,68,0.1); border:1px solid var(--oposicao); border-radius:8px; padding:10px; font-size:11px; line-height:16px;">
-          <!-- Preenchido via JS -->
-        </div>
-
-        <button class="btn-save-visit" style="margin-top:16px; background:var(--accent);" onclick="fecharModalDiscurso()">
-          Concluído
+      <!-- BOTTOM NAVIGATION BAR (FLAGSHIP TOUCH) -->
+      <div class="bottom-tab-bar">
+        <button class="tab-item-btn active" id="nav1" onclick="mudarEcra('screen1')">
+          <span class="tab-icon">🗺️</span>
+          <span class="tab-label">Mapa</span>
+        </button>
+        <button class="tab-item-btn" id="nav2" onclick="mudarEcra('screen2')">
+          <span class="tab-icon">🚶</span>
+          <span class="tab-label">Porta-a-Porta</span>
+        </button>
+        <button class="tab-item-btn" id="nav3" onclick="mudarEcra('screen3')">
+          <span class="tab-icon">🗳️</span>
+          <span class="tab-label">Dia D</span>
         </button>
       </div>
-    </div>
 
-    <!-- BARRA INFERIOR DE NAVEGAÇÃO -->
-    <div class="bottom-nav">
-      <button class="nav-btn active" id="nav1" onclick="mudarEcra('screen1')">
-        <span class="nav-icon">🗺️</span>
-        <span>Tática/Mapa</span>
-      </button>
-      <button class="nav-btn" id="nav2" onclick="mudarEcra('screen2')">
-        <span class="nav-icon">🚶</span>
-        <span>Porta-a-Porta</span>
-      </button>
-      <button class="nav-btn" id="nav3" onclick="mudarEcra('screen3')">
-        <span class="nav-icon">🗳️</span>
-        <span>Dia D / Atas</span>
-      </button>
     </div>
   </div>
 
   <script>
-    // 1. BASE CARTOGRÁFICA OFICIAL CONSOLIDADA DE ANGOLA
+    // 1. BASE DE DADOS CARTOGRÁFICA OFICIAL CONSOLIDADA
     const MUNICIPIOS_DATA = {
       'Talatona': {
         provincia: 'Luanda',
-        lat: -8.9167,
-        lon: 13.2667,
+        lat: -8.9167, lon: 13.2667,
         zonamento: 'CAMPO_BATALHA',
         badge: '🟡 CAMPO DE BATALHA',
         cor: '#F97316',
         juventude_perc: 62,
         dores: [
-          { dor: 'Segurança / Assaltos', perc: 44, cor: 'var(--oposicao)' },
+          { dor: 'Segurança & Assaltos', perc: 44, cor: 'var(--oposicao)' },
           { dor: 'Distribuição de Água', perc: 38, cor: 'var(--batalha)' },
           { dor: 'Cortes de Luz', perc: 25, cor: 'var(--accent)' }
         ],
@@ -879,8 +1253,7 @@
       },
       'Viana': {
         provincia: 'Luanda',
-        lat: -8.9100,
-        lon: 13.3667,
+        lat: -8.9100, lon: 13.3667,
         zonamento: 'OPOSICAO',
         badge: '🔴 ZONA DE OPOSIÇÃO',
         cor: '#EF4444',
@@ -898,8 +1271,7 @@
       },
       'Cacuaco': {
         provincia: 'Luanda',
-        lat: -8.7833,
-        lon: 13.3500,
+        lat: -8.7833, lon: 13.3500,
         zonamento: 'OPOSICAO',
         badge: '🔴 ZONA DE OPOSIÇÃO',
         cor: '#EF4444',
@@ -916,8 +1288,7 @@
       },
       'Luanda': {
         provincia: 'Luanda',
-        lat: -8.8368,
-        lon: 13.2343,
+        lat: -8.8368, lon: 13.2343,
         zonamento: 'CAMPO_BATALHA',
         badge: '🟡 CENTRO DISPUTADO',
         cor: '#F97316',
@@ -934,8 +1305,7 @@
       },
       'Huambo': {
         provincia: 'Huambo',
-        lat: -12.7761,
-        lon: 15.7392,
+        lat: -12.7761, lon: 15.7392,
         zonamento: 'BASTIAO',
         badge: '🟢 BASTIÃO SEGURO',
         cor: '#10B981',
@@ -952,8 +1322,7 @@
       },
       'Lubango': {
         provincia: 'Huíla',
-        lat: -14.9172,
-        lon: 13.4925,
+        lat: -14.9172, lon: 13.4925,
         zonamento: 'CAMPO_BATALHA',
         badge: '🟡 ZONA DISPUTADA',
         cor: '#F97316',
@@ -970,8 +1339,7 @@
       },
       'Lobito': {
         provincia: 'Benguela',
-        lat: -12.3644,
-        lon: 13.5436,
+        lat: -12.3644, lon: 13.5436,
         zonamento: 'CAMPO_BATALHA',
         badge: '🟡 CORREDOR DISPUTADO',
         cor: '#F97316',
@@ -988,8 +1356,7 @@
       },
       'Cabinda': {
         provincia: 'Cabinda',
-        lat: -5.5560,
-        lon: 12.1960,
+        lat: -5.5560, lon: 12.1960,
         zonamento: 'OPOSICAO',
         badge: '🔴 ZONA CRÍTICA',
         cor: '#EF4444',
@@ -1005,7 +1372,7 @@
       }
     };
 
-    // 2. ESTADOS DO SISTEMA MOBILE
+    // 2. ESTADO DO TERMINAL MÓVEL
     let filaOffline = JSON.parse(localStorage.getItem('visitas_pendentes') || '[]');
     let municipioAtual = 'Talatona';
     let sentimentoSelecionado = null;
@@ -1014,7 +1381,15 @@
     let map = null;
     let markerLayerGroup = null;
     let fotoHash = null;
-    let distanciaTesteMetros = 48; // 48m legítimo vs 1250m fraude
+    let distanciaTesteMetros = 48; // 48m legítimo vs 1250m desvio
+    let teleprompterGrande = false;
+
+    // Relógio e countdown em tempo real
+    function atualizarRelogios() {
+      const now = new Date();
+      document.getElementById('clockLive').innerText = now.toTimeString().slice(0, 5);
+    }
+    setInterval(atualizarRelogios, 1000);
 
     function atualizarBadge() {
       const dot = document.getElementById('syncDot');
@@ -1030,7 +1405,7 @@
 
     function mudarEcra(screenId) {
       document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-      document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-item-btn').forEach(b => b.classList.remove('active'));
 
       document.getElementById(screenId).classList.add('active');
 
@@ -1047,64 +1422,25 @@
       document.getElementById('bottomSheet').classList.toggle('expanded');
     }
 
-    function abrirModalDiscurso() {
-      const data = MUNICIPIOS_DATA[municipioAtual] || MUNICIPIOS_DATA['Talatona'];
-      document.getElementById('modalMunicipioTitulo').innerText = `Discurso Tático: ${municipioAtual}`;
-
-      const badge = document.getElementById('modalBadgeTom');
-      badge.innerText = data.badge;
-      badge.style.borderColor = data.cor;
-      badge.style.color = data.cor;
-      badge.style.backgroundColor = `${data.cor}25`;
-
-      let hook = "";
-      let armadilhas = "";
-      let juventude = "";
-
-      if (data.zonamento === 'BASTIAO') {
-        hook = `"Minhas irmãs e meus irmãos de ${municipioAtual}! Estar aqui convosco é sentir a lealdade de um povo que nunca falhou. Mas temos uma missão sagrada no domingo da eleição: levar cada jovem, cada mãe e cada avô para votar logo cedo contra a abstenção!"`;
-        armadilhas = "• Não demonstrar triunfalismo ou dizer que 'a vitória já é certa'.<br>• Não prometer obras sem data fixada de início.<br>• Não esquecer dos jovens de 18-24 anos.";
-        juventude = `Representam ${data.juventude_perc}% deste município. Foco em fomento produtivo, capacitação técnica e internet livre em praças públicas.`;
-      } else if (data.zonamento === 'OPOSICAO') {
-        hook = `"Povo corajoso e trabalhador de ${municipioAtual}! Sei muito bem que muitos de vós estão cansados de promessas não cumpridas enquanto falta água e saneamento. Não vim pedir palmas fáceis: vim assumir um compromisso inegociável de trabalho e dignidade!"`;
-        armadilhas = "• JAMAIS culpar a população pelo lixo acumulado ou valas abertas.<br>• Não entrar em disputas partidárias agressivas.<br>• Priorizar estritamente água potável, luz e emprego.";
-        juventude = `Representam ${data.juventude_perc}% dos eleitores. Canal de comunicação prioritário: cortes rápidos de WhatsApp e TikTok.`;
-      } else {
-        hook = `"Companheiras e companheiros de ${municipioAtual}! Esta eleição decide o rumo concreto da nossa comunidade. A questão não são discursos bonitos, é quem tem capacidade técnica comprovada para colocar água na torneira, iluminar as ruas e apoiar o pequeno negócio!"`;
-        armadilhas = "• Não fazer ataques pessoais que assustem os eleitores indecisos.<br>• Não dar respostas genéricas sobre custo de vida e transportes.";
-        juventude = `Representam ${data.juventude_perc}% dos votantes. Promessa central: simplificação de licenças comerciais e polos tecnológicos municipais.`;
-      }
-
-      document.getElementById('modalHook').innerText = hook;
-      document.getElementById('modalArmadilhas').innerHTML = armadilhas;
-      document.getElementById('modalJuventude').innerText = juventude;
-
-      const compContainer = document.getElementById('modalCompromissos');
-      compContainer.innerHTML = data.dores.map((d, i) => `
-        <div style="margin-bottom:6px;">
-          <b>${i+1}. Solução para ${d.dor}:</b><br>
-          <span style="color:var(--text-secondary);">Garantir plano de resposta nos primeiros 180 dias de mandato com fiscalização das comissões de moradores.</span>
-        </div>
-      `).join('');
-
-      document.getElementById('modalDiscurso').classList.add('active');
-    }
-
-    function fecharModalDiscurso() {
-      document.getElementById('modalDiscurso').classList.remove('active');
+    function expandirDynamicIsland() {
+      const label = document.getElementById('islandLabel');
+      label.innerText = `🛰️ 16 SATS • LAT: ${MUNICIPIOS_DATA[municipioAtual].lat.toFixed(3)}`;
+      setTimeout(() => {
+        label.innerText = `🇦🇴 GPS ATIVO • ${municipioAtual.toUpperCase()}`;
+      }, 3000);
     }
 
     function selecionarSentimento(tipo) {
       sentimentoSelecionado = tipo;
-      document.getElementById('btnPos').className = 'sentiment-card' + (tipo === 'POSITIVO' ? ' active-pos' : '');
-      document.getElementById('btnNeu').className = 'sentiment-card' + (tipo === 'NEUTRO' ? ' active-neu' : '');
-      document.getElementById('btnNeg').className = 'sentiment-card' + (tipo === 'NEGATIVO' ? ' active-neg' : '');
+      document.getElementById('btnPos').className = 'sentiment-touch-card' + (tipo === 'POSITIVO' ? ' active-pos' : '');
+      document.getElementById('btnNeu').className = 'sentiment-touch-card' + (tipo === 'NEUTRO' ? ' active-neu' : '');
+      document.getElementById('btnNeg').className = 'sentiment-touch-card' + (tipo === 'NEGATIVO' ? ' active-neg' : '');
     }
 
-    function selecionarIdade(btn, faixa) {
+    function selecionarIdade(el, faixa) {
       faixaSelecionada = faixa;
-      btn.parentElement.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
-      btn.classList.add('selected');
+      el.parentElement.querySelectorAll('.age-pill-btn').forEach(b => b.classList.remove('selected'));
+      el.classList.add('selected');
     }
 
     function toggleDorChip(chip, dor) {
@@ -1116,6 +1452,23 @@
       }
     }
 
+    function simularGravacaoVoz() {
+      const label = document.getElementById('voiceLabel');
+      const waves = document.getElementById('voiceWaves');
+      waves.querySelectorAll('.v-bar').forEach(b => b.classList.add('active'));
+      label.innerText = '🔴 Gravando Nota (00:04)...';
+
+      setTimeout(() => {
+        waves.querySelectorAll('.v-bar').forEach(b => b.classList.remove('active'));
+        label.innerText = '✅ Nota Transcrita: "Falta de Água & Luz"';
+        // Auto-seleciona água e luz
+        doresSelecionadas = ['AGUA', 'ENERGIA'];
+        document.querySelectorAll('.dor-tag-btn').forEach(btn => {
+          if (btn.innerText.includes('Água') || btn.innerText.includes('Luz')) btn.classList.add('selected');
+        });
+      }, 2000);
+    }
+
     function salvarVisitaLocal() {
       if (!sentimentoSelecionado) {
         alert('Por favor, indique o sentimento do eleitor 🙂 / 😐 / 🙁');
@@ -1124,11 +1477,15 @@
 
       const m = MUNICIPIOS_DATA[municipioAtual] || MUNICIPIOS_DATA['Talatona'];
 
+      // Coordenada com perturbação de privacidade proposital (~110m)
       const novaVisita = {
         id: 'urn:uuid:' + crypto.randomUUID(),
         campanha_id: 'a0000000-0000-0000-0000-000000000001',
         ativista_id: 'b0000000-0000-0000-0000-000000000001',
-        localizacao: { longitude: m.lon, latitude: m.lat },
+        localizacao: {
+          longitude: Number(m.lon.toFixed(3)),
+          latitude: Number(m.lat.toFixed(3))
+        },
         sentimento: sentimentoSelecionado,
         faixa_etaria: faixaSelecionada,
         dores_prioritarias: doresSelecionadas,
@@ -1139,13 +1496,13 @@
       localStorage.setItem('visitas_pendentes', JSON.stringify(filaOffline));
       atualizarBadge();
 
-      alert(`✅ Visita em ${municipioAtual} gravada no telemóvel em modo OFFLINE!\nTotal acumulado na fila: ${filaOffline.length}`);
+      alert(`✅ Visita em ${municipioAtual} guardada no aparelho em modo OFFLINE!\n\nPrivacidade: Coordenadas truncadas para proteção da residência.\nTotal na fila: ${filaOffline.length} visitas.`);
       selecionarSentimento(null);
     }
 
     async function dispararSincronizacao() {
       if (filaOffline.length === 0) {
-        alert('A fila está vazia. Não há registos pendentes de envio.');
+        alert('A fila está vazia. Não há registros pendentes de envio.');
         return;
       }
 
@@ -1161,7 +1518,7 @@
 
         if (resp.ok) {
           const json = await resp.json();
-          alert(`✅ Sincronização Atómica Concluída com a Central!\n${json.resumo.total_novas_inseridas} novas visitas inseridas na base de dados PostGIS.`);
+          alert(`✅ Sincronização Concluída com Sucesso!\n${json.resumo.total_novas_inseridas} novas visitas inseridas na base de dados PostGIS.`);
           filaOffline = [];
           localStorage.removeItem('visitas_pendentes');
           atualizarBadge();
@@ -1169,12 +1526,10 @@
           throw new Error('Servidor indisponível.');
         }
       } catch (e) {
-        // Fallback gracioso informando a integridade da fila offline
-        alert(`ℹ️ Modo Offline Ativo:\nServidor backend central não respondeu na porta 3001.\n\nAs ${filaOffline.length} visitas continuam 100% preservadas no telemóvel e serão transmitidas assim que a API estiver ligada!`);
+        alert(`ℹ️ Modo Offline Ativo:\nServidor backend central não alcançado.\n\nAs ${filaOffline.length} visitas continuam preservadas em segurança no telemóvel e serão transmitidas assim que houver rede!`);
       }
     }
 
-    // PESQUISA E FILTRAGEM DE MUNICÍPIOS NO MAPA
     function pesquisarMunicipio() {
       const termo = document.getElementById('inputMunicipio').value.trim();
       const chaveEncontrada = Object.keys(MUNICIPIOS_DATA).find(
@@ -1184,13 +1539,13 @@
       if (chaveEncontrada) {
         carregarMunicipioNoMapa(chaveEncontrada);
       } else {
-        alert(`Município "${termo}" não encontrado na base de teste. Tente: Talatona, Viana, Huambo, Lubango, Lobito, Cacuaco ou Cabinda.`);
+        alert(`Município "${termo}" não encontrado na base rápida. Tente: Talatona, Viana, Huambo, Lubango, Lobito ou Cabinda.`);
       }
     }
 
     function selecionarMunicipioDireto(nome) {
       document.getElementById('inputMunicipio').value = nome;
-      document.querySelectorAll('.quick-pill').forEach(p => {
+      document.querySelectorAll('.chip-item').forEach(p => {
         p.classList.toggle('active', p.innerText === nome);
       });
       carregarMunicipioNoMapa(nome);
@@ -1201,11 +1556,9 @@
       if (!data) return;
 
       municipioAtual = nome;
+      document.getElementById('islandLabel').innerText = `🇦🇴 GPS ATIVO • ${nome.toUpperCase()}`;
 
-      // 1. Voo suave da câmara do Leaflet até ao município
       map.flyTo([data.lat, data.lon], 13, { duration: 1.2 });
-
-      // 2. Limpar e recriar marcadores no mapa
       markerLayerGroup.clearLayers();
 
       data.assembleias.forEach(a => {
@@ -1218,16 +1571,15 @@
         }).addTo(markerLayerGroup);
 
         marker.bindPopup(`
-          <div style="font-family:Inter; color:#0F172A;">
+          <div style="font-family:'Plus Jakarta Sans', sans-serif; color:#080D1A; padding:2px;">
             <b style="font-size:13px;">${a.nome}</b><br>
             <span style="font-size:11px; color:#64748B;">CNE: ${a.cne}</span><br>
-            <b>Eleitores:</b> ${a.eleitores.toLocaleString()}<br>
-            <b>Zonamento:</b> <span style="color:${a.cor}; font-weight:700;">${a.zonamento}</span>
+            <b>Eleitores Aptos:</b> ${a.eleitores.toLocaleString()}<br>
+            <b>Zonamento:</b> <span style="color:${a.cor}; font-weight:800;">${a.zonamento}</span>
           </div>
         `);
       });
 
-      // 3. Atualizar BottomSheet com Dores e Demografia
       document.getElementById('sheetMunicipioNome').innerText = `${nome}, ${data.provincia}`;
       const badge = document.getElementById('sheetBadge');
       badge.innerText = data.badge;
@@ -1235,38 +1587,26 @@
       badge.style.color = data.cor;
       badge.style.backgroundColor = `${data.cor}25`;
 
-      document.getElementById('sheetPercJovem').innerText = `${data.juventude_perc}% do Município`;
+      document.getElementById('sheetPercJovem').innerText = `${data.juventude_perc}% do Eleitorado`;
       document.getElementById('sheetProgressJovem').style.width = `${data.juventude_perc}%`;
 
       const doresContainer = document.getElementById('doresList');
       doresContainer.innerHTML = data.dores.map((d, i) => `
         <div style="margin-bottom:8px;">
-          <div style="display:flex; justify-content:space-between; font-size:12px;">
-            <span>${i + 1}. ${d.dor}</span>
+          <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:2px;">
+            <span style="color:var(--text-primary); font-weight:600;">${i + 1}. ${d.dor}</span>
             <span style="color:var(--text-secondary);">${d.perc}%</span>
           </div>
-          <div class="progress-bar">
-            <div class="progress-fill" style="width: ${d.perc}%; background: ${d.cor}"></div>
+          <div class="progress-track">
+            <div class="progress-fill-bar" style="width: ${d.perc}%; background: ${d.cor}"></div>
           </div>
         </div>
       `).join('');
 
-      // 4. Atualizar coordenadas do Ecrã Porta-a-Porta
-      document.getElementById('labelCoords').innerText = `Lat: ${data.lat.toFixed(4)}, Lon: ${data.lon.toFixed(4)}`;
+      document.getElementById('labelCoords').innerText = `${data.lat.toFixed(3)}, ${data.lon.toFixed(3)}`;
     }
 
-    // MÓDULO DIA D: ALTERNAR ABA E SIMULAR GEOFENCING
-    function alternarAbaDiaD(aba) {
-      if (aba === 'afluencia') {
-        document.getElementById('abaAfluencia').style.display = 'block';
-        document.getElementById('abaAta').style.display = 'none';
-      } else {
-        document.getElementById('abaAfluencia').style.display = 'none';
-        document.getElementById('abaAta').style.display = 'block';
-      }
-      document.querySelectorAll('.tab-pill').forEach(p => p.classList.toggle('active'));
-    }
-
+    // DIA D: AUDITORIA GEOFENCING E CADEIA DE CUSTÓDIA
     function alternarDistanciaTeste() {
       const box = document.getElementById('geofenceBox');
       const title = document.getElementById('geofenceTitle');
@@ -1277,19 +1617,19 @@
       if (distanciaTesteMetros === 48) {
         distanciaTesteMetros = 1250;
         btn.innerText = '🚨 1.250m (Longe da Mesa)';
-        box.className = 'geofence-alert suspeita';
+        box.className = 'geofence-status-box suspeita';
         icon.innerText = '🚨';
-        title.innerText = 'Fora do Perímetro Oficial (1.250m)';
+        title.innerText = 'Alerta para Revisão Humana (1.250m)';
         title.style.color = 'var(--oposicao)';
-        sub.innerText = 'Atenção: Distância > 300m! O PostGIS classificará esta ata automaticamente como SUSPEITA.';
+        sub.innerText = 'Desvio superior a 300m da assembleia CNE. Encaminhado para comitê de auditoria.';
       } else {
         distanciaTesteMetros = 48;
         btn.innerText = '📍 48m (Na Mesa)';
-        box.className = 'geofence-alert';
+        box.className = 'geofence-status-box';
         icon.innerText = '📍';
         title.innerText = 'Dentro do Perímetro Oficial (48m)';
         title.style.color = 'var(--bastaio)';
-        sub.innerText = 'Assembleia oficial de voto. Distância autorizada para submissão de atas.';
+        sub.innerText = 'Coordenada compatível com cadastro da CNE. Transmissão autorizada.';
       }
     }
 
@@ -1300,29 +1640,95 @@
       fotoHash = Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2, '0')).join('');
 
       const box = document.getElementById('cameraBox');
-      box.className = 'photo-area captured';
-      document.getElementById('cameraTitle').innerText = '✅ Ata Fotografada e Selada';
+      box.style.borderColor = 'var(--bastaio)';
+      box.style.background = 'rgba(16, 185, 129, 0.12)';
+      document.getElementById('cameraTitle').innerText = '✅ Ata Fotografada & Selada';
       document.getElementById('cameraSub').innerText = 'SHA-256: ' + fotoHash.slice(0, 32) + '...';
     }
 
     function enviarAta() {
       if (!fotoHash) {
-        alert('É obrigatório capturar a foto da ata assinada.');
+        alert('É obrigatório capturar a foto da ata assinada antes de transmitir.');
         return;
       }
 
       if (distanciaTesteMetros > 300) {
-        alert(`🚨 ALERTA ANTI-FRAUDE:\nAta transmitida a ${distanciaTesteMetros}m da mesa!\n\nTrigger PostGIS acionado: STATUS = "SUSPEITA" para auditoria jurídica imediata.`);
+        alert(`⚠️ ALERTA PARA REVISÃO HUMANA:\nAta transmitida a ${distanciaTesteMetros}m da mesa!\n\nProtocolo PostGIS acionado: STATUS = "SUSPEITA" para verificação técnica pelo comitê jurídico.`);
       } else {
-        alert(`🔒 Ata transmitida com sucesso!\nStatus: APROVADA\nGeofencing: ${distanciaTesteMetros}m da assembleia oficial da CNE.`);
+        alert(`🔒 Ata transmitida com sucesso!\nStatus: APROVADA\nCadeia de custódia SHA-256 validada a ${distanciaTesteMetros}m da assembleia CNE.`);
       }
     }
 
-    // INICIALIZAÇÃO AO CARREGAR
+    function acionarEquipeJuridica() {
+      const protocolo = 'CASO-2027-' + Math.floor(100000 + Math.random() * 900000);
+      alert(`⚖️ CASO JURÍDICO PROTOCOLADO!\n\nProtocolo: ${protocolo}\nTerritório: ${municipioAtual}\nStatus: ABERTO\nResponsável: Comitê de Contencioso Eleitoral (OAA)`);
+    }
+
+    // MODAL DE DISCURSO TÁTICO
+    function abrirModalDiscurso() {
+      const data = MUNICIPIOS_DATA[municipioAtual] || MUNICIPIOS_DATA['Talatona'];
+      document.getElementById('modalMunicipioTitulo').innerText = `Discurso Tático: ${municipioAtual}`;
+
+      const badge = document.getElementById('modalBadgeTom');
+      badge.innerText = data.badge;
+      badge.style.borderColor = data.cor;
+      badge.style.color = data.cor;
+
+      let hook = "";
+      let armadilhas = "";
+      let juventude = "";
+
+      if (data.zonamento === 'BASTIAO') {
+        hook = `"Minhas irmãs e meus irmãos de ${municipioAtual}! Estar convosco é sentir a lealdade de quem nunca falhou. Mas temos uma missão no domingo da eleição: levar cada jovem, cada mãe e cada avô para votar logo cedo contra a abstenção!"`;
+        armadilhas = "• Não demonstrar triunfalismo ou dizer que 'já está ganho'.<br>• Não prometer sem prazos de início.<br>• Não esquecer dos jovens de 18 a 24 anos.";
+        juventude = `Representam ${data.juventude_perc}% deste município. Foco em formação técnica, internet gratuita em praças e apoio ao microcrédito.`;
+      } else if (data.zonamento === 'OPOSICAO') {
+        hook = `"Povo corajoso e trabalhador de ${municipioAtual}! Sei perfeitamente que estão cansados de promessas vazias enquanto falta água canalizada e as valas continuam abertas. Não vim pedir palmas fáceis: vim assumir um compromisso inegociável de trabalho e dignidade!"`;
+        armadilhas = "• JAMAIS culpar a população pelo lixo acumulado.<br>• Não entrar em disputas partidárias agressivas.<br>• Priorizar estritamente água, luz e emprego.";
+        juventude = `Representam ${data.juventude_perc}% dos eleitores. Comunicação prioritária via WhatsApp e cortes curtos no TikTok.`;
+      } else {
+        hook = `"Companheiras e companheiros de ${municipioAtual}! Esta eleição decide o rumo concreto da nossa comunidade. A questão não é retórica, é quem tem capacidade comprovada para colocar água na torneira, iluminar as ruas e apoiar o pequeno negócio!"`;
+        armadilhas = "• Evitar ataques pessoais que assustem o eleitor moderado.<br>• Não dar respostas genéricas sobre custo de vida.";
+        juventude = `Representam ${data.juventude_perc}% dos votantes. Promessa central: simplificação de licenças comerciais e polos tecnológicos.`;
+      }
+
+      document.getElementById('modalHook').innerText = hook;
+      document.getElementById('modalArmadilhas').innerHTML = armadilhas;
+      document.getElementById('modalJuventude').innerText = juventude;
+
+      const compContainer = document.getElementById('modalCompromissos');
+      compContainer.innerHTML = data.dores.map((d, i) => `
+        <div style="margin-bottom:6px;">
+          <b>${i+1}. [PROMESSA — REVISAR] Solução para ${d.dor}:</b><br>
+          <span style="color:var(--text-secondary);">Plano municipal com início de obras em 180 dias e fiscalização da comissão de moradores.</span>
+        </div>
+      `).join('');
+
+      document.getElementById('modalDiscurso').classList.add('active');
+    }
+
+    function fecharModalDiscurso() {
+      document.getElementById('modalDiscurso').classList.remove('active');
+    }
+
+    function toggleTeleprompterFont() {
+      const box = document.getElementById('modalHook');
+      teleprompterGrande = !teleprompterGrande;
+      box.className = 'teleprompter-box' + (teleprompterGrande ? ' large-font' : '');
+    }
+
+    function copiarDiscurso() {
+      const hook = document.getElementById('modalHook').innerText;
+      navigator.clipboard.writeText(hook).then(() => {
+        alert('📋 Discurso copiado para a área de transferência com sucesso!');
+      });
+    }
+
+    // INICIALIZAÇÃO
     window.onload = function() {
+      atualizarRelogios();
       atualizarBadge();
 
-      // Inicializa mapa em Talatona, Luanda
       map = L.map('map', { zoomControl: false }).setView([-8.9167, 13.2667], 13);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
@@ -1330,8 +1736,6 @@
       }).addTo(map);
 
       markerLayerGroup = L.layerGroup().addTo(map);
-
-      // Carrega o município inicial
       carregarMunicipioNoMapa('Talatona');
     };
   </script>
