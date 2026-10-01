@@ -40,6 +40,9 @@ ENV/
 # Streamlit
 .streamlit/
 
+# Subpastas temporárias ou clones
+angola/
+
 # Sistema Operativo
 .DS_Store
 Thumbs.db
