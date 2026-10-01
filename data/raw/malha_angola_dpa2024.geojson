@@ -1,0 +1,112 @@
+{
+  "type": "FeatureCollection",
+  "name": "malha_angola_dpa2024",
+  "crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+  "features": [
+    {
+      "type": "Feature",
+      "properties": { "codigo_dpa": "AO-LUA", "nome": "Luanda", "tipo": "PROVINCIA", "versao_dpa": "DPA_2024_21P", "capital": "Luanda", "centroide": [13.2343, -8.8368] },
+      "geometry": { "type": "Polygon", "coordinates": [[[13.1, -8.7], [13.4, -8.7], [13.4, -9.0], [13.1, -9.0], [13.1, -8.7]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "codigo_dpa": "AO-ICB", "nome": "Icolo e Bengo", "tipo": "PROVINCIA", "versao_dpa": "DPA_2024_21P", "capital": "Catete", "centroide": [13.6980, -9.1170] },
+      "geometry": { "type": "Polygon", "coordinates": [[[13.3, -8.9], [13.9, -8.9], [13.9, -9.6], [13.3, -9.6], [13.3, -8.9]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "codigo_dpa": "AO-CAB", "nome": "Cabinda", "tipo": "PROVINCIA", "versao_dpa": "DPA_2024_21P", "capital": "Cabinda", "centroide": [12.1960, -5.5560] },
+      "geometry": { "type": "Polygon", "coordinates": [[[12.0, -5.2], [12.8, -5.2], [12.8, -5.9], [12.0, -5.9], [12.0, -5.2]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "codigo_dpa": "AO-ZAI", "nome": "Zaire", "tipo": "PROVINCIA", "versao_dpa": "DPA_2024_21P", "capital": "Mbanza Kongo", "centroide": [14.2401, -6.2670] },
+      "geometry": { "type": "Polygon", "coordinates": [[[12.5, -5.9], [15.0, -5.9], [15.0, -7.5], [12.5, -7.5], [12.5, -5.9]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "codigo_dpa": "AO-UIG", "nome": "Uíge", "tipo": "PROVINCIA", "versao_dpa": "DPA_2024_21P", "capital": "Uíge", "centroide": [15.0583, -7.6152] },
+      "geometry": { "type": "Polygon", "coordinates": [[[14.5, -6.8], [16.5, -6.8], [16.5, -8.5], [14.5, -8.5], [14.5, -6.8]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "codigo_dpa": "AO-BGO", "nome": "Bengo", "tipo": "PROVINCIA", "versao_dpa": "DPA_2024_21P", "capital": "Caxito", "centroide": [13.6644, -8.5785] },
+      "geometry": { "type": "Polygon", "coordinates": [[[13.2, -7.8], [14.5, -7.8], [14.5, -8.9], [13.2, -8.9], [13.2, -7.8]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "codigo_dpa": "AO-CNN", "nome": "Cuanza Norte", "tipo": "PROVINCIA", "versao_dpa": "DPA_2024_21P", "capital": "Ndalatando", "centroide": [14.9116, -9.2979] },
+      "geometry": { "type": "Polygon", "coordinates": [[[14.2, -8.5], [15.5, -8.5], [15.5, -9.8], [14.2, -9.8], [14.2, -8.5]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "codigo_dpa": "AO-CUS", "nome": "Cuanza Sul", "tipo": "PROVINCIA", "versao_dpa": "DPA_2024_21P", "capital": "Sumbe", "centroide": [14.8941, -11.2061] },
+      "geometry": { "type": "Polygon", "coordinates": [[[13.8, -9.5], [16.2, -9.5], [16.2, -12.0], [13.8, -12.0], [13.8, -9.5]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "codigo_dpa": "AO-MAL", "nome": "Malanje", "tipo": "PROVINCIA", "versao_dpa": "DPA_2024_21P", "capital": "Malanje", "centroide": [16.3410, -9.5402] },
+      "geometry": { "type": "Polygon", "coordinates": [[[15.5, -8.0], [18.2, -8.0], [18.2, -11.5], [15.5, -11.5], [15.5, -8.0]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "codigo_dpa": "AO-LNO", "nome": "Lunda Norte", "tipo": "PROVINCIA", "versao_dpa": "DPA_2024_21P", "capital": "Dundo", "centroide": [20.8333, -8.4167] },
+      "geometry": { "type": "Polygon", "coordinates": [[[17.5, -7.0], [22.0, -7.0], [22.0, -10.0], [17.5, -10.0], [17.5, -7.0]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "codigo_dpa": "AO-LSU", "nome": "Lunda Sul", "tipo": "PROVINCIA", "versao_dpa": "DPA_2024_21P", "capital": "Saurimo", "centroide": [20.3917, -9.6608] },
+      "geometry": { "type": "Polygon", "coordinates": [[[19.0, -9.0], [22.2, -9.0], [22.2, -11.5], [19.0, -11.5], [19.0, -9.0]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "codigo_dpa": "AO-BEN", "nome": "Benguela", "tipo": "PROVINCIA", "versao_dpa": "DPA_2024_21P", "capital": "Benguela", "centroide": [13.4055, -12.5763] },
+      "geometry": { "type": "Polygon", "coordinates": [[[13.0, -11.8], [15.0, -11.8], [15.0, -13.5], [13.0, -13.5], [13.0, -11.8]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "codigo_dpa": "AO-HUA", "nome": "Huambo", "tipo": "PROVINCIA", "versao_dpa": "DPA_2024_21P", "capital": "Huambo", "centroide": [15.7392, -12.7761] },
+      "geometry": { "type": "Polygon", "coordinates": [[[15.0, -12.0], [16.5, -12.0], [16.5, -13.6], [15.0, -13.6], [15.0, -12.0]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "codigo_dpa": "AO-BIE", "nome": "Bié", "tipo": "PROVINCIA", "versao_dpa": "DPA_2024_21P", "capital": "Kuito", "centroide": [16.9333, -12.3833] },
+      "geometry": { "type": "Polygon", "coordinates": [[[16.2, -11.0], [18.8, -11.0], [18.8, -14.2], [16.2, -14.2], [16.2, -11.0]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "codigo_dpa": "AO-MOX", "nome": "Moxico", "tipo": "PROVINCIA", "versao_dpa": "DPA_2024_21P", "capital": "Luena", "centroide": [19.9167, -13.4500] },
+      "geometry": { "type": "Polygon", "coordinates": [[[18.5, -11.0], [21.5, -11.0], [21.5, -14.5], [18.5, -14.5], [18.5, -11.0]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "codigo_dpa": "AO-MXL", "nome": "Moxico Leste", "tipo": "PROVINCIA", "versao_dpa": "DPA_2024_21P", "capital": "Luau", "centroide": [22.2246, -10.7073] },
+      "geometry": { "type": "Polygon", "coordinates": [[[21.5, -10.5], [24.0, -10.5], [24.0, -14.0], [21.5, -14.0], [21.5, -10.5]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "codigo_dpa": "AO-HUI", "nome": "Huíla", "tipo": "PROVINCIA", "versao_dpa": "DPA_2024_21P", "capital": "Lubango", "centroide": [13.4925, -14.9172] },
+      "geometry": { "type": "Polygon", "coordinates": [[[13.2, -13.5], [16.5, -13.5], [16.5, -16.2], [13.2, -16.2], [13.2, -13.5]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "codigo_dpa": "AO-NAM", "nome": "Namibe", "tipo": "PROVINCIA", "versao_dpa": "DPA_2024_21P", "capital": "Moçâmedes", "centroide": [12.1522, -15.1961] },
+      "geometry": { "type": "Polygon", "coordinates": [[[11.7, -13.8], [13.5, -13.8], [13.5, -17.3], [11.7, -17.3], [11.7, -13.8]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "codigo_dpa": "AO-CUN", "nome": "Cunene", "tipo": "PROVINCIA", "versao_dpa": "DPA_2024_21P", "capital": "Ondjiva", "centroide": [15.7333, -16.8500] },
+      "geometry": { "type": "Polygon", "coordinates": [[[14.5, -15.5], [17.5, -15.5], [17.5, -17.4], [14.5, -17.4], [14.5, -15.5]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "codigo_dpa": "AO-CUB", "nome": "Cubango", "tipo": "PROVINCIA", "versao_dpa": "DPA_2024_21P", "capital": "Menongue", "centroide": [17.6910, -14.6500] },
+      "geometry": { "type": "Polygon", "coordinates": [[[16.5, -14.0], [19.8, -14.0], [19.8, -17.8], [16.5, -17.8], [16.5, -14.0]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "codigo_dpa": "AO-CDO", "nome": "Cuando", "tipo": "PROVINCIA", "versao_dpa": "DPA_2024_21P", "capital": "Mavinga", "centroide": [20.3667, -15.7833] },
+      "geometry": { "type": "Polygon", "coordinates": [[[19.8, -14.0], [23.5, -14.0], [23.5, -18.0], [19.8, -18.0], [19.8, -14.0]]] }
+    }
+  ]
+}

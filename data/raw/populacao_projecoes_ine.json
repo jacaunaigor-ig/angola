@@ -1,0 +1,129 @@
+{
+  "metadados": {
+    "titulo": "Projeções Populacionais e Demográficas de Angola (2022-2027)",
+    "orgao_emissor": "Instituto Nacional de Estatística (INE Angola)",
+    "data_publicacao": "2023-05-15",
+    "base_censo": "Recenseamento Geral da População e Habitação (RGPH 2014)",
+    "proveniencia": "OFICIAL",
+    "metodologia": "Método das Componentes Demográficas por Coortes e Projeções Municipais INE",
+    "populacao_nacional_estimada_2024": 35121734,
+    "populacao_nacional_estimada_2027": 38150000
+  },
+  "provincias": [
+    {
+      "codigo_ine": "AO-LUA",
+      "provincia": "Luanda",
+      "populacao_total": 9300000,
+      "populacao_18_mais": 4850000,
+      "populacao_jovem_18_35": 3250000,
+      "jovens_perc_eleitorado": 67.0,
+      "taxa_urbanizacao_perc": 98.2,
+      "densidade_demografica_km2": 4946.8,
+      "municipios_principais": [
+        { "nome": "Luanda", "populacao": 2500000, "populacao_18_mais": 1350000, "juventude_perc": 64.0 },
+        { "nome": "Viana", "populacao": 2100000, "populacao_18_mais": 1050000, "juventude_perc": 71.5 },
+        { "nome": "Cacuaco", "populacao": 1350000, "populacao_18_mais": 640000, "juventude_perc": 69.0 },
+        { "nome": "Talatona", "populacao": 650000, "populacao_18_mais": 360000, "juventude_perc": 62.0 },
+        { "nome": "Belas", "populacao": 1400000, "populacao_18_mais": 710000, "juventude_perc": 67.0 },
+        { "nome": "Kilamba Kiaxi", "populacao": 1150000, "populacao_18_mais": 590000, "juventude_perc": 66.0 },
+        { "nome": "Cazenga", "populacao": 1050000, "populacao_18_mais": 520000, "juventude_perc": 68.5 }
+      ]
+    },
+    {
+      "codigo_ine": "AO-HUA",
+      "provincia": "Huambo",
+      "populacao_total": 2600000,
+      "populacao_18_mais": 1280000,
+      "populacao_jovem_18_35": 750000,
+      "jovens_perc_eleitorado": 58.6,
+      "taxa_urbanizacao_perc": 54.0,
+      "densidade_demografica_km2": 76.0,
+      "municipios_principais": [
+        { "nome": "Huambo", "populacao": 890000, "populacao_18_mais": 470000, "juventude_perc": 60.0 },
+        { "nome": "Caála", "populacao": 380000, "populacao_18_mais": 180000, "juventude_perc": 57.0 },
+        { "nome": "Bailundo", "populacao": 420000, "populacao_18_mais": 195000, "juventude_perc": 56.5 }
+      ]
+    },
+    {
+      "codigo_ine": "AO-BEN",
+      "provincia": "Benguela",
+      "populacao_total": 2750000,
+      "populacao_18_mais": 1390000,
+      "populacao_jovem_18_35": 880000,
+      "jovens_perc_eleitorado": 63.3,
+      "taxa_urbanizacao_perc": 68.0,
+      "densidade_demografica_km2": 69.0,
+      "municipios_principais": [
+        { "nome": "Benguela", "populacao": 720000, "populacao_18_mais": 380000, "juventude_perc": 63.0 },
+        { "nome": "Lobito", "populacao": 510000, "populacao_18_mais": 275000, "juventude_perc": 65.5 },
+        { "nome": "Catumbela", "populacao": 250000, "populacao_18_mais": 125000, "juventude_perc": 64.0 }
+      ]
+    },
+    {
+      "codigo_ine": "AO-HUI",
+      "provincia": "Huíla",
+      "populacao_total": 3100000,
+      "populacao_18_mais": 1450000,
+      "populacao_jovem_18_35": 840000,
+      "jovens_perc_eleitorado": 57.9,
+      "taxa_urbanizacao_perc": 42.0,
+      "densidade_demografica_km2": 39.0,
+      "municipios_principais": [
+        { "nome": "Lubango", "populacao": 950000, "populacao_18_mais": 490000, "juventude_perc": 61.0 },
+        { "nome": "Matala", "populacao": 340000, "populacao_18_mais": 150000, "juventude_perc": 55.0 }
+      ]
+    },
+    {
+      "codigo_ine": "AO-CAB",
+      "provincia": "Cabinda",
+      "populacao_total": 850000,
+      "populacao_18_mais": 420000,
+      "populacao_jovem_18_35": 280000,
+      "jovens_perc_eleitorado": 66.7,
+      "taxa_urbanizacao_perc": 82.0,
+      "densidade_demografica_km2": 117.0,
+      "municipios_principais": [
+        { "nome": "Cabinda", "populacao": 680000, "populacao_18_mais": 340000, "juventude_perc": 67.0 }
+      ]
+    },
+    {
+      "codigo_ine": "AO-BIE",
+      "provincia": "Bié",
+      "populacao_total": 2050000,
+      "populacao_18_mais": 950000,
+      "populacao_jovem_18_35": 540000,
+      "jovens_perc_eleitorado": 56.8,
+      "taxa_urbanizacao_perc": 38.0,
+      "densidade_demografica_km2": 29.0,
+      "municipios_principais": [
+        { "nome": "Kuito", "populacao": 580000, "populacao_18_mais": 290000, "juventude_perc": 59.0 }
+      ]
+    },
+    {
+      "codigo_ine": "AO-MAL",
+      "provincia": "Malanje",
+      "populacao_total": 1250000,
+      "populacao_18_mais": 610000,
+      "populacao_jovem_18_35": 340000,
+      "jovens_perc_eleitorado": 55.7,
+      "taxa_urbanizacao_perc": 46.0,
+      "densidade_demografica_km2": 13.0,
+      "municipios_principais": [
+        { "nome": "Malanje", "populacao": 610000, "populacao_18_mais": 310000, "juventude_perc": 58.0 }
+      ]
+    },
+    {
+      "codigo_ine": "AO-UIG",
+      "provincia": "Uíge",
+      "populacao_total": 1800000,
+      "populacao_18_mais": 860000,
+      "populacao_jovem_18_35": 490000,
+      "jovens_perc_eleitorado": 57.0,
+      "taxa_urbanizacao_perc": 40.0,
+      "densidade_demografica_km2": 31.0,
+      "municipios_principais": [
+        { "nome": "Uíge", "populacao": 640000, "populacao_18_mais": 320000, "juventude_perc": 59.5 }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,57 @@
+{
+  "metadados": {
+    "titulo": "Tabela de Correspondência da Divisão Político-Administrativa de Angola (DPA 2016 -> DPA 2024)",
+    "fonte": "Lei da Divisão Político-Administrativa de 2024 / Assembleia Nacional de Angola",
+    "data_referencia": "2024-03-01",
+    "proveniencia": "OFICIAL",
+    "resumo_mudancas": {
+      "provincias_2016": 18,
+      "provincias_2024": 21,
+      "municipios_2016": 164,
+      "municipios_2024": 325,
+      "novas_provincias_criadas": [
+        { "nome": "Icolo e Bengo", "origem": "Desmembrada de Luanda e Bengo" },
+        { "nome": "Moxico Leste", "origem": "Desmembrada da Província do Moxico (Sede: Luau)" },
+        { "nome": "Cuando", "origem": "Desmembrada da Província do Cuando Cubango (Sede: Mavinga)" }
+      ]
+    }
+  },
+  "correspondencias_provincias": [
+    {
+      "provincia_2016": "Luanda",
+      "provincias_2024_resultantes": [
+        { "nome": "Luanda", "tipo": "REMANESCENTE_URBANA", "municipios_principais": ["Luanda", "Viana", "Cacuaco", "Cazenga", "Belas", "Kilamba Kiaxi", "Talatona"] },
+        { "nome": "Icolo e Bengo", "tipo": "NOVA_PROVINCIA", "municipios_principais": ["Icolo e Bengo", "Quiçama"] }
+      ]
+    },
+    {
+      "provincia_2016": "Moxico",
+      "provincias_2024_resultantes": [
+        { "nome": "Moxico", "tipo": "REMANESCENTE_OESTE", "municipios_principais": ["Luena (Moxico)", "Camanongue", "Léua"] },
+        { "nome": "Moxico Leste", "tipo": "NOVA_PROVINCIA", "municipios_principais": ["Luau", "Alto Zambeze", "Bundas", "Luchazes"] }
+      ]
+    },
+    {
+      "provincia_2016": "Cuando Cubango",
+      "provincias_2024_resultantes": [
+        { "nome": "Cubango", "tipo": "REMANESCENTE_OESTE", "municipios_principais": ["Menongue", "Cuchi", "Cuito Cuanavale"] },
+        { "nome": "Cuando", "tipo": "NOVA_PROVINCIA", "municipios_principais": ["Mavinga", "Dirico", "Rivungo", "Calai"] }
+      ]
+    },
+    { "provincia_2016": "Huambo", "provincias_2024_resultantes": [{ "nome": "Huambo", "tipo": "INALTERADA" }] },
+    { "provincia_2016": "Benguela", "provincias_2024_resultantes": [{ "nome": "Benguela", "tipo": "INALTERADA" }] },
+    { "provincia_2016": "Huíla", "provincias_2024_resultantes": [{ "nome": "Huíla", "tipo": "INALTERADA" }] },
+    { "provincia_2016": "Cabinda", "provincias_2024_resultantes": [{ "nome": "Cabinda", "tipo": "INALTERADA" }] },
+    { "provincia_2016": "Bié", "provincias_2024_resultantes": [{ "nome": "Bié", "tipo": "INALTERADA" }] },
+    { "provincia_2016": "Malanje", "provincias_2024_resultantes": [{ "nome": "Malanje", "tipo": "INALTERADA" }] },
+    { "provincia_2016": "Uíge", "provincias_2024_resultantes": [{ "nome": "Uíge", "tipo": "INALTERADA" }] },
+    { "provincia_2016": "Cuanza Sul", "provincias_2024_resultantes": [{ "nome": "Cuanza Sul", "tipo": "INALTERADA" }] },
+    { "provincia_2016": "Cuanza Norte", "provincias_2024_resultantes": [{ "nome": "Cuanza Norte", "tipo": "INALTERADA" }] },
+    { "provincia_2016": "Zaire", "provincias_2024_resultantes": [{ "nome": "Zaire", "tipo": "INALTERADA" }] },
+    { "provincia_2016": "Lunda Norte", "provincias_2024_resultantes": [{ "nome": "Lunda Norte", "tipo": "INALTERADA" }] },
+    { "provincia_2016": "Lunda Sul", "provincias_2024_resultantes": [{ "nome": "Lunda Sul", "tipo": "INALTERADA" }] },
+    { "provincia_2016": "Cunene", "provincias_2024_resultantes": [{ "nome": "Cunene", "tipo": "INALTERADA" }] },
+    { "provincia_2016": "Namibe", "provincias_2024_resultantes": [{ "nome": "Namibe", "tipo": "INALTERADA" }] },
+    { "provincia_2016": "Bengo", "provincias_2024_resultantes": [{ "nome": "Bengo", "tipo": "AJUSTADA_SEM_ICOLO" }] }
+  ]
+}
