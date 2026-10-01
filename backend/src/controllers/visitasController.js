@@ -44,22 +44,21 @@ const visitasController = {
           sentimento,
           dores_prioritarias,
           faixa_etaria,
+          observacoes,
           categoria_observacao,
           marcado_revisao_humana,
           motivo_revisao,
           registado_em,
           sincronizado_em,
           sincronizado,
-          metadados_aparelho,
-          proveniencia
+          metadados_aparelho
         ) VALUES (
           $1, $2, $3,
           ST_SetSRID(ST_MakePoint($4, $5), 4326)::geography,
-          $6, $7, $8, $9, $10, $11, $12, $13,
+          $6, $7, $8, $9, $10, $11, $12, $13, $14,
           clock_timestamp(),
           TRUE,
-          $14,
-          'OFICIAL'
+          $15
         )
         ON CONFLICT (id) DO NOTHING
         RETURNING id;
@@ -112,11 +111,14 @@ const visitasController = {
           v.sentimento,
           v.dores_prioritarias || [],
           v.faixa_etaria || null,
-          v.observacoes ? 'REGISTO_NOTAS_GERAIS' : null,
+          typeof v.observacoes === 'string' ? v.observacoes.slice(0, 2000) : null,
+          v.categoria_observacao || (v.observacoes ? 'REGISTO_NOTAS_GERAIS' : null),
           marcadoRevisao,
           motivoRevisao,
           v.registado_em,
-          v.metadados_aparelho ? JSON.stringify({ app_versao: v.metadados_aparelho.app_versao || '1.0' }) : null,
+          v.metadados_aparelho
+            ? JSON.stringify({ app_versao: v.metadados_aparelho.app_versao || v.metadados_aparelho.app_version || '1.0' })
+            : null,
         ];
 
         const resultado = await client.query(sqlInsert, valores);
@@ -165,6 +167,8 @@ const visitasController = {
         return res.status(400).json({ erro: 'Parâmetro "campanha_id" é obrigatório.' });
       }
 
+      const limiteSeguro = Math.min(Math.max(parseInt(limite, 10) || 50, 1), 200);
+
       let sql = `
         SELECT 
           id,
@@ -190,7 +194,7 @@ const visitasController = {
         sql += ` AND ativista_id = $${params.length}`;
       }
 
-      params.push(parseInt(limite, 10));
+      params.push(limiteSeguro);
       sql += ` ORDER BY registado_em DESC LIMIT $${params.length};`;
 
       const { rows } = await query(sql, params);

@@ -4,7 +4,15 @@
 
 const jwt = require('jsonwebtoken');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'chave_secreta_padrao_angola_2027_mudar_em_prod';
+const JWT_SECRET = process.env.JWT_SECRET || (
+  process.env.NODE_ENV === 'production'
+    ? null
+    : 'chave_secreta_padrao_angola_2027_apenas_desenvolvimento'
+);
+
+if (!JWT_SECRET) {
+  throw new Error('JWT_SECRET é obrigatório quando NODE_ENV=production.');
+}
 
 // Rate Limiter em memória por IP
 const rateLimitMap = new Map();
@@ -64,8 +72,8 @@ function autenticar(req, res, next) {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
 
-  // Suporte a Token de Demonstração para testes e ambiente offline
-  if (token === 'demo-token-admin' || (!token && process.env.NODE_ENV === 'test')) {
+  const ambienteNaoProd = process.env.NODE_ENV !== 'production';
+  if (ambienteNaoProd && (token === 'demo-token-admin' || (!token && process.env.NODE_ENV === 'test'))) {
     req.usuario = {
       id: 'usr-demo-01',
       email: 'admin@campanha2027.ao',

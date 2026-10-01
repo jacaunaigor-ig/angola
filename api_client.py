@@ -23,15 +23,23 @@ class ApiClient:
         """
         try:
             resp = requests.get(f"{self.base_url}/health", timeout=TIMEOUT_SECONDS)
-            if resp.status_code == 200:
-                data = resp.json()
+            data = resp.json() if resp.content else {}
+            bd_ok = data.get("base_dados") == "CONECTADA"
+            status_ok = data.get("status") == "ONLINE" and resp.status_code == 200
+            if status_ok and bd_ok:
                 return True, {
                     "status": "ONLINE",
                     "ambiente": data.get("ambiente", "production"),
                     "postgis": data.get("postgis", "Detectado"),
-                    "horario_servidor": data.get("horario_servidor")
+                    "horario_servidor": data.get("horario_servidor"),
+                    "base_dados": data.get("base_dados"),
                 }
-            return False, {"status": "DEGRADADO", "codigo_http": resp.status_code}
+            return False, {
+                "status": data.get("status", "DEGRADADO"),
+                "codigo_http": resp.status_code,
+                "base_dados": data.get("base_dados"),
+                "aviso": data.get("aviso"),
+            }
         except Exception as e:
             return False, {"status": "OFFLINE", "erro": str(e)}
 
@@ -190,3 +198,24 @@ class ApiClient:
             "margem_perc": margem,
             "formula_aplicada": f"Margem ({margem}%) calculada por ({votos_partido} - {votos_oposicao}) / {total_validos} * 100."
         }
+
+    def criar_caso_juridico(self, titulo: str, descricao_fato: str, tipo_irregularidade: str) -> Tuple[bool, str]:
+        """Protocola um caso jurídico. Falha de forma honesta se a API não responder."""
+        try:
+            resp = requests.post(
+                f"{self.base_url}/dia-d/casos-juridicos",
+                json={
+                    "titulo": titulo,
+                    "descricao_fato": descricao_fato,
+                    "tipo_irregularidade": tipo_irregularidade,
+                    "prioridade": "ALTA",
+                },
+                timeout=TIMEOUT_SECONDS,
+            )
+            if resp.status_code in (200, 201):
+                data = resp.json()
+                protocolo = data.get("protocolo") or (data.get("caso") or {}).get("protocolo")
+                return True, f"Caso protocolado. Protocolo: {protocolo or 'gerado pelo servidor'}."
+            return False, (resp.json() or {}).get("detalhes") or "A API recusou o protocolamento."
+        except Exception as e:
+            return False, f"API indisponível. Caso não foi protocolado: {e}"

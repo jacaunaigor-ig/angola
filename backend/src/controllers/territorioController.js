@@ -129,11 +129,16 @@ const territorioController = {
                 type: 'Feature',
                 properties: {
                   codigo: r.codigo_oficial,
+                  codigo_oficial: r.codigo_oficial,
                   nome: r.nome,
                   nivel: r.nivel_territorial,
-                  populacao: r.populacao_total,
+                  populacao_total: r.populacao_total,
+                  populacao_18_mais: r.populacao_18_mais,
+                  juventude_perc: r.juventude_perc,
+                  eleitores_cne: r.eleitores_registados_cne,
                   eleitores: r.eleitores_registados_cne,
-                  margem_perc: r.margem_apurada_perc,
+                  abstencao_perc: r.abstencao_indice != null ? Number(r.abstencao_indice) * 100 : null,
+                  margem_apurada_perc: r.margem_apurada_perc,
                   zonamento: r.zonamento_calculado,
                   formula: r.formula_explicativa,
                   proveniencia: r.proveniencia_dados

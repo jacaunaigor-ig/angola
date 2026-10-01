@@ -65,6 +65,7 @@ exports.up = (pgm) => {
         dores_prioritarias categoria_dor[] NOT NULL DEFAULT '{}',
         faixa_etaria VARCHAR(20) CHECK (faixa_etaria IN ('18-24', '25-35', '36-50', '50+')),
         eleitor_jovem BOOLEAN GENERATED ALWAYS AS (faixa_etaria IN ('18-24', '25-35')) STORED,
+        observacoes TEXT,
         categoria_observacao VARCHAR(100), -- Estruturada (ex: 'PEDIDO_MATERIAL', 'APOIO_CONFIRMADO')
         marcado_revisao_humana BOOLEAN NOT NULL DEFAULT FALSE,
         motivo_revisao VARCHAR(200),

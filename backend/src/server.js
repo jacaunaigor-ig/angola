@@ -11,9 +11,17 @@ const { pool } = require('./config/db');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Configuração de CORS com suporte a lista branca
-const corsOrigins = process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : '*';
-app.use(cors({ origin: corsOrigins, credentials: true }));
+// CORS: credentials + origin '*' é inválido no browser. Em desenvolvimento reflecte a origem.
+const corsRaw = (process.env.CORS_ORIGIN || '').trim();
+const corsWildcard = !corsRaw || corsRaw === '*';
+app.use(cors({
+  origin: corsWildcard ? true : corsRaw.split(',').map((o) => o.trim()),
+  credentials: true,
+}));
+
+if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
+  console.error('[Segurança] JWT_SECRET não definido. Defina um segredo forte antes de expor a API.');
+}
 
 // Rate limiting para proteção contra DoS e força bruta
 app.use(rateLimiter);

@@ -158,13 +158,7 @@ const warRoomController = {
           ST_SetSRID(ST_MakePoint($14, $15), 4326)::geography,
           $16, clock_timestamp()
         )
-        ON CONFLICT (id) DO UPDATE SET
-          votos_favoraveis = EXCLUDED.votos_favoraveis,
-          votos_oponentes = EXCLUDED.votos_oponentes,
-          votos_nulos = EXCLUDED.votos_nulos,
-          votos_brancos = EXCLUDED.votos_brancos,
-          total_votantes = EXCLUDED.total_votantes,
-          dados_hash_sha256 = EXCLUDED.dados_hash_sha256
+        ON CONFLICT (id) DO NOTHING
         RETURNING id, status, distancia_assembleia_metros;
       `;
 
@@ -189,6 +183,13 @@ const warRoomController = {
 
       const { rows } = await query(sqlInsert, values);
       const ataGravada = rows[0];
+      if (!ataGravada) {
+        return res.status(409).json({
+          sucesso: false,
+          erro: 'Ata já registada.',
+          detalhes: 'A cadeia de custódia é append-only: o mesmo id não pode ser reescrito.',
+        });
+      }
 
       return res.status(201).json({
         sucesso: true,
@@ -204,6 +205,13 @@ const warRoomController = {
         },
       });
     } catch (erro) {
+      if (erro.code === '23505') {
+        return res.status(409).json({
+          sucesso: false,
+          erro: 'Ata duplicada.',
+          detalhes: 'Já existe ata para esta mesa nesta campanha. A cadeia de custódia não permite reescrita.',
+        });
+      }
       console.error('[Submeter Ata Error]', erro);
       return res.status(500).json({
         sucesso: false,

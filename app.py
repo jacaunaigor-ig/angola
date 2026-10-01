@@ -8,8 +8,47 @@ from streamlit_folium import st_folium
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime
+from typing import Optional
 
 from api_client import ApiClient
+
+
+def fmt_int_ao(valor) -> str:
+    """Formata inteiros no padrão de milhares usado em Angola (ponto como separador)."""
+    try:
+        return f"{int(valor):,}".replace(",", ".")
+    except (TypeError, ValueError):
+        return "—"
+
+
+def to_float(*candidatos, default=0.0) -> float:
+    for valor in candidatos:
+        if valor is None:
+            continue
+        try:
+            if isinstance(valor, str) and valor.strip() == "":
+                continue
+            numero = float(valor)
+            if pd.isna(numero):
+                continue
+            return numero
+        except (TypeError, ValueError):
+            continue
+    return default
+
+
+def margem_erro_amostral(n: int, universo: int = 1_000_000) -> Optional[float]:
+    if n < 30:
+        return None
+    z = 1.96
+    p = 0.5
+    n = max(n, 1)
+    universo = max(universo, n + 1)
+    fpcf = (universo - n) / (universo - 1)
+    return round(z * ((p * (1 - p) / n) * max(0.0, fpcf)) ** 0.5 * 100, 1)
+
+
+api = ApiClient()
 
 # ==============================================================================
 # 1. CONFIGURAÇÃO GERAL DA PÁGINA & THEME MODERNO
@@ -186,10 +225,16 @@ st.markdown("""
         font-size: 21px;
         line-height: 32px;
     }
+
+    @media (max-width: 1100px) {
+        .kpi-container { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 640px) {
+        .kpi-container { grid-template-columns: 1fr; }
+        .command-header-card { flex-direction: column; align-items: flex-start; gap: 12px; }
+    }
 </style>
 """, unsafe_allow_html=True)
-
-api = ApiClient()
 
 # ==============================================================================
 # 2. BARRA LATERAL: NEUTRALIDADE DA FERRAMENTA & CONFIGURAÇÃO DA CAMPANHA
@@ -283,10 +328,13 @@ if not geo_dados or "features" not in geo_dados:
 # Montagem do DataFrame Analítico a partir do GeoJSON
 linhas = []
 for feat in geo_dados["features"]:
-    prop = feat.get("properties", {})
-    margem = float(prop.get("margem_apurada_perc") or 0.0)
+    prop = dict(feat.get("properties") or {})
+    eleitores = to_float(prop.get("eleitores_cne"), prop.get("eleitores"), prop.get("eleitores_registados_cne"))
+    populacao = to_float(prop.get("populacao_total"), prop.get("populacao"))
+    juventude = to_float(prop.get("juventude_perc"), default=0.0)
+    abstencao = to_float(prop.get("abstencao_perc"), default=0.0)
+    margem = to_float(prop.get("margem_apurada_perc"), prop.get("margem_perc"))
 
-    # Recalcula Zonamento Determinístico com os Limiares do Usuário
     if margem >= limiar_bastiao:
         zon = "BASTIAO"
         rotulo_zon = "🟢 Bastião Seguro"
@@ -300,22 +348,35 @@ for feat in geo_dados["features"]:
         rotulo_zon = "🟡 Campo de Batalha"
         cor_zon = "#F97316"
 
-    prop["zonamento_dinamico"] = zon
-    prop["cor_zonamento"] = cor_zon
-    prop["rotulo_zonamento"] = rotulo_zon
-    linhas.append(prop)
+    linhas.append({
+        **prop,
+        "eleitores_cne": eleitores,
+        "populacao_total": populacao,
+        "juventude_perc": juventude,
+        "abstencao_perc": abstencao,
+        "margem_apurada_perc": margem,
+        "zonamento_dinamico": zon,
+        "cor_zonamento": cor_zon,
+        "rotulo_zonamento": rotulo_zon,
+        "nome": prop.get("nome") or prop.get("codigo") or "Território",
+    })
 
 df_territorio = pd.DataFrame(linhas)
+if df_territorio.empty:
+    st.error("⚠️ A malha territorial não contém features utilizáveis.")
+    st.stop()
 
-# Cálculo do Índice de Prioridade Territorial Tática (0-100)
-max_eleitores = df_territorio["eleitores_cne"].max() if "eleitores_cne" in df_territorio and not df_territorio["eleitores_cne"].isnull().all() else 1
+for col in ["eleitores_cne", "populacao_total", "juventude_perc", "abstencao_perc", "margem_apurada_perc"]:
+    df_territorio[col] = pd.to_numeric(df_territorio[col], errors="coerce").fillna(0.0)
+
+max_eleitores = float(df_territorio["eleitores_cne"].max() or 1.0)
 
 def calcular_score_prioridade(row):
     margem = abs(float(row.get("margem_apurada_perc") or 0.0))
     s_disputa = max(0.0, 100.0 - (margem * 2.0))
-    s_volume = (float(row.get("eleitores_cne") or 0.0) / max(max_eleitores, 1)) * 100.0
-    s_abst = float(row.get("abstencao_perc") or 50.0)
-    s_jovem = float(row.get("juventude_perc") or 60.0)
+    s_volume = (float(row.get("eleitores_cne") or 0.0) / max(max_eleitores, 1.0)) * 100.0
+    s_abst = float(row.get("abstencao_perc") or 0.0)
+    s_jovem = float(row.get("juventude_perc") or 0.0)
 
     soma_pesos = peso_disputa + peso_volume + peso_abstencao + peso_jovens
     score = (s_disputa * peso_disputa + s_volume * peso_volume + s_abst * peso_abstencao + s_jovem * peso_jovens) / max(soma_pesos, 1)
@@ -324,18 +385,21 @@ def calcular_score_prioridade(row):
 df_territorio["Score_Prioridade"] = df_territorio.apply(calcular_score_prioridade, axis=1)
 df_territorio = df_territorio.sort_values(by="Score_Prioridade", ascending=False).reset_index(drop=True)
 
-# Totais Nacionais Consolidados
-total_eleitores_nac = int(df_territorio["eleitores_cne"].sum() if "eleitores_cne" in df_territorio else 0)
-total_pop_nac = int(df_territorio["populacao_total"].sum() if "populacao_total" in df_territorio else 0)
-abst_media = float(df_territorio["abstencao_perc"].mean() if "abstencao_perc" in df_territorio else 0.0)
-jovens_media = float(df_territorio["juventude_perc"].mean() if "juventude_perc" in df_territorio else 0.0)
+total_eleitores_nac = int(df_territorio["eleitores_cne"].sum())
+total_pop_nac = int(df_territorio["populacao_total"].sum())
+peso_eleitoral = df_territorio["eleitores_cne"].clip(lower=0)
+if peso_eleitoral.sum() > 0:
+    abst_media = float((df_territorio["abstencao_perc"] * peso_eleitoral).sum() / peso_eleitoral.sum())
+    jovens_media = float((df_territorio["juventude_perc"] * peso_eleitoral).sum() / peso_eleitoral.sum())
+else:
+    abst_media = float(df_territorio["abstencao_perc"].mean() or 0.0)
+    jovens_media = float(df_territorio["juventude_perc"].mean() or 0.0)
 
-# Renderização dos 4 KPI Cards Modernos
 st.markdown(f"""
 <div class="kpi-container">
     <div class="kpi-card-glass">
         <div class="kpi-title">Eleitorado Registado</div>
-        <div class="kpi-value">{total_eleitores_nac:,}".replace(",", ".")</div>
+        <div class="kpi-value">{fmt_int_ao(total_eleitores_nac)}</div>
         <div class="kpi-sub">
             <span>Base Eleitoral CNE</span>
             <span class="provenance-pill">OFICIAL CNE</span>
@@ -343,7 +407,7 @@ st.markdown(f"""
     </div>
     <div class="kpi-card-glass">
         <div class="kpi-title">População Abrangida</div>
-        <div class="kpi-value">{total_pop_nac:,}".replace(",", ".")</div>
+        <div class="kpi-value">{fmt_int_ao(total_pop_nac)}</div>
         <div class="kpi-sub">
             <span>Projeções Demográficas</span>
             <span class="provenance-pill">OFICIAL INE</span>
@@ -353,7 +417,7 @@ st.markdown(f"""
         <div class="kpi-title">Densidade Jovem (18-35)</div>
         <div class="kpi-value">{jovens_media:.1f}%</div>
         <div class="kpi-sub">
-            <span>Alvo de Micro-Targeting</span>
+            <span>Média ponderada pelo eleitorado</span>
             <span class="provenance-pill">OFICIAL INE</span>
         </div>
     </div>
@@ -361,7 +425,7 @@ st.markdown(f"""
         <div class="kpi-title">Abstenção Histórica</div>
         <div class="kpi-value">{abst_media:.1f}%</div>
         <div class="kpi-sub">
-            <span>Média das Eleições 2022</span>
+            <span>Média ponderada 2022</span>
             <span class="provenance-pill">OFICIAL CNE 2022</span>
         </div>
     </div>
@@ -440,14 +504,23 @@ with aba_mapa:
             "fillOpacity": 0.58
         }
 
+    sample_props = (geo_dados.get("features") or [{}])[0].get("properties") or {}
+    campos_tooltip = [c for c in ["nome", "codigo_dpa", "codigo_oficial", "codigo"] if c in sample_props]
+    aliases_tooltip = {
+        "nome": "Território:",
+        "codigo_dpa": "Código CNE:",
+        "codigo_oficial": "Código oficial:",
+        "codigo": "Código:",
+    }
+
     folium.GeoJson(
         geo_dados,
         style_function=estilo_feature,
         tooltip=folium.GeoJsonTooltip(
-            fields=["nome", "codigo_dpa"],
-            aliases=["Território:", "Código CNE:"],
+            fields=campos_tooltip or ["nome"],
+            aliases=[aliases_tooltip.get(c, c) for c in (campos_tooltip or ["nome"])],
             localize=True
-        )
+        ) if campos_tooltip else None
     ).add_to(mapa)
 
     st_folium(mapa, width="100%", height=520)
@@ -680,93 +753,133 @@ with aba_terreno:
     st.subheader("🚶 Telemetria de Terreno & Estatística Amostral")
     st.markdown(r"Princípio: **Nunca exibir percentuais sem tamanho amostral ($n$) e margem de erro ($\pm e\%$)**.")
 
-    t1, t2, t3, t4 = st.columns(4)
-    with t1:
-        st.metric("Amostra Coletada", "n = 12.840", "100% Auditada")
-    with t2:
-        st.metric("Margem de Erro (95% Conf)", "±0.9 p.p.", "Alta Precisão")
-    with t3:
-        st.metric("Aceitação Líquida (🙂)", "54.2%", "±0.9%")
-    with t4:
-        st.metric("Eleitores Jovens (18-35)", "64.8%", "±0.8%")
+    ok_resumo, resumo_terreno, prov_terreno = api.obter_resumo_nacional()
+    painel = resumo_terreno.get("painel_nacional") or {}
+    ranking_dores = resumo_terreno.get("ranking_nacional_dores") or []
+    n_amostra = int(painel.get("total_visitas") or 0)
+    aceitacao = float(painel.get("indice_aceitacao") or 0)
+    rejeicao = float(painel.get("indice_rejeicao") or 0)
+    indecisos = float(painel.get("indice_indecisos") or 0)
+    jovens_perc = float(painel.get("peso_juventude") or 0)
+    me = margem_erro_amostral(n_amostra, max(total_eleitores_nac, 1))
 
-    st.markdown("---")
-    col_chart1, col_chart2 = st.columns(2)
-    with col_chart1:
-        st.markdown("### 🥧 Humor do Eleitorado (Sentimento)")
-        df_sentimento = pd.DataFrame({
-            "Sentimento": ["Apoio / Verde (🙂)", "Indeciso (😐)", "Rejeição (🙁)"],
-            "Percentual": [54.2, 27.5, 18.3]
-        })
-        fig_donut = px.pie(
-            df_sentimento,
-            names="Sentimento",
-            values="Percentual",
-            hole=0.55,
-            color="Sentimento",
-            color_discrete_map={
-                "Apoio / Verde (🙂)": "#10B981",
-                "Indeciso (😐)": "#F97316",
-                "Rejeição (🙁)": "#EF4444"
-            }
-        )
-        fig_donut.update_layout(template="plotly_dark", plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
-        st.plotly_chart(fig_donut, use_container_width=True)
+    st.caption(f"Proveniência: `{prov_terreno}`")
 
-    with col_chart2:
-        st.markdown("### 🚨 Principais Dores Comunitárias")
-        df_dores = pd.DataFrame({
-            "Carência": ["Emprego Jovem", "Falta de Água", "Cortes de Energia", "Saneamento / Lixo", "Vias e Estradas", "Posto de Saúde"],
-            "Citações (%)": [44.5, 38.2, 31.0, 26.8, 22.4, 18.5]
-        }).sort_values(by="Citações (%)", ascending=True)
-        fig_dores = px.bar(
-            df_dores,
-            x="Citações (%)",
-            y="Carência",
-            orientation="h",
-            color="Citações (%)",
-            color_continuous_scale="Viridis"
-        )
-        fig_dores.update_layout(template="plotly_dark", plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
-        st.plotly_chart(fig_dores, use_container_width=True)
+    if n_amostra == 0:
+        st.info("Ainda não há visitas sincronizadas. A telemetria só aparece com amostra real — números fictícios foram removidos.")
+    else:
+        t1, t2, t3, t4 = st.columns(4)
+        with t1:
+            st.metric("Amostra Coletada", f"n = {fmt_int_ao(n_amostra)}")
+        with t2:
+            st.metric("Margem de Erro (95%)", "n < 30 — indicativo" if me is None else f"±{me} p.p.")
+        with t3:
+            st.metric("Aceitação (🙂)", f"{aceitacao:.1f}%", None if me is None else f"±{me} p.p.")
+        with t4:
+            st.metric("Eleitores Jovens (18-35)", f"{jovens_perc:.1f}%")
+
+        st.markdown("---")
+        col_chart1, col_chart2 = st.columns(2)
+        with col_chart1:
+            st.markdown("### 🥧 Humor do Eleitorado (Sentimento)")
+            df_sentimento = pd.DataFrame({
+                "Sentimento": ["Apoio / Verde (🙂)", "Indeciso (😐)", "Rejeição (🙁)"],
+                "Percentual": [aceitacao, indecisos, rejeicao]
+            })
+            fig_donut = px.pie(
+                df_sentimento,
+                names="Sentimento",
+                values="Percentual",
+                hole=0.55,
+                color="Sentimento",
+                color_discrete_map={
+                    "Apoio / Verde (🙂)": "#10B981",
+                    "Indeciso (😐)": "#F97316",
+                    "Rejeição (🙁)": "#EF4444"
+                }
+            )
+            fig_donut.update_layout(template="plotly_dark", plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
+            st.plotly_chart(fig_donut, use_container_width=True)
+
+        with col_chart2:
+            st.markdown("### 🚨 Principais Dores Comunitárias")
+            if ranking_dores:
+                df_dores = pd.DataFrame(ranking_dores).rename(columns={"dor": "Carência", "percentual": "Citações (%)"})
+                if "Citações (%)" not in df_dores.columns and "frequencia" in df_dores.columns:
+                    total_freq = df_dores["frequencia"].sum() or 1
+                    df_dores["Citações (%)"] = (df_dores["frequencia"] / total_freq) * 100
+                df_dores = df_dores.sort_values(by="Citações (%)", ascending=True)
+                fig_dores = px.bar(
+                    df_dores,
+                    x="Citações (%)",
+                    y="Carência",
+                    orientation="h",
+                    color="Citações (%)",
+                    color_continuous_scale="Viridis"
+                )
+                fig_dores.update_layout(template="plotly_dark", plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
+                st.plotly_chart(fig_dores, use_container_width=True)
+            else:
+                st.warning("Sem dores comunitárias registadas neste lote.")
 
 # ------------------------------------------------------------------------------
 # ABA 6: SALA DO DIA D & APURAMENTO PARALELO
 # ------------------------------------------------------------------------------
 with aba_diad:
     st.subheader("🗳️ Sala do Dia D: Apuramento Paralelo & Auditoria Espacial")
-    st.markdown("Fiscalização em tempo real das mesas de voto com declaração de cobertura e cadeia de custódia SHA-256.")
+    st.markdown("Fiscalização das mesas com declaração de cobertura e cadeia de custódia SHA-256. Sem atas, não há projeção.")
 
-    # Afluência Horária
-    st.markdown("### ⏱️ Curva de Afluência às Urnas")
-    af1, af2, af3, af4 = st.columns(4)
-    with af1: st.metric("08:00 (Abertura)", "18.5%", "Ritmo Normal")
-    with af2: st.metric("11:00 (Pico)", "43.2%", "Fila Estável")
-    with af3: st.metric("14:00 (Alerta)", "52.8%", "⚠️ Alerta Abstenção")
-    with af4: st.metric("17:00 (Encerramento)", "66.4%", "Estimado")
+    ok_apur, apur, prov_apur = api.obter_apuramento_paralelo()
+    cobertura = apur.get("cobertura_apuracao") or {}
+    votos = apur.get("contagem_votos_validos") or {}
+    auditoria = apur.get("auditoria_integridade") or {}
+    mesas_rec = int(cobertura.get("mesas_recebidas") or 0)
+    mesas_esp = int(cobertura.get("mesas_esperadas") or 0)
+    cob_perc = float(cobertura.get("cobertura_perc") or 0)
+    votantes = int(cobertura.get("total_votantes_computados") or 0)
+    nosso = votos.get("nosso_partido") or {}
+    oponente = votos.get("oposicao") or {}
+    atas_alerta = auditoria.get("atas_para_revisao_humana") or []
+
+    st.caption(f"Proveniência: `{prov_apur}` • Incerteza: `{cobertura.get('grau_incerteza', 'INDETERMINADO')}`")
+
+    if mesas_rec == 0:
+        st.info("Nenhuma ata submetida. Afluência e percentagens só são apresentadas após recepção de atas reais.")
+    else:
+        c1, c2, c3, c4 = st.columns(4)
+        with c1:
+            st.metric("Mesas recebidas", fmt_int_ao(mesas_rec), f"{cob_perc:.1f}% cobertura")
+        with c2:
+            st.metric("Mesas esperadas", fmt_int_ao(mesas_esp))
+        with c3:
+            st.metric("Votantes computados", fmt_int_ao(votantes))
+        with c4:
+            st.metric("Atas em revisão", str(auditoria.get("total_atas_alerta_revisao") or 0))
+        if cobertura.get("aviso_metodologico"):
+            st.warning(cobertura["aviso_metodologico"])
 
     st.markdown("---")
     col_apur1, col_apur2 = st.columns([1, 1])
     with col_apur1:
-        st.markdown("""
+        st.markdown(f"""
         <div style="background:#121B2F; border:1px solid rgba(255,255,255,0.08); border-radius:16px; padding:20px;">
             <h4 style="margin:0 0 12px 0; color:#38BDF8;">Consolidação das Atas Recebidas</h4>
             <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
                 <span style="color:#94A3B8;">Cobertura Territorial:</span>
-                <strong style="color:#10B981;">3.412 / 4.150 mesas (82.2%)</strong>
+                <strong style="color:#10B981;">{fmt_int_ao(mesas_rec)} / {fmt_int_ao(mesas_esp)} mesas ({cob_perc:.1f}%)</strong>
             </div>
             <div style="display:flex; justify-content:space-between; margin-bottom:12px;">
                 <span style="color:#94A3B8;">Votantes Computados:</span>
-                <strong>1.482.350 eleitores</strong>
+                <strong>{fmt_int_ao(votantes)} eleitores</strong>
             </div>
             <hr style="border-color:#334155;">
             <div style="display:flex; justify-content:space-between; margin-bottom:8px; font-size:16px;">
-                <span style="color:#10B981; font-weight:700;">🟢 Nosso Partido / Coligação:</span>
-                <strong style="color:#10B981; font-size:18px;">54.8% (785.420 votos)</strong>
+                <span style="color:#10B981; font-weight:700;">🟢 {nome_nosso_partido}:</span>
+                <strong style="color:#10B981; font-size:18px;">{float(nosso.get('percentual') or 0):.1f}% ({fmt_int_ao(nosso.get('votos') or 0)} votos)</strong>
             </div>
             <div style="display:flex; justify-content:space-between; font-size:16px;">
-                <span style="color:#EF4444; font-weight:700;">🔴 Oponente Principal:</span>
-                <strong style="color:#EF4444; font-size:18px;">42.1% (603.210 votos)</strong>
+                <span style="color:#EF4444; font-weight:700;">🔴 {nome_oposicao}:</span>
+                <strong style="color:#EF4444; font-size:18px;">{float(oponente.get('percentual') or 0):.1f}% ({fmt_int_ao(oponente.get('votos') or 0)} votos)</strong>
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -774,13 +887,23 @@ with aba_diad:
     with col_apur2:
         st.markdown("#### 🚨 Auditoria de Geofencing: Alertas para Revisão Humana")
         st.info("Desvios > 300m da assembleia são encaminhados para averiguação técnica sem acusação automática de fraude.")
-        st.markdown("""
-        - ⚠️ **Mesa 04 (Escola Capalanga - Viana):** Desvio de 1.840m.
-        - ⚠️ **Mesa 02 (Liceu de Cacuaco):** Desvio de 920m.
-        - ⚠️ **Mesa 08 (Escola Barão Puna - Cabinda):** Desvio de 1.410m.
-        """)
+        if atas_alerta:
+            for ata in atas_alerta:
+                dist = ata.get("distancia_assembleia_metros") or "?"
+                nome_ass = ata.get("assembleia_nome") or ata.get("codigo_cne") or ata.get("id")
+                st.markdown(f"- ⚠️ **Mesa {ata.get('mesa_numero', '—')} ({nome_ass}):** desvio de {dist}m.")
+        else:
+            st.success("Nenhum alerta de geofence neste momento.")
         if st.button("⚖️ Protocolar Caso no Comitê Jurídico (OAA)", use_container_width=True):
-            st.success("Caso formal protocolado com sucesso! Protocolo: CASO-2027-482910.")
+            ok_caso, detalhe = api.criar_caso_juridico(
+                titulo="Alerta de geofence para revisão humana",
+                descricao_fato="Pedido de protocolação a partir do War Room. Distâncias acima de 300 m exigem averiguação técnica, sem presunção de fraude.",
+                tipo_irregularidade="GEOFENCE_EXCEDIDO",
+            )
+            if ok_caso:
+                st.success(detalhe)
+            else:
+                st.warning(detalhe)
 
 # ------------------------------------------------------------------------------
 # ABA 7: AUDITORIA DE QUALIDADE DOS DADOS & RLS
@@ -793,8 +916,8 @@ with aba_auditoria:
     audit_met = relatorio_etl.get("auditoria_qualidade", {})
 
     qa1, qa2, qa3, qa4 = st.columns(4)
-    with qa1: st.metric("Registos Auditados", audit_met.get("total_registros_analisados", 39))
-    with qa2: st.metric("Conformidade SRID 4326", f"{audit_met.get('conformidade_srid_4326_perc', 100)}%")
+    with qa1: st.metric("Registos Auditados", audit_met.get("total_registros_analisados", 0))
+    with qa2: st.metric("Conformidade SRID 4326", f"{audit_met.get('conformidade_srid_4326_perc', 0)}%")
     with qa3: st.metric("Nulos em Chaves Primárias", audit_met.get("total_nulos_detectados", 0))
     with qa4: st.metric("Geometrias Inválidas", audit_met.get("total_geometrias_invalidas", 0))
 
