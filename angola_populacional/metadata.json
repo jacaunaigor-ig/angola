@@ -1,0 +1,429 @@
+{
+  "feature_count": 31149,
+  "geometry_types": {
+    "POLYGON": 24664,
+    "POINT": 6466,
+    "MULTIPOLYGON": 16,
+    "LINESTRING": 3
+  },
+  "bbox": [
+    11.7196806,
+    -18.0606098,
+    24.0785444,
+    -4.4090169
+  ],
+  "columns": [
+    {
+      "name": "id",
+      "type": "VARCHAR",
+      "null_count": 0,
+      "null_percent": 0.0,
+      "distinct_count": 31149,
+      "top_values": []
+    },
+    {
+      "name": "name",
+      "type": "VARCHAR",
+      "null_count": 26788,
+      "null_percent": 86.0,
+      "distinct_count": 3814,
+      "top_values": []
+    },
+    {
+      "name": "name_en",
+      "type": "VARCHAR",
+      "null_count": 31068,
+      "null_percent": 99.74,
+      "distinct_count": 78,
+      "top_values": [
+        {
+          "value": "Kissuquila",
+          "count": 2
+        },
+        {
+          "value": "Luanda",
+          "count": 2
+        },
+        {
+          "value": "Massangano",
+          "count": 2
+        },
+        {
+          "value": "Binge",
+          "count": 1
+        },
+        {
+          "value": "Atango",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "name": "name_pt",
+      "type": "VARCHAR",
+      "null_count": 31060,
+      "null_percent": 99.71,
+      "distinct_count": 86,
+      "top_values": [
+        {
+          "value": "Kissuquila",
+          "count": 2
+        },
+        {
+          "value": "Luanda",
+          "count": 2
+        },
+        {
+          "value": "Massangano",
+          "count": 2
+        },
+        {
+          "value": "Maria Augusta",
+          "count": 1
+        },
+        {
+          "value": "Cachilo",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "name": "place",
+      "type": "VARCHAR",
+      "null_count": 23842,
+      "null_percent": 76.54,
+      "distinct_count": 8,
+      "top_values": [
+        {
+          "value": "hamlet",
+          "count": 4347
+        },
+        {
+          "value": "village",
+          "count": 2390
+        },
+        {
+          "value": "isolated_dwelling",
+          "count": 354
+        },
+        {
+          "value": "town",
+          "count": 170
+        },
+        {
+          "value": "city",
+          "count": 22
+        }
+      ]
+    },
+    {
+      "name": "landuse",
+      "type": "VARCHAR",
+      "null_count": 6614,
+      "null_percent": 21.23,
+      "distinct_count": 2,
+      "top_values": [
+        {
+          "value": "residential",
+          "count": 24532
+        },
+        {
+          "value": "farmyard",
+          "count": 3
+        }
+      ]
+    },
+    {
+      "name": "population",
+      "type": "VARCHAR",
+      "null_count": 31089,
+      "null_percent": 99.81,
+      "distinct_count": 60,
+      "top_values": [
+        {
+          "value": "134035",
+          "count": 1
+        },
+        {
+          "value": "5104",
+          "count": 1
+        },
+        {
+          "value": "4 831",
+          "count": 1
+        },
+        {
+          "value": "162000",
+          "count": 1
+        },
+        {
+          "value": "616605",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "name": "is_in",
+      "type": "VARCHAR",
+      "null_count": 30883,
+      "null_percent": 99.15,
+      "distinct_count": 19,
+      "top_values": [
+        {
+          "value": "Huambo,Angola,Africa",
+          "count": 198
+        },
+        {
+          "value": "Angola",
+          "count": 20
+        },
+        {
+          "value": "Namibe,Angola,Africa",
+          "count": 19
+        },
+        {
+          "value": "Hu\u00edla,Angola,Africa",
+          "count": 7
+        },
+        {
+          "value": "Benguela",
+          "count": 5
+        }
+      ]
+    },
+    {
+      "name": "source",
+      "type": "VARCHAR",
+      "null_count": 31149,
+      "null_percent": 100.0,
+      "distinct_count": 0,
+      "top_values": []
+    },
+    {
+      "name": "adm0_pcode",
+      "type": "VARCHAR",
+      "null_count": 0,
+      "null_percent": 0.0,
+      "distinct_count": 1,
+      "top_values": [
+        {
+          "value": "AGO",
+          "count": 31149
+        }
+      ]
+    },
+    {
+      "name": "adm0_name",
+      "type": "VARCHAR",
+      "null_count": 0,
+      "null_percent": 0.0,
+      "distinct_count": 1,
+      "top_values": [
+        {
+          "value": "Angola",
+          "count": 31149
+        }
+      ]
+    },
+    {
+      "name": "adm1_pcode",
+      "type": "VARCHAR",
+      "null_count": 522,
+      "null_percent": 1.68,
+      "distinct_count": 18,
+      "top_values": [
+        {
+          "value": "AO07",
+          "count": 3343
+        },
+        {
+          "value": "AO14",
+          "count": 3214
+        },
+        {
+          "value": "AO03",
+          "count": 3133
+        },
+        {
+          "value": "AO17",
+          "count": 3036
+        },
+        {
+          "value": "AO09",
+          "count": 2767
+        }
+      ]
+    },
+    {
+      "name": "adm1_name",
+      "type": "VARCHAR",
+      "null_count": 522,
+      "null_percent": 1.68,
+      "distinct_count": 18,
+      "top_values": [
+        {
+          "value": "Cuanza Sul",
+          "count": 3343
+        },
+        {
+          "value": "Malanje",
+          "count": 3214
+        },
+        {
+          "value": "Bi\u00e9",
+          "count": 3133
+        },
+        {
+          "value": "U\u00edge",
+          "count": 3036
+        },
+        {
+          "value": "Hu\u00edla",
+          "count": 2767
+        }
+      ]
+    },
+    {
+      "name": "adm2_pcode",
+      "type": "VARCHAR",
+      "null_count": 522,
+      "null_percent": 1.68,
+      "distinct_count": 161,
+      "top_values": [
+        {
+          "value": "AO09076",
+          "count": 1185
+        },
+        {
+          "value": "AO02009",
+          "count": 849
+        },
+        {
+          "value": "AO10081",
+          "count": 782
+        },
+        {
+          "value": "AO03015",
+          "count": 722
+        },
+        {
+          "value": "AO15136",
+          "count": 615
+        }
+      ]
+    },
+    {
+      "name": "adm2_name",
+      "type": "VARCHAR",
+      "null_count": 522,
+      "null_percent": 1.68,
+      "distinct_count": 161,
+      "top_values": [
+        {
+          "value": "Cuvango (Kuvango)",
+          "count": 1185
+        },
+        {
+          "value": "Bocoio",
+          "count": 849
+        },
+        {
+          "value": "Bailundo",
+          "count": 782
+        },
+        {
+          "value": "Andulo",
+          "count": 722
+        },
+        {
+          "value": "Luena",
+          "count": 615
+        }
+      ]
+    },
+    {
+      "name": "adm3_pcode",
+      "type": "VARCHAR",
+      "null_count": 522,
+      "null_percent": 1.68,
+      "distinct_count": 531,
+      "top_values": [
+        {
+          "value": "AO09076248",
+          "count": 868
+        },
+        {
+          "value": "AO05034127",
+          "count": 352
+        },
+        {
+          "value": "AO15136444",
+          "count": 341
+        },
+        {
+          "value": "AO03015060",
+          "count": 284
+        },
+        {
+          "value": "AO03021084",
+          "count": 269
+        }
+      ]
+    },
+    {
+      "name": "adm3_name",
+      "type": "VARCHAR",
+      "null_count": 522,
+      "null_percent": 1.68,
+      "distinct_count": 515,
+      "top_values": [
+        {
+          "value": "Kuvango",
+          "count": 868
+        },
+        {
+          "value": "Menongue",
+          "count": 352
+        },
+        {
+          "value": "Luena",
+          "count": 341
+        },
+        {
+          "value": "Kalucinga",
+          "count": 284
+        },
+        {
+          "value": "Kunhinga",
+          "count": 269
+        }
+      ]
+    },
+    {
+      "name": "adm4_pcode",
+      "type": "VARCHAR",
+      "null_count": 31149,
+      "null_percent": 100.0,
+      "distinct_count": 0,
+      "top_values": []
+    },
+    {
+      "name": "adm4_name",
+      "type": "VARCHAR",
+      "null_count": 31149,
+      "null_percent": 100.0,
+      "distinct_count": 0,
+      "top_values": []
+    },
+    {
+      "name": "name_latin",
+      "type": "VARCHAR",
+      "null_count": 26788,
+      "null_percent": 86.0,
+      "distinct_count": 3797,
+      "top_values": []
+    }
+  ],
+  "summary": "31,149 features. geometry types: 24,664 POLYGON, 6,466 POINT, 16 MULTIPOLYGON, 3 LINESTRING. 10 of 20 columns are >=50% null (name, name_en, name_pt, place, population, is_in, source, adm4_pcode, adm4_name, name_latin).",
+  "temporal": null
+}

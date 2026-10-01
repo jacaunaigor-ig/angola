@@ -1,0 +1,29 @@
+{
+  "name": "gps-politico-angola-api",
+  "version": "1.0.0",
+  "description": "API RESTful B2B para Geomarketing Político e Inteligência Territorial - Angola 2027",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js"
+  },
+  "keywords": [
+    "geomarketing",
+    "postgis",
+    "angola",
+    "offline-first",
+    "express",
+    "spatial"
+  ],
+  "author": "Equipa de Arquitetura",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "pg": "^8.12.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.4"
+  }
+}

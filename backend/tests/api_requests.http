@@ -1,0 +1,106 @@
+### ==============================================================================
+### TESTES DE ENDPOINTS - GPS DE GEOMARKETING POLÍTICO ANGOLA 2027
+### ==============================================================================
+
+@baseUrl = http://localhost:3001/api
+@campanhaId = a0000000-0000-0000-0000-000000000001
+@ativistaId = b0000000-0000-0000-0000-000000000001
+
+### 1. Healthcheck da API e Verificação PostGIS
+GET {{baseUrl}}/health
+
+### 2. Proximidade Espacial: Buscar Assembleias num raio de 2 km em Talatona (Luanda)
+GET {{baseUrl}}/locais-proximos?longitude=13.2667&latitude=-8.9167&raio_metros=2500
+
+### 3. Proximidade Espacial formatada como GeoJSON (para Mapas)
+GET {{baseUrl}}/locais-proximos?longitude=13.2667&latitude=-8.9167&raio_metros=5000&formato=geojson
+
+### 4. Sincronização Tardia (Offline-First): Enviar Lote de Visitas de Campo
+POST {{baseUrl}}/sincronizar-visitas
+Content-Type: application/json
+
+{
+  "campanha_id": "{{campanhaId}}",
+  "visitas": [
+    {
+      "id": "e1111111-1111-4111-8111-111111111101",
+      "ativista_id": "{{ativistaId}}",
+      "localizacao": {
+        "longitude": 13.2680,
+        "latitude": -8.9155
+      },
+      "precisao_gps_metros": 4.2,
+      "sentimento": "POSITIVO",
+      "dores_prioritarias": ["EMPREGO", "EDUCACAO"],
+      "faixa_etaria": "18-24",
+      "observacoes": "Jovem recém-formado em busca de primeiro emprego técnico.",
+      "registado_em": "2026-09-30T14:30:00.000Z",
+      "metadados_aparelho": {
+        "os": "Android 14",
+        "bateria": 84,
+        "app_versao": "1.2.0"
+      }
+    },
+    {
+      "id": "e2222222-2222-4222-8222-222222222202",
+      "ativista_id": "{{ativistaId}}",
+      "localizacao": {
+        "longitude": 13.2705,
+        "latitude": -8.9180
+      },
+      "precisao_gps_metros": 5.8,
+      "sentimento": "NEGATIVO",
+      "dores_prioritarias": ["AGUA", "ENERGIA"],
+      "faixa_etaria": "25-35",
+      "observacoes": "Reclamação de cortes constantes de eletricidade no bairro.",
+      "registado_em": "2026-09-30T14:45:00.000Z",
+      "metadados_aparelho": {
+        "os": "Android 14",
+        "bateria": 82,
+        "app_versao": "1.2.0"
+      }
+    }
+  ]
+}
+
+### 5. Resumo Tático do Município de Talatona (Alimenta o BottomSheet do Ecrã 1)
+GET {{baseUrl}}/municipios/Talatona/resumo?campanha_id={{campanhaId}}
+
+### 6. Listar Visitas Sincronizadas
+GET {{baseUrl}}/visitas?campanha_id={{campanhaId}}&limite=10
+
+### 7. Gerar Discurso Territorializado & Promessas para Viana (Zona de Oposição)
+GET {{baseUrl}}/discurso-territorializado/Viana?campanha_id={{campanhaId}}
+
+### 8. Gerar Discurso Territorializado para Huambo (Bastião Tradicional)
+GET {{baseUrl}}/discurso-territorializado/Huambo?campanha_id={{campanhaId}}
+
+### 9. War Room Nacional: Resumo Executivo para a Direção da Campanha
+GET {{baseUrl}}/war-room/resumo-nacional?campanha_id={{campanhaId}}
+
+### 10. Dia D: Submeter Ata de Apuramento (Mesa 01 - Morro Bento)
+POST {{baseUrl}}/dia-d/submeter-ata
+Content-Type: application/json
+
+{
+  "id": "77777777-7777-4777-8777-777777777701",
+  "campanha_id": "{{campanhaId}}",
+  "local_voto_id": "c0000000-0000-0000-0000-000000000001",
+  "mesa_numero": 1,
+  "delegado_id": "{{ativistaId}}",
+  "votos_favoraveis": 215,
+  "votos_oponentes": 130,
+  "votos_nulos": 8,
+  "votos_brancos": 2,
+  "total_votantes": 355,
+  "foto_ata_url": "https://storage.campanha2027.ao/atas/ata_morro_bento_01.jpg",
+  "foto_hash_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "localizacao_envio": {
+    "longitude": 13.2667,
+    "latitude": -8.9167
+  },
+  "registado_em": "2026-10-01T17:30:00.000Z"
+}
+
+### 11. Dia D: Apuramento Paralelo Consolidado e Auditoria de Atas Suspeitas
+GET {{baseUrl}}/dia-d/apuramento-paralelo?campanha_id={{campanhaId}}

@@ -1,0 +1,84 @@
+services:
+  # 1. Base de Dados PostgreSQL 16 com Extensão Espacial PostGIS 3.4
+  postgis:
+    image: postgis/postgis:16-3.4
+    container_name: angola_postgis_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-angola_geomarketing}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres2027secure}
+    ports:
+      - "${PGPORT:-5432}:5432"
+    volumes:
+      - postgis_data:/var/lib/postgresql/data
+      # Scripts de migração e seeds executados por ordem alfabética no primeiro arranque:
+      - ./database/01_schema_postgis.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+      - ./database/02_seed_angola_data.sql:/docker-entrypoint-initdb.d/02_seed.sql:ro
+      - ./database/03_seed_municipios_angola.sql:/docker-entrypoint-initdb.d/03_municipios.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d angola_geomarketing"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - rede_eleitoral
+
+  # 2. Backend RESTful API em Node.js (Offline-First Sync & PostGIS)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: angola_backend_api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-postgres2027secure}@postgis:5432/${POSTGRES_DB:-angola_geomarketing}
+      PG_MAX_POOL: 25
+      PG_IDLE_TIMEOUT_MS: 30000
+    ports:
+      - "3001:3001"
+    depends_on:
+      postgis:
+        condition: service_healthy
+    networks:
+      - rede_eleitoral
+
+  # 3. Painel Executivo / Sala de Guerra (Streamlit Dark Mode)
+  war-room:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: angola_war_room
+    restart: unless-stopped
+    environment:
+      STREAMLIT_SERVER_PORT: 8501
+      STREAMLIT_SERVER_ADDRESS: 0.0.0.0
+      STREAMLIT_SERVER_HEADLESS: "true"
+    ports:
+      - "8501:8501"
+    depends_on:
+      - backend
+    networks:
+      - rede_eleitoral
+
+  # 4. Simulador Mobile Interativo (Servidor Web Nginx)
+  mobile-preview:
+    image: nginx:alpine
+    container_name: angola_mobile_preview
+    restart: unless-stopped
+    volumes:
+      - ./mobile/preview.html:/usr/share/nginx/html/index.html:ro
+    ports:
+      - "8080:80"
+    networks:
+      - rede_eleitoral
+
+volumes:
+  postgis_data:
+    driver: local
+
+networks:
+  rede_eleitoral:
+    driver: bridge
