@@ -1,0 +1,54 @@
+{
+  "data_execucao": "2026-10-01T21:04:05.520Z",
+  "arquivos_processados": [
+    {
+      "arquivo": "resultados_eleitorais_cne_2022.json",
+      "proveniencia": "OFICIAL",
+      "fonte": "Comissão Nacional Eleitoral (CNE)"
+    },
+    {
+      "arquivo": "populacao_projecoes_ine.json",
+      "proveniencia": "OFICIAL",
+      "fonte": "Instituto Nacional de Estatística (INE Angola)"
+    },
+    {
+      "arquivo": "malha_angola_dpa2016.geojson",
+      "proveniencia": "OFICIAL"
+    },
+    {
+      "arquivo": "malha_angola_dpa2024.geojson",
+      "proveniencia": "OFICIAL/ESTIMADO"
+    },
+    {
+      "arquivo": "de_para_dpa_2016_2024.json",
+      "proveniencia": "OFICIAL"
+    }
+  ],
+  "auditoria_qualidade": {
+    "total_registros_analisados": 39,
+    "total_nulos_detectados": 0,
+    "total_duplicados_detectados": 0,
+    "total_geometrias_invalidas": 0,
+    "total_fora_srid_4326": 0,
+    "conformidade_srid_4326_perc": 100,
+    "status_geral": "APROVADO_COM_RESTRICOES"
+  },
+  "versoes_malha_carregadas": [
+    {
+      "codigo": "DPA_2016_18P",
+      "total_features": 18
+    },
+    {
+      "codigo": "DPA_2024_21P",
+      "total_features": 21
+    }
+  ],
+  "resumo_zonamento_calculado": {
+    "regra_aplicada": "Margem = (% Votos Partido - % Votos Principal Oponente). Se Margem >= +15.00% => BASTIAO; Se Margem <= -15.00% => OPOSICAO; Caso contrário => CAMPO_BATALHA",
+    "total_unidades": 18,
+    "bastioes": 12,
+    "campos_batalha": 3,
+    "oposicao": 3
+  },
+  "avisos": []
+}

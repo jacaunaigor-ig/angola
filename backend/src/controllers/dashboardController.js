@@ -1,4 +1,5 @@
 const { query } = require('../config/db');
+const { calcularMargemErroAmostral } = require('../services/estatisticaService');
 
 /**
  * Controller responsável pelas métricas agregadas e inteligência de geomarketing
@@ -109,13 +110,17 @@ const dashboardController = {
         }
       }
 
+      const totalEleitoresAptos = parseInt(dadosAssembleias.total_eleitores || '0', 10);
+      const metadadosAmostrais = calcularMargemErroAmostral(totalVisitas, totalEleitoresAptos);
+
       return res.status(200).json({
         sucesso: true,
         municipio,
         indicador_risco: indicadorRisco,
+        amostragem_estatistica: metadadosAmostrais,
         estrutura_eleitoral: {
           total_assembleias: parseInt(dadosAssembleias.total_assembleias || '0', 10),
-          total_eleitores_aptos: parseInt(dadosAssembleias.total_eleitores || '0', 10),
+          total_eleitores_aptos: totalEleitoresAptos,
           zonamento_base: {
             bastioes: parseInt(dadosAssembleias.bastioes || '0', 10),
             campos_batalha: parseInt(dadosAssembleias.campos_batalha || '0', 10),
@@ -124,6 +129,7 @@ const dashboardController = {
         },
         inteligencia_campo: {
           total_visitas: totalVisitas,
+          amostra_info: metadadosAmostrais.texto_formatado || `n = ${totalVisitas}`,
           sentimento: {
             positivo: { total: positivo, perc: totalVisitas ? Math.round((positivo / totalVisitas) * 100) : 0 },
             neutro: { total: neutro, perc: totalVisitas ? Math.round((neutro / totalVisitas) * 100) : 0 },

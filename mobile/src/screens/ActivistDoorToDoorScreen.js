@@ -160,6 +160,16 @@ export default function ActivistDoorToDoorScreen() {
         <Text style={styles.gpsPrecision}>Margem: ±{coordenadas.precisao}m (Forte)</Text>
       </View>
 
+      {/* Termo de Consentimento e Política de Retenção */}
+      <View style={{ backgroundColor: 'rgba(56, 189, 248, 0.08)', borderColor: '#38BDF8', borderWidth: 1, borderRadius: 8, padding: 10, marginBottom: 14 }}>
+        <Text style={{ color: '#38BDF8', fontSize: 11, fontWeight: '700', marginBottom: 2 }}>
+          🔒 Proteção de Dados & Política de Retenção
+        </Text>
+        <Text style={{ color: '#94A3B8', fontSize: 10, lineHeight: 14 }}>
+          Este app coleta dados estritamente agregados por setor para mapeamento de carências públicas. Não registamos nomes, números de BI nem convicções políticas individuais. Retenção restrita ao ciclo eleitoral de 2027.
+        </Text>
+      </View>
+
       {mensagemSucesso ? (
         <View style={styles.successBanner}>
           <Text style={styles.successText}>{mensagemSucesso}</Text>

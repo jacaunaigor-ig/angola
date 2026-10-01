@@ -4,16 +4,26 @@ require('dotenv').config();
 
 const apiRoutes = require('./routes/apiRoutes');
 const errorHandler = require('./middleware/errorHandler');
+const { rateLimiter } = require('./middleware/auth');
+const logger = require('./utils/logger');
 const { pool } = require('./config/db');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Middlewares essenciais
-app.use(cors());
-// Limite estendido para suportar lotes de até 500 visitas acumuladas offline
-app.use(express.json({ limit: '5mb' }));
-app.use(express.urlencoded({ extended: true, limit: '5mb' }));
+// Configuração de CORS com suporte a lista branca
+const corsOrigins = process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : '*';
+app.use(cors({ origin: corsOrigins, credentials: true }));
+
+// Rate limiting para proteção contra DoS e força bruta
+app.use(rateLimiter);
+
+// Logger HTTP estruturado em JSON
+app.use(logger.middlewareReq);
+
+// Limite controlado para suportar lotes de visitas sem estouro de memória
+app.use(express.json({ limit: '2mb' }));
+app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 
 // Rotas da API
 app.use('/api', apiRoutes);
