@@ -12,17 +12,26 @@ import TacticalMapScreen from './src/screens/TacticalMapScreen';
 import ActivistDoorToDoorScreen from './src/screens/ActivistDoorToDoorScreen';
 import ElectionDayScreen from './src/screens/ElectionDayScreen';
 import { offlineStorage } from './src/services/offlineStorage';
+import { sqliteOutbox } from './src/services/sqliteOutbox';
+import { outboxSync } from './src/services/outboxSync';
 
 export default function App() {
   const [tabAtiva, setTabAtiva] = useState('MAPA'); // 'MAPA' | 'ATIVISTA' | 'DIAD'
   const [pendencias, setPendencias] = useState(0);
 
   useEffect(() => {
+    sqliteOutbox.inicializar().catch(() => {});
+    outboxSync.iniciar();
+
     const interval = setInterval(async () => {
       const total = await offlineStorage.contarPendencias();
       setPendencias(total);
     }, 3000);
-    return () => clearInterval(interval);
+
+    return () => {
+      clearInterval(interval);
+      outboxSync.parar();
+    };
   }, []);
 
   return (

@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { query } = require('../config/db');
 const { calcularZonamento, REGRAS_PADRAO } = require('../services/zonamentoService');
+const { filtrarFeatures } = require('../services/planosComerciaisService');
 
 const ROOT_DIR = path.resolve(__dirname, '../../..');
 const REPORT_PATH = path.join(ROOT_DIR, 'data', 'relatorio_qualidade_carga.json');
@@ -103,6 +104,8 @@ const territorioController = {
     try {
       const versao = req.query.versao || 'DPA_2016_18P';
       const formato = req.query.formato || 'json';
+      const plano = req.query.plano || req.headers['x-plano-campanha'];
+      const territorio = req.query.territorio;
 
       // 1. Tenta carregar do PostgreSQL se disponível
       try {
@@ -123,32 +126,39 @@ const territorioController = {
         const { rows } = await query(sql, [versao]);
         if (rows && rows.length > 0) {
           if (formato === 'geojson') {
-            const featureCollection = {
+            const brutas = rows.map(r => ({
+              type: 'Feature',
+              properties: {
+                codigo: r.codigo_oficial,
+                codigo_oficial: r.codigo_oficial,
+                nome: r.nome,
+                nivel: r.nivel_territorial,
+                populacao_total: r.populacao_total,
+                populacao_18_mais: r.populacao_18_mais,
+                juventude_perc: r.juventude_perc,
+                eleitores_cne: r.eleitores_registados_cne,
+                eleitores: r.eleitores_registados_cne,
+                abstencao_perc: r.abstencao_indice != null ? Number(r.abstencao_indice) * 100 : null,
+                margem_apurada_perc: r.margem_apurada_perc,
+                zonamento: r.zonamento_calculado,
+                formula: r.formula_explicativa,
+                proveniencia: r.proveniencia_dados
+              },
+              geometry: r.geojson
+            }));
+            const scoped = filtrarFeatures(brutas, plano, territorio);
+            return res.status(200).json({
               type: 'FeatureCollection',
-              features: rows.map(r => ({
-                type: 'Feature',
-                properties: {
-                  codigo: r.codigo_oficial,
-                  codigo_oficial: r.codigo_oficial,
-                  nome: r.nome,
-                  nivel: r.nivel_territorial,
-                  populacao_total: r.populacao_total,
-                  populacao_18_mais: r.populacao_18_mais,
-                  juventude_perc: r.juventude_perc,
-                  eleitores_cne: r.eleitores_registados_cne,
-                  eleitores: r.eleitores_registados_cne,
-                  abstencao_perc: r.abstencao_indice != null ? Number(r.abstencao_indice) * 100 : null,
-                  margem_apurada_perc: r.margem_apurada_perc,
-                  zonamento: r.zonamento_calculado,
-                  formula: r.formula_explicativa,
-                  proveniencia: r.proveniencia_dados
-                },
-                geometry: r.geojson
-              }))
-            };
-            return res.status(200).json(featureCollection);
+              features: scoped.features,
+              ambito_contratado: {
+                plano: scoped.plano?.codigo || plano || 'NACIONAL',
+                irrestrito: Boolean(scoped.irrestrito),
+                nomes: scoped.nomes,
+              },
+            });
           }
-          return res.status(200).json({ sucesso: true, versao, unidades: rows });
+          const scopedRows = filtrarFeatures(rows, plano, territorio);
+          return res.status(200).json({ sucesso: true, versao, unidades: scopedRows.features });
         }
       } catch (dbErr) {
         // Fallback gracioso lendo do repositório data/raw/
@@ -196,20 +206,25 @@ const territorioController = {
         };
       });
 
+      const scoped = filtrarFeatures(featuresEnriquecidas, plano, territorio);
       if (formato === 'geojson') {
         return res.status(200).json({
           type: 'FeatureCollection',
           name: `malha_${versao}`,
           proveniencia: 'OFICIAL',
-          features: featuresEnriquecidas
+          features: scoped.features,
+          ambito_contratado: {
+            plano: scoped.plano?.codigo || plano || 'NACIONAL',
+            irrestrito: Boolean(scoped.irrestrito),
+          },
         });
       }
 
       return res.status(200).json({
         sucesso: true,
         versao,
-        total: featuresEnriquecidas.length,
-        unidades: featuresEnriquecidas.map(f => f.properties)
+        total: scoped.features.length,
+        unidades: scoped.features.map(f => f.properties)
       });
     } catch (err) {
       console.error('[Listar Unidades Error]', err);

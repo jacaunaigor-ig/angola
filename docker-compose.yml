@@ -16,6 +16,8 @@ services:
       - ./database/01_schema_postgis.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
       - ./database/02_seed_angola_data.sql:/docker-entrypoint-initdb.d/02_seed.sql:ro
       - ./database/03_seed_municipios_angola.sql:/docker-entrypoint-initdb.d/03_municipios.sql:ro
+      - ./database/05_audit_logs.sql:/docker-entrypoint-initdb.d/05_audit.sql:ro
+      - ./database/06_planos_comerciais.sql:/docker-entrypoint-initdb.d/06_planos.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d angola_geomarketing"]
       interval: 10s

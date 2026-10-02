@@ -80,6 +80,13 @@ function validarConsultaProximidade(req, res, next) {
  * Middleware para validar o payload da rota de sincronização tardia de visitas
  */
 function validarSincronizacaoVisitas(req, res, next) {
+  if (req.body && !Array.isArray(req.body.visitas) && (req.body.uuid || req.body.id)) {
+    req.body = {
+      campanha_id: req.body.campanha_id,
+      visitas: [req.body],
+    };
+  }
+
   const { campanha_id, visitas } = req.body;
 
   if (!isUuid(campanha_id)) {
@@ -109,12 +116,15 @@ function validarSincronizacaoVisitas(req, res, next) {
     const v = visitas[i];
     const index = i + 1;
 
-    if (!isUuid(v.id)) {
+    const uuidCliente = v.uuid || v.id;
+    if (!isUuid(uuidCliente)) {
       return res.status(400).json({
         erro: `Item #${index} inválido.`,
-        detalhes: 'Cada visita deve conter um "id" UUID gerado localmente (sem prefixo urn:uuid:).',
+        detalhes: 'Cada visita deve conter um "uuid" (ou "id") UUID gerado localmente no telemóvel.',
       });
     }
+    v.uuid = uuidCliente;
+    v.id = v.id || uuidCliente;
 
     if (!isUuid(v.ativista_id)) {
       return res.status(400).json({
