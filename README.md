@@ -3,7 +3,8 @@
 > **Plataforma B2B Demonstrável e Vendável de Inteligência Territorial, Micro-Targeting Eleitoral, Operações Mobile Offline-First, IA com Governança Humana e Apuramento Paralelo do Dia D.**
 
 [![CI - Testes e Qualidade](https://github.com/jacaunaigor-ig/angola/actions/workflows/ci.yml/badge.svg)](https://github.com/jacaunaigor-ig/angola/actions)
-![Status dos Testes](https://img.shields.io/badge/Testes-61%2F61%20Passaram-10B981)
+![Status dos Testes](https://img.shields.io/badge/Testes-66%2F66%20Passaram-10B981)
+![Planos](https://img.shields.io/badge/Planos-Municipal%20%7C%20Provincial%20%7C%20Nacional-F97316)
 ![PostGIS](https://img.shields.io/badge/PostGIS-SRID%204326-38BDF8)
 ![Segurança](https://img.shields.io/badge/Segurança-JWT%20%7C%20RBAC%20%7C%20RLS-818CF8)
 

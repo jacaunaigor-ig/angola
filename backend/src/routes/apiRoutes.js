@@ -7,10 +7,12 @@ const dashboardController = require('../controllers/dashboardController');
 const discursosController = require('../controllers/discursosController');
 const warRoomController = require('../controllers/warRoomController');
 const territorioController = require('../controllers/territorioController');
+const planosController = require('../controllers/planosController');
 const {
   validarConsultaProximidade,
   validarSincronizacaoVisitas,
 } = require('../middleware/validator');
+const { exigirFuncionalidade } = require('../middleware/planoEntitlements');
 const { query } = require('../config/db');
 
 /**
@@ -60,6 +62,7 @@ router.post(
 
 router.post(
   '/visitas/invalidar-lote',
+  exigirFuncionalidade('invalidar_lote'),
   visitasController.invalidarLote
 );
 
@@ -123,16 +126,19 @@ router.get(
 
 router.post(
   '/dia-d/submeter-ata',
+  exigirFuncionalidade('dia_d'),
   warRoomController.submeterAta
 );
 
 router.get(
   '/dia-d/apuramento-paralelo',
+  exigirFuncionalidade('dia_d'),
   warRoomController.obterApuramentoParalelo
 );
 
 router.post(
   '/dia-d/casos-juridicos',
+  exigirFuncionalidade('casos_juridicos'),
   warRoomController.criarCasoJuridico
 );
 
@@ -168,5 +174,14 @@ router.post(
   '/zonamento/simular',
   territorioController.simularZonamento
 );
+
+// ==============================================================================
+// 7. CATÁLOGO COMERCIAL B2B (MUNICIPAL / PROVINCIAL / NACIONAL)
+// ==============================================================================
+router.get('/planos', planosController.catalogo);
+router.get('/planos/:codigo', planosController.obter);
+router.post('/planos/orcamento', planosController.orcamento);
+router.get('/campanha/entitlements', planosController.entitlements);
+router.post('/propostas', planosController.pedirProposta);
 
 module.exports = router;

@@ -15,6 +15,15 @@ from war_room.anomalias_campo import (
     analisar_integridade_campo,
     visitas_demonstracao_risco,
 )
+from war_room.planos_comerciais import (
+    PLANOS,
+    MUNICIPIOS_VENDAVEIS,
+    calcular_orcamento,
+    filtrar_geojson,
+    formatar_aoa,
+    matriz_comparativa,
+    obter_plano,
+)
 
 
 def fmt_int_ao(valor) -> str:
@@ -251,6 +260,33 @@ st.sidebar.markdown("---")
 # Toggle de Modo Demonstração
 modo_demo_forcado = st.sidebar.checkbox("🔒 Forçar Modo Demonstração", value=False, help="Utiliza dados auditados locais isolados de data/raw/")
 
+# Contrato comercial: o War Room só mostra o âmbito pago
+st.sidebar.subheader("💼 Plano Contratado")
+plano_codigo = st.sidebar.selectbox(
+    "SKU da campanha:",
+    options=["MUNICIPAL", "PROVINCIAL", "NACIONAL"],
+    index=2,
+    format_func=lambda c: PLANOS[c]["nome"],
+)
+plano_ativo = obter_plano(plano_codigo)
+territorios_mun = [f"{m['municipio']} · {m['provincia']}" for m in MUNICIPIOS_VENDAVEIS]
+if plano_codigo == "MUNICIPAL":
+    escolha_mun = st.sidebar.selectbox("Município contratado:", options=territorios_mun, index=0)
+    territorio_contrato = escolha_mun.split(" · ")[0]
+    provincia_contrato = escolha_mun.split(" · ")[1]
+elif plano_codigo == "PROVINCIAL":
+    provincias_venda = sorted({m["provincia"] for m in MUNICIPIOS_VENDAVEIS})
+    provincia_contrato = st.sidebar.selectbox("Província contratada:", options=provincias_venda, index=0)
+    territorio_contrato = provincia_contrato
+else:
+    provincia_contrato = None
+    territorio_contrato = None
+
+st.sidebar.caption(plano_ativo["tagline"])
+st.sidebar.markdown(f"**Tabela:** `{formatar_aoa(plano_ativo['preco_tabela_aoa'])}` / ciclo 2027")
+
+api.definir_contrato(plano_codigo, territorio_contrato)
+
 # Neutralidade Técnica: Rótulos Personalizáveis
 st.sidebar.subheader("⚙️ Identidade da Campanha")
 nome_nosso_partido = st.sidebar.text_input("Rótulo do Nosso Partido / Coligação:", value="Nosso Partido / Coligação")
@@ -266,11 +302,14 @@ limiar_oposicao = st.sidebar.slider("Limiar de Oposição Crítica (Margem <= %)
 # Versão da Malha DPA
 st.sidebar.markdown("---")
 st.sidebar.subheader("🗺️ Divisão Político-Administrativa")
+opcoes_malha = ["DPA_2024_21P"] if not plano_ativo["funcionalidades"]["malha_dupla_dpa"] else ["DPA_2016_18P", "DPA_2024_21P"]
 versao_selecionada = st.sidebar.selectbox(
     "Versão da Malha Territorial:",
-    options=["DPA_2016_18P", "DPA_2024_21P"],
+    options=opcoes_malha,
     format_func=lambda x: "DPA 2016 (18 Províncias - Base Histórica 2022)" if x == "DPA_2016_18P" else "Nova DPA 2024 (21 Províncias - Alvo 2027)"
 )
+if not plano_ativo["funcionalidades"]["malha_dupla_dpa"]:
+    st.sidebar.caption("Malha histórica DPA 2016 disponível a partir do Plano Provincial.")
 
 # Pesos da Prioridade Territorial
 st.sidebar.markdown("---")
@@ -308,11 +347,14 @@ st.markdown(f"""
             SALA DE GUERRA & WAR ROOM DE MARKETING POLÍTICO
         </h2>
         <div style="font-size:12px; color:#94A3B8; margin-top:4px;">
-            Inteligência Territorial • Demografia da Juventude • Discursos com IA • Monitoramento do Dia D
+            {plano_ativo["nome"]} • Âmbito: {territorio_contrato or "Nacional (21 províncias)"} • {plano_ativo["tagline"]}
         </div>
     </div>
     <div style="text-align:right;">
         {status_html}
+        <div style="margin-top:8px; font-size:11px; font-weight:800; color:{plano_ativo["cor"]}; letter-spacing:0.6px;">
+            SKU {plano_codigo} · {formatar_aoa(plano_ativo["preco_tabela_aoa"])}
+        </div>
         <div style="font-size:10px; color:#64748B; margin-top:6px; font-family:'JetBrains Mono';">
             DATA: {datetime.now().strftime('%d/%m/%Y • %H:%M')}
         </div>
@@ -324,8 +366,9 @@ st.markdown(f"""
 # 4. CARGA DOS DADOS TERRITORIAIS OFICIAIS
 # ==============================================================================
 sucesso_api_unidades, geo_dados, proveniencia_unidades = api.obter_unidades_territoriais(versao_selecionada, formato="geojson")
+geo_dados = filtrar_geojson(geo_dados, plano_codigo, territorio_contrato)
 
-if not geo_dados or "features" not in geo_dados:
+if not geo_dados or "features" not in geo_dados or not geo_dados.get("features"):
     st.error("⚠️ Sem dados territoriais disponíveis para a versão selecionada. Verifique o pipeline ETL.")
     st.stop()
 
@@ -439,7 +482,8 @@ st.markdown(f"""
 # ==============================================================================
 # 5. ABAS ESTRATÉGICAS DA SALA DE GUERRA
 # ==============================================================================
-aba_mapa, aba_prioridade, aba_discurso, aba_simulador, aba_terreno, aba_diad, aba_auditoria = st.tabs([
+aba_comercial, aba_mapa, aba_prioridade, aba_discurso, aba_simulador, aba_terreno, aba_diad, aba_auditoria = st.tabs([
+    "💼 0. Planos & Contratação",
     "🗺️ 1. Centro de Comando & Cartografia",
     "🎯 2. Matriz de Priorização Tática",
     "🎤 3. Discursos com IA & Governança",
@@ -448,6 +492,65 @@ aba_mapa, aba_prioridade, aba_discurso, aba_simulador, aba_terreno, aba_diad, ab
     "🗳️ 6. Sala do Dia D & Apuramento",
     "🛡️ 7. Auditoria de Qualidade & RLS"
 ])
+
+with aba_comercial:
+    st.subheader("💼 Pacotes vendáveis — Municipal, Provincial e Nacional")
+    st.markdown(
+        "Três SKUs para o ciclo **2027**. O War Room, o telemóvel e a API passam a operar "
+        "apenas no território e nas funcionalidades do contrato. Preços em **AOA**, de tabela — a proposta formal prevalece."
+    )
+    cols_sku = st.columns(3)
+    for col, codigo in zip(cols_sku, ["MUNICIPAL", "PROVINCIAL", "NACIONAL"]):
+        p = PLANOS[codigo]
+        activo = codigo == plano_codigo
+        with col:
+            st.markdown(
+                f"""
+                <div style="background:#121B2F;border:1px solid {p['cor'] if activo else 'rgba(255,255,255,0.08)'};border-radius:16px;padding:16px;min-height:280px;">
+                    <div style="color:{p['cor']};font-size:11px;font-weight:800;letter-spacing:1px;">SKU {p['codigo']}</div>
+                    <h3 style="margin:6px 0 8px 0;color:#F8FAFC;">{p['nome']}</h3>
+                    <div style="color:#94A3B8;font-size:13px;min-height:56px;">{p['tagline']}</div>
+                    <div style="font-size:22px;font-weight:800;color:#F8FAFC;margin:12px 0 4px 0;">{formatar_aoa(p['preco_tabela_aoa'])}</div>
+                    <div style="color:#64748B;font-size:11px;">ciclo eleitoral 2027 • tabela</div>
+                    <ul style="color:#CBD5E1;font-size:12px;padding-left:16px;margin-top:12px;">
+                        <li>{p['limites']['brigadistas']} brigadistas</li>
+                        <li>{p['limites']['contas_war_room']} contas War Room</li>
+                        <li>{'Dia D incluído' if p['funcionalidades']['dia_d'] else 'Dia D: upgrade Provincial'}</li>
+                    </ul>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+    st.markdown("### Comparativo de capacidades")
+    st.dataframe(pd.DataFrame(matriz_comparativa()), use_container_width=True, hide_index=True)
+
+    st.markdown("### Pedir proposta formal")
+    orc = calcular_orcamento(plano_codigo, territorio_contrato, plano_ativo["limites"]["brigadistas"])
+    st.info(f"Âmbito seleccionado: **{plano_ativo['nome']}** · **{territorio_contrato or 'Nacional'}** · {orc.get('total_formatado', '—')}")
+    col_p1, col_p2 = st.columns(2)
+    with col_p1:
+        org = st.text_input("Organização / Partido / Coligação")
+        contacto = st.text_input("Nome do decisor")
+    with col_p2:
+        tel = st.text_input("Telefone")
+        mail = st.text_input("E-mail institucional")
+    notas_prop = st.text_area("Notas para a proposta (municípios extra, Dia D, HQ)", height=70)
+    if st.button("📨 Gerar protocolo de proposta", use_container_width=True):
+        ok_prop, detalhe_prop = api.pedir_proposta({
+            "organizacao": org,
+            "contacto": contacto,
+            "telefone": tel,
+            "email": mail,
+            "plano": plano_codigo,
+            "territorio": territorio_contrato,
+            "brigadistas_contratados": plano_ativo["limites"]["brigadistas"],
+            "notas": notas_prop,
+        })
+        if ok_prop:
+            protocolo = (detalhe_prop.get("pedido") or {}).get("protocolo") or "registado"
+            st.success(f"Proposta {protocolo} criada. A minuta segue com preço de tabela e âmbito territorial.")
+        else:
+            st.warning((detalhe_prop or {}).get("erro") or "API indisponível. O pedido ficou só nesta sessão — envie quando a API estiver no ar.")
 
 # ------------------------------------------------------------------------------
 # ABA 1: CENTRO DE COMANDO & CARTOGRAFIA COROPLÉTICA
@@ -879,7 +982,9 @@ with aba_terreno:
         alerta_sel = diagnostico["alertas"][indice_lote]
         uuids_lote = alerta_sel.get("uuids") or []
 
-        if st.button("🚫 Invalidar lote suspeito com um clique", use_container_width=True):
+        if not plano_ativo["funcionalidades"]["invalidar_lote"]:
+            st.info("A invalidação de lote é capacidade do Plano Provincial e do Nacional / HQ.")
+        elif st.button("🚫 Invalidar lote suspeito com um clique", use_container_width=True):
             ok_inv, detalhe_inv = api.invalidar_lote_visitas(
                 uuids_lote,
                 motivo=f"ANOMALIA_{alerta_sel.get('tipo')}",
@@ -906,10 +1011,30 @@ with aba_terreno:
 # ------------------------------------------------------------------------------
 with aba_diad:
     st.subheader("🗳️ Sala do Dia D: Apuramento Paralelo & Auditoria Espacial")
-    st.markdown("Fiscalização das mesas com declaração de cobertura e cadeia de custódia SHA-256. Sem atas, não há projeção.")
+    if not plano_ativo["funcionalidades"]["dia_d"]:
+        st.warning(
+            "O **Plano Municipal** não inclui apuramento do Dia D. "
+            "Faça upgrade para o **Plano Provincial** (uma província) ou **Nacional / HQ**."
+        )
+        st.caption("Esta porta está fechada de propósito: é o SKU que se vende à direcção provincial.")
+    else:
+        st.markdown("Fiscalização das mesas com declaração de cobertura e cadeia de custódia SHA-256. Sem atas, não há projeção.")
 
-    ok_apur, apur, prov_apur = api.obter_apuramento_paralelo()
-    cobertura = apur.get("cobertura_apuracao") or {}
+    if not plano_ativo["funcionalidades"]["dia_d"]:
+        ok_apur, apur, prov_apur = False, {}, "BLOQUEADO_PLANO"
+    else:
+        ok_apur, apur, prov_apur = api.obter_apuramento_paralelo()
+    if not plano_ativo["funcionalidades"]["dia_d"]:
+        cobertura = {}
+        votos = {}
+        auditoria = {}
+        mesas_rec = mesas_esp = votantes = 0
+        cob_perc = 0.0
+        nosso = {}
+        oponente = {}
+        atas_alerta = []
+    else:
+        cobertura = apur.get("cobertura_apuracao") or {}
     votos = apur.get("contagem_votos_validos") or {}
     auditoria = apur.get("auditoria_integridade") or {}
     mesas_rec = int(cobertura.get("mesas_recebidas") or 0)
@@ -920,9 +1045,14 @@ with aba_diad:
     oponente = votos.get("oposicao") or {}
     atas_alerta = auditoria.get("atas_para_revisao_humana") or []
 
-    st.caption(f"Proveniência: `{prov_apur}` • Incerteza: `{cobertura.get('grau_incerteza', 'INDETERMINADO')}`")
+    if not plano_ativo["funcionalidades"]["dia_d"]:
+        pass
+    else:
+        st.caption(f"Proveniência: `{prov_apur}` • Incerteza: `{cobertura.get('grau_incerteza', 'INDETERMINADO')}`")
 
-    if mesas_rec == 0:
+    if not plano_ativo["funcionalidades"]["dia_d"]:
+        pass
+    elif mesas_rec == 0:
         st.info("Nenhuma ata submetida. Afluência e percentagens só são apresentadas após recepção de atas reais.")
     else:
         c1, c2, c3, c4 = st.columns(4)
@@ -937,9 +1067,14 @@ with aba_diad:
         if cobertura.get("aviso_metodologico"):
             st.warning(cobertura["aviso_metodologico"])
 
-    st.markdown("---")
-    col_apur1, col_apur2 = st.columns([1, 1])
-    with col_apur1:
+    if not plano_ativo["funcionalidades"]["dia_d"]:
+        col_apur1 = col_apur2 = None
+    else:
+        st.markdown("---")
+    if plano_ativo["funcionalidades"]["dia_d"]:
+        col_apur1, col_apur2 = st.columns([1, 1])
+    if col_apur1 is not None:
+      with col_apur1:
         st.markdown(f"""
         <div style="background:#121B2F; border:1px solid rgba(255,255,255,0.08); border-radius:16px; padding:20px;">
             <h4 style="margin:0 0 12px 0; color:#38BDF8;">Consolidação das Atas Recebidas</h4>
@@ -963,7 +1098,8 @@ with aba_diad:
         </div>
         """, unsafe_allow_html=True)
 
-    with col_apur2:
+    if col_apur2 is not None:
+      with col_apur2:
         st.markdown("#### 🚨 Auditoria de Geofencing: Alertas para Revisão Humana")
         st.info("Desvios > 300m da assembleia são encaminhados para averiguação técnica sem acusação automática de fraude.")
         if atas_alerta:

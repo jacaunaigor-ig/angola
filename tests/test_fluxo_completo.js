@@ -433,6 +433,17 @@ async function testarFluxoIntegrado() {
   };
   asserir('Healthcheck expõe métricas de observabilidade (uptime, heap de memória, pid)', mockHealthPayload.observabilidade.uptime_segundos > 0 && typeof mockHealthPayload.observabilidade.uso_memoria_heap_mb === 'number');
 
+  console.log('\n--- ETAPA 14: PLANOS COMERCIAIS MUNICIPAL / PROVINCIAL / NACIONAL ---');
+  const planosSvc = require('../backend/src/services/planosComerciaisService');
+  asserir('Catálogo comercial publica 3 SKUs', planosSvc.listarPlanos().length === 3);
+  asserir('Municipal bloqueia Dia D (porta de upgrade)', planosSvc.funcionalidadePermitida('MUNICIPAL', 'dia_d') === false);
+  const scopedLua = planosSvc.filtrarFeatures(
+    [{ properties: { nome: 'Luanda' } }, { properties: { nome: 'Huambo' } }],
+    'MUNICIPAL',
+    'Talatona'
+  );
+  asserir('Âmbito municipal de Talatona reduz a malha a Luanda', scopedLua.features.length === 1);
+
   console.log('\n================================================================');
   console.log(`📊 RESULTADO DOS TESTES: ${totalPassou} de ${totalTestes} ETAPAS APROVADAS (100% SUCESSO)`);
   console.log('================================================================\n');

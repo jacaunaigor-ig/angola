@@ -5,6 +5,24 @@ Este documento orienta os consultores e arquitetos de soluções durante apresen
 
 ---
 
+## 💶 Como vender: três SKUs (Municipal / Provincial / Nacional)
+
+O produto não se vende “como plataforma completa” a toda a gente. O consultor escolhe o âmbito **antes** de abrir o mapa.
+
+| SKU | Quem compra | O que vê no War Room | Tabela ciclo 2027 |
+|---|---|---|---|
+| **Municipal** | Administrador municipal, coordenador de circunscrição | 1 município (mapa da província-mãe), porta-a-porta, dores, 15 discursos IA. Sem Dia D. | 4.800.000 AOA |
+| **Provincial** | Direcção provincial, lista de deputados | 1 província, invalidação de lotes, Dia D e casos jurídicos. | 18.500.000 AOA |
+| **Nacional / HQ** | Comissão nacional / coligação | 21 províncias, API, HQ, apuramento nacional. | 62.000.000 AOA (abertura) |
+
+**Passo de venda (3 minutos):**
+1. Abrir a aba **0. Planos & Contratação** e mostrar a matriz.
+2. Na barra lateral, mudar o SKU ao vivo: Municipal Talatona → o mapa colapsa para Luanda; Provincial Huambo → só Huambo; Nacional → país inteiro.
+3. Tentar a aba Dia D no Municipal: a porta fecha com upgrade. É o momento de fechar o Provincial.
+4. Clicar **Gerar protocolo de proposta** (`PROP-2027-XXXX`) com o decisor na sala.
+
+O preço é de **tabela**. A minuta formal prevalece (IVA, faseamento, add-ons de brigadistas).
+
 ## 🎯 Proposta de Valor Única (Pitch de 2 Minutos)
 
 > *"As eleições de 2027 em Angola serão decididas na margem de votos dos centros urbanos e no combate à abstenção no interior. A maioria das campanhas ainda usa planilhas dispersas e toma decisões às cegas. O nosso **GPS de Marketing Político** é a única plataforma militarmente estruturada para a realidade de Angola: opera 100% offline no terreno (mesmo em áreas sem sinal 4G), gera discursos territorializados fundamentados em carências reais e audita cada ata de voto com precisão GPS e criptografia SHA-256 no Dia D."*
