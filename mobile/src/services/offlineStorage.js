@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { sqliteOutbox } from './sqliteOutbox';
 
 const STORAGE_KEYS = {
   QUEUE_VISITAS: '@gps_angola_queue_visitas',
@@ -9,27 +10,26 @@ const STORAGE_KEYS = {
 
 // Gerador simplificado de UUIDv4 compatível com ambientes offline
 export function generateUUID() {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0;
-    const v = c === 'x' ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
+  return sqliteOutbox.gerarUuidVisita();
 }
 
 export const offlineStorage = {
   /**
-   * Enfileira uma nova visita no armazenamento local do telemóvel
+   * Enfileira uma nova visita na tabela SQLite local (Outbox) com status PENDENTE.
+   * Mantém um espelho em AsyncStorage apenas para compatibilidade com ecrãs existentes.
    */
   async enfileirarVisita(visita) {
     try {
-      const filaExistente = await this.obterFilaVisitas();
-      const novaVisita = {
+      const uuid = visita.uuid || visita.id || generateUUID();
+      const novaVisita = await sqliteOutbox.enfileirarVisita({
         ...visita,
-        id: visita.id || generateUUID(),
+        uuid,
+        id: visita.id || uuid,
         registado_em: visita.registado_em || new Date().toISOString(),
         sincronizado: false,
-      };
+      });
 
+      const filaExistente = await this.obterFilaVisitasAsyncStorage();
       filaExistente.push(novaVisita);
       await AsyncStorage.setItem(STORAGE_KEYS.QUEUE_VISITAS, JSON.stringify(filaExistente));
       return novaVisita;
@@ -39,35 +39,51 @@ export const offlineStorage = {
     }
   },
 
-  /**
-   * Retorna a lista de visitas acumuladas offline e pendentes de envio
-   */
-  async obterFilaVisitas() {
+  async obterFilaVisitasAsyncStorage() {
     try {
       const raw = await AsyncStorage.getItem(STORAGE_KEYS.QUEUE_VISITAS);
       return raw ? JSON.parse(raw) : [];
     } catch (error) {
-      console.error('[OfflineStorage] Erro ao carregar fila:', error);
+      console.error('[OfflineStorage] Erro ao carregar fila AsyncStorage:', error);
       return [];
     }
   },
 
   /**
-   * Remove visitas já sincronizadas com o backend e guarda no histórico local
+   * Retorna as visitas PENDENTES da fila SQLite (fonte de verdade do Outbox).
+   */
+  async obterFilaVisitas() {
+    try {
+      const pendentes = await sqliteOutbox.obterPendentes(500);
+      if (pendentes.length > 0) {
+        return pendentes.map((item) => item.payload);
+      }
+      return this.obterFilaVisitasAsyncStorage();
+    } catch (error) {
+      console.error('[OfflineStorage] Erro ao carregar fila SQLite:', error);
+      return this.obterFilaVisitasAsyncStorage();
+    }
+  },
+
+  /**
+   * Confirma HTTP 200: marca SINCRONIZADO na tabela SQLite e arquiva o histórico.
    */
   async confirmarSincronizacao(idsSincronizados) {
     try {
-      const fila = await this.obterFilaVisitas();
-      const sincronizadas = fila.filter((v) => idsSincronizados.includes(v.id));
-      const restantes = fila.filter((v) => !idsSincronizados.includes(v.id));
+      const uuids = (idsSincronizados || []).filter(Boolean);
+      if (uuids.length > 0) {
+        await sqliteOutbox.marcarSincronizados(uuids);
+      }
 
-      // Atualiza a fila com o que sobrou
+      const fila = await this.obterFilaVisitasAsyncStorage();
+      const sincronizadas = fila.filter((v) => uuids.includes(v.uuid) || uuids.includes(v.id));
+      const restantes = fila.filter((v) => !uuids.includes(v.uuid) && !uuids.includes(v.id));
+
       await AsyncStorage.setItem(STORAGE_KEYS.QUEUE_VISITAS, JSON.stringify(restantes));
 
-      // Arquiva no histórico local do aparelho
       const historicoRaw = await AsyncStorage.getItem(STORAGE_KEYS.HISTORICO_VISITAS);
       const historico = historicoRaw ? JSON.parse(historicoRaw) : [];
-      const historicoAtualizado = [...sincronizadas, ...historico].slice(0, 500); // Mantém até 500 no histórico
+      const historicoAtualizado = [...sincronizadas, ...historico].slice(0, 500);
       await AsyncStorage.setItem(STORAGE_KEYS.HISTORICO_VISITAS, JSON.stringify(historicoAtualizado));
 
       return { restantes: restantes.length, arquivadas: sincronizadas.length };
@@ -77,9 +93,6 @@ export const offlineStorage = {
     }
   },
 
-  /**
-   * Armazena assembleias de voto em cache para consulta cartográfica offline
-   */
   async cachearAssembleias(assembleias) {
     try {
       await AsyncStorage.setItem(STORAGE_KEYS.ASSEMBLEIAS_CACHE, JSON.stringify(assembleias));
@@ -97,11 +110,12 @@ export const offlineStorage = {
     }
   },
 
-  /**
-   * Contagem de pendências para a barra superior (Badge Offline)
-   */
   async contarPendencias() {
-    const fila = await this.obterFilaVisitas();
-    return fila.length;
+    try {
+      return await sqliteOutbox.contarPendencias();
+    } catch (error) {
+      const fila = await this.obterFilaVisitasAsyncStorage();
+      return fila.length;
+    }
   },
 };

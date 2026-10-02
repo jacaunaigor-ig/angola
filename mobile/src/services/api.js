@@ -1,11 +1,8 @@
 import { offlineStorage } from './offlineStorage';
+import { outboxSync } from './outboxSync';
+import { API_BASE_URL, CAMPANHA_PADRAO_ID, ATIVISTA_PADRAO_ID } from './config';
 
-// URL base da API (ajustável para IP local da máquina em ambiente de desenvolvimento)
-export const API_BASE_URL = 'http://localhost:3001/api';
-
-// IDs padrão de campanha e ativista para o dispositivo
-export const CAMPANHA_PADRAO_ID = 'a0000000-0000-0000-0000-000000000001';
-export const ATIVISTA_PADRAO_ID = 'b0000000-0000-0000-0000-000000000001';
+export { API_BASE_URL, CAMPANHA_PADRAO_ID, ATIVISTA_PADRAO_ID };
 
 export const apiService = {
   /**
@@ -21,7 +18,6 @@ export const apiService = {
       return await response.json();
     } catch (error) {
       console.warn(`[API] Falha ao obter dados do município ${municipio}, usando dados locais offline:`, error.message);
-      // Fallback offline com estimativas locais de contingência
       return {
         sucesso: true,
         offline: true,
@@ -77,49 +73,10 @@ export const apiService = {
   },
 
   /**
-   * Dispara a sincronização atómica da fila acumulada offline
+   * Dispara a varredura da fila SQLite e envia lotes para POST /api/visitas.
+   * O status local só muda após HTTP 200 com confirmação do backend.
    */
   async sincronizarFilaOffline(campanhaId = CAMPANHA_PADRAO_ID) {
-    const fila = await offlineStorage.obterFilaVisitas();
-    if (fila.length === 0) {
-      return { sucesso: true, mensagem: 'Fila vazia. Nada a sincronizar.', total: 0 };
-    }
-
-    try {
-      const payload = {
-        campanha_id: campanhaId,
-        visitas: fila,
-      };
-
-      const response = await fetch(`${API_BASE_URL}/sincronizar-visitas`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        const erroJson = await response.json().catch(() => ({}));
-        throw new Error(erroJson.detalhes || `Erro HTTP ${response.status}`);
-      }
-
-      const resultado = await response.json();
-
-      // Confirma e limpa a fila local
-      const idsInseridos = fila.map((v) => v.id);
-      await offlineStorage.confirmarSincronizacao(idsInseridos);
-
-      return {
-        sucesso: true,
-        resumo: resultado.resumo,
-        total_sincronizadas: fila.length,
-      };
-    } catch (error) {
-      console.error('[API Sync] Falha ao enviar fila para o servidor:', error.message);
-      return {
-        sucesso: false,
-        erro: error.message,
-        total_pendentes: fila.length,
-      };
-    }
+    return outboxSync.varrerESincronizar(campanhaId);
   },
 };

@@ -50,8 +50,19 @@ router.get('/health', async (req, res) => {
 });
 
 // ==============================================================================
-// 1. SINCRONIZAÇÃO TARDIA (OFFLINE-FIRST)
+// 1. SINCRONIZAÇÃO TARDIA (OFFLINE-FIRST) + IDEMPOTÊNCIA POR UUID
 // ==============================================================================
+router.post(
+  '/visitas',
+  validarSincronizacaoVisitas,
+  visitasController.criarOuSincronizarVisitas
+);
+
+router.post(
+  '/visitas/invalidar-lote',
+  visitasController.invalidarLote
+);
+
 router.post(
   '/sincronizar-visitas',
   validarSincronizacaoVisitas,

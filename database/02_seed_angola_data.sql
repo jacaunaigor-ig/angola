@@ -117,9 +117,10 @@ VALUES
 ) ON CONFLICT (id) DO NOTHING;
 
 -- 4. Inserir Amostra Inicial de Visitas de Terreno (Para teste imediato do Dashboard)
-INSERT INTO visitas_terreno (id, campanha_id, ativista_id, localizacao, precisao_gps_metros, sentimento, dores_prioritarias, faixa_etaria, observacoes, registado_em, sincronizado)
+INSERT INTO visitas_terreno (id, uuid, campanha_id, ativista_id, localizacao, precisao_gps_metros, sentimento, dores_prioritarias, faixa_etaria, observacoes, registado_em, sincronizado)
 VALUES
 (
+    'd0000000-0000-0000-0000-000000000001',
     'd0000000-0000-0000-0000-000000000001',
     'a0000000-0000-0000-0000-000000000001',
     'b0000000-0000-0000-0000-000000000001',
@@ -134,6 +135,7 @@ VALUES
 ),
 (
     'd0000000-0000-0000-0000-000000000002',
+    'd0000000-0000-0000-0000-000000000002',
     'a0000000-0000-0000-0000-000000000001',
     'b0000000-0000-0000-0000-000000000001',
     ST_SetSRID(ST_MakePoint(13.2675, -8.9172), 4326)::geography,
@@ -146,6 +148,7 @@ VALUES
     TRUE
 ),
 (
+    'd0000000-0000-0000-0000-000000000003',
     'd0000000-0000-0000-0000-000000000003',
     'a0000000-0000-0000-0000-000000000001',
     'b0000000-0000-0000-0000-000000000001',

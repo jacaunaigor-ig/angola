@@ -98,6 +98,7 @@ CREATE TABLE IF NOT EXISTS ativistas (
 CREATE TABLE IF NOT EXISTS visitas_terreno (
     -- ID obrigatoriamente gerado como UUIDv4 no dispositivo mobile em modo offline
     id UUID PRIMARY KEY,
+    uuid UUID UNIQUE,
     campanha_id UUID NOT NULL REFERENCES campanhas(id) ON DELETE CASCADE,
     ativista_id UUID NOT NULL REFERENCES ativistas(id) ON DELETE RESTRICT,
     localizacao GEOGRAPHY(Point, 4326) NOT NULL,
@@ -110,6 +111,8 @@ CREATE TABLE IF NOT EXISTS visitas_terreno (
     categoria_observacao VARCHAR(100),
     marcado_revisao_humana BOOLEAN NOT NULL DEFAULT FALSE,
     motivo_revisao VARCHAR(200),
+    justificativa_offline TEXT,
+    status_validacao VARCHAR(30) NOT NULL DEFAULT 'VALIDO',
     -- Timestamps críticos para auditoria offline:
     registado_em TIMESTAMPTZ NOT NULL, -- Hora local gravada pelo telemóvel sem internet
     sincronizado_em TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(), -- Hora da sincronização com a API
@@ -249,3 +252,28 @@ BEGIN
     LIMIT p_limite;
 END;
 $$ LANGUAGE plpgsql STABLE;
+
+-- ==============================================================================
+-- 11. TRILHA DE AUDITORIA (ver também database/05_audit_logs.sql)
+-- ==============================================================================
+CREATE TABLE IF NOT EXISTS configuracoes_campanha (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    campanha_id UUID REFERENCES campanhas(id) ON DELETE CASCADE,
+    chave VARCHAR(120) NOT NULL,
+    valor JSONB NOT NULL DEFAULT '{}'::jsonb,
+    descricao TEXT,
+    atualizado_por UUID,
+    atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT uk_configuracoes_campanha_chave UNIQUE (campanha_id, chave)
+);
+
+CREATE TABLE IF NOT EXISTS audit_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tabela_afetada VARCHAR(120) NOT NULL,
+    operacao VARCHAR(10) NOT NULL CHECK (operacao IN ('INSERT', 'UPDATE', 'DELETE')),
+    usuario_id UUID,
+    ip_origem INET,
+    dados_antigos JSONB,
+    dados_novos JSONB,
+    criado_em TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);

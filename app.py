@@ -11,6 +11,10 @@ from datetime import datetime
 from typing import Optional
 
 from api_client import ApiClient
+from war_room.anomalias_campo import (
+    analisar_integridade_campo,
+    visitas_demonstracao_risco,
+)
 
 
 def fmt_int_ao(valor) -> str:
@@ -821,6 +825,81 @@ with aba_terreno:
                 st.plotly_chart(fig_dores, use_container_width=True)
             else:
                 st.warning("Sem dores comunitárias registadas neste lote.")
+
+    st.markdown("---")
+    st.markdown("### ⚠️ Mesa de Risco / Atenção — Anomalias de Campo")
+    st.caption("Rajadas impossíveis e coordenadas fora do polígono municipal (Shapely). A invalidação não apaga a trilha de auditoria.")
+
+    CAMPANHA_ANALISE = "a0000000-0000-0000-0000-000000000001"
+    ok_visitas, visitas_campo = api.listar_visitas(CAMPANHA_ANALISE, limite=800)
+    origem_anomalias = "OFICIAL (API)" if ok_visitas and visitas_campo else "SIMULADO (LOTE DE DEMONSTRAÇÃO)"
+    if not visitas_campo:
+        visitas_campo = visitas_demonstracao_risco()
+
+    col_limiar, col_janela = st.columns(2)
+    with col_limiar:
+        limiar_rajada = st.number_input("Limiar de formulários (X):", min_value=5, max_value=200, value=50, step=5)
+    with col_janela:
+        janela_rajada = st.number_input("Janela temporal (minutos):", min_value=1, max_value=60, value=5, step=1)
+
+    diagnostico = analisar_integridade_campo(
+        visitas_campo,
+        geojson_malha=geo_dados,
+        limiar=int(limiar_rajada),
+        janela_minutos=int(janela_rajada),
+    )
+    st.caption(f"Proveniência da análise: `{origem_anomalias}` • Alertas: **{diagnostico['total_alertas']}**")
+
+    if "lotes_invalidados" not in st.session_state:
+        st.session_state.lotes_invalidados = []
+
+    if not diagnostico["alertas"]:
+        st.success("Nenhuma anomalia espacial ou de ritmo detectada neste lote.")
+    else:
+        linhas_alerta = []
+        for alerta in diagnostico["alertas"]:
+            linhas_alerta.append({
+                "Severidade": alerta.get("severidade"),
+                "Tipo": alerta.get("tipo"),
+                "Ativista": alerta.get("ativista_nome") or alerta.get("ativista_id"),
+                "Qtd / Lote": alerta.get("quantidade") or 1,
+                "Descrição": alerta.get("descricao"),
+                "UUIDs": ", ".join((alerta.get("uuids") or [])[:4]) + (
+                    "…" if len(alerta.get("uuids") or []) > 4 else ""
+                ),
+            })
+        st.dataframe(pd.DataFrame(linhas_alerta), use_container_width=True, hide_index=True)
+
+        opcoes_lote = [
+            f"{idx + 1}. {a.get('tipo')} — {a.get('ativista_nome') or a.get('ativista_id')} ({a.get('quantidade') or 1} registos)"
+            for idx, a in enumerate(diagnostico["alertas"])
+        ]
+        lote_escolhido = st.selectbox("Seleccione o lote suspeito:", options=opcoes_lote)
+        indice_lote = opcoes_lote.index(lote_escolhido)
+        alerta_sel = diagnostico["alertas"][indice_lote]
+        uuids_lote = alerta_sel.get("uuids") or []
+
+        if st.button("🚫 Invalidar lote suspeito com um clique", use_container_width=True):
+            ok_inv, detalhe_inv = api.invalidar_lote_visitas(
+                uuids_lote,
+                motivo=f"ANOMALIA_{alerta_sel.get('tipo')}",
+                responsavel="coordenacao_war_room",
+            )
+            st.session_state.lotes_invalidados.append({
+                "tipo": alerta_sel.get("tipo"),
+                "uuids": uuids_lote,
+                "quando": datetime.now().isoformat(timespec="seconds"),
+                "api": ok_inv,
+                "detalhe": detalhe_inv,
+            })
+            if ok_inv:
+                st.success(detalhe_inv)
+            else:
+                st.warning(detalhe_inv + " O pedido ficou registado localmente na sessão da coordenação.")
+
+        if st.session_state.lotes_invalidados:
+            st.markdown("#### Histórico de invalidações desta sessão")
+            st.dataframe(pd.DataFrame(st.session_state.lotes_invalidados), use_container_width=True, hide_index=True)
 
 # ------------------------------------------------------------------------------
 # ABA 6: SALA DO DIA D & APURAMENTO PARALELO

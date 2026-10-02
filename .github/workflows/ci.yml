@@ -44,10 +44,12 @@ jobs:
       - name: Executar Suíte de Testes de Integração e Segurança
         run: |
           node tests/test_fluxo_completo.js
+          node tests/test_outbox_e_idempotencia.js
+          python -m unittest tests/test_anomalias_campo.py
 
       - name: Validar Sintaxe e Compilação dos Arquivos Python
         run: |
-          python -m py_compile app.py api_client.py
+          python -m py_compile app.py api_client.py war_room/anomalias_campo.py
 
       - name: Auditoria de Segurança de Dependências (NPM Audit)
         run: |
