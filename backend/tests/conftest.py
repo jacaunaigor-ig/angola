@@ -14,6 +14,9 @@ if backend_root in sys.path:
     sys.path.remove(backend_root)
 sys.path.insert(0, backend_root)
 
+# Os testes não exportam telemetria: evita atrasos e ruído quando não há colector OTLP local.
+os.environ["OTEL_EXPORTER_OTLP_ENDPOINT"] = ""
+
 from app.main import create_app
 from app.settings import Settings
 

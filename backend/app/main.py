@@ -1,6 +1,6 @@
-from contextlib import asynccontextmanager
 import logging
-from typing import AsyncIterator
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -10,7 +10,7 @@ from psycopg_pool import ConnectionPool
 
 from .database import create_pool
 from .observability import configure_observability, logger, request_logging_middleware
-from .routers import auth, health, legacy, plans, visits
+from .routers import auth, health, legacy, plans, visits, whatsapp
 from .settings import Settings, get_settings
 
 
@@ -104,6 +104,7 @@ def create_app(settings: Settings | None = None, pool: ConnectionPool | None = N
     application.include_router(plans.router)
     application.include_router(visits.router)
     application.include_router(legacy.router)
+    application.include_router(whatsapp.router)
     return application
 
 

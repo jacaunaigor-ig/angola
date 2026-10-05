@@ -35,6 +35,9 @@ class Settings(BaseSettings):
     rate_limit_enabled: bool = True
     rate_limit_per_minute: int = Field(default=120, ge=1, le=10000)
 
+    whatsapp_verify_token: str | None = None
+    whatsapp_access_token: str | None = None
+    whatsapp_app_secret: str | None = None
     anthropic_api_key: str | None = None
     ai_model: str = "claude-3-5-sonnet-20241022"
     log_level: str = "INFO"

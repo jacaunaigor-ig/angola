@@ -49,7 +49,14 @@ Em estrita conformidade com o **Princípio de Honestidade dos Dados**, cada arqu
 - **Campos Principais:** `eleitores_registados`, `votantes`, `abstencao_perc`, `votos_partido_a`, `votos_partido_b`, `votos_validos`.
 - **Caveat:** Não há chave `municipios`. O zonamento provincial usa só esta malha de 18.
 
-### 6. `serie_historica_eleicoes_cne.json`
+### 6. Pasta `geo_angola/`
+- **Descrição:** Conjunto oficial de delimitações vetoriais com as 18 províncias históricas de Angola (nível ADM1: `geoBoundaries-AGO-ADM1_simplified.geojson`, `geoBoundaries-AGO-ADM1.geojson`, shapefiles e topojson) e o contorno nacional gerado (`contorno_nacional.geojson`).
+- **Proveniência:** `OFICIAL` (fronteiras vetoriais de referência aberta, licença CC BY 4.0 / Public Domain conforme metadados da pasta).
+- **Fonte:** Pasta `geo_angola/` do projecto (U.S. Census Bureau / geoBoundaries).
+- **SRID:** 4326 (WGS 84).
+- **Uso:** `GET /api/territorio/contorno-nacional`, `GET /api/territorio/geo-angola`, enriquecimento geométrico da malha DPA 2016 e visualização cartográfica na sala de comando.
+
+### 7. `serie_historica_eleicoes_cne.json`
 - **Descrição:** Totais nacionais oficiais de 2012, 2017 e 2022 (inscritos, votantes, abstenção, votos e deputados dos principais partidos) e recortes provinciais provisórios de 2017 em cinco províncias.
 - **Proveniência:** `OFICIAL` no bloco nacional; `PROVISORIO` no bloco `recortes_provinciais_2017_provisorios`.
 - **Fonte:** CNE via VOA (2012), proclamação de 6 Set 2017, portal `resultados2022eleicoesgerais.cne.ao` e ANGOP (2022). DW de 25 Ago 2017 para os recortes ainda com 97,82% das mesas.

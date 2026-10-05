@@ -5,12 +5,17 @@ services:
   # 1. Backend RESTful API (FastAPI)
   - type: web
     name: angola-geomarketing-api
-    env: python
+    env: docker
     region: frankfurt
     plan: starter
-    rootDir: backend
-    buildCommand: pip install -r requirements.txt
-    startCommand: python boot.py
+    # A API importa war_room/ e lê data/raw/: o contexto tem de ser a raiz do repositório.
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
+    healthCheckPath: /health/live
+    disk:
+      name: evidencias
+      mountPath: /srv/data/storage
+      sizeGB: 5
     envVars:
       - key: APP_ENV
         value: production

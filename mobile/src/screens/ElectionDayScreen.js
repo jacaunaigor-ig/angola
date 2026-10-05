@@ -9,10 +9,13 @@ import {
   Alert,
   Platform,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { THEME } from '../theme/theme';
 import { generateUUID } from '../services/offlineStorage';
 import { apiService } from '../services/api';
 import { cryptoSignService } from '../services/cryptoSignService';
+
+const FILA_ATAS_PENDENTES = 'dia_d_atas_pendentes_v1';
 
 export default function ElectionDayScreen() {
   const [abaAtiva, setAbaAtiva] = useState('AFALUENCIA'); // 'AFALUENCIA' | 'ATAS'
@@ -120,17 +123,19 @@ export default function ElectionDayScreen() {
         registado_em: timestampIso,
       };
 
-      const resp = await apiService.submeterAta(payload).catch((err) => {
-        console.warn('[Dia D] Contingência offline ativa:', err.message);
-        return {
-          sucesso: true,
-          ata: {
-            id: ataId,
-            status: dentroDoPerimetro ? 'RECEBIDA' : 'SUSPEITA',
-            cadeia_custodia: 'ASSINADA_DIGITALMENTE_ED25519',
-          },
-        };
-      });
+      let resp = null;
+      let transmitida = true;
+      try {
+        resp = await apiService.submeterAta(payload);
+      } catch (err) {
+        // Sem ligação ou API recusou: a ata fica assinada no aparelho e NUNCA é dada como entregue.
+        transmitida = false;
+        console.warn('[Dia D] Ata não transmitida, guardada na fila local:', err.message);
+        const bruto = await AsyncStorage.getItem(FILA_ATAS_PENDENTES);
+        const fila = bruto ? JSON.parse(bruto) : [];
+        fila.push({ payload, guardado_em: timestampIso, motivo: String(err.message || 'falha de rede') });
+        await AsyncStorage.setItem(FILA_ATAS_PENDENTES, JSON.stringify(fila));
+      }
 
       setReciboCriptografico({
         ataId,
@@ -138,14 +143,14 @@ export default function ElectionDayScreen() {
         publicKey: assinaturaResult.chave_publica_delegado_ed25519,
         sha256Foto: fotoHash,
         dataHash: assinaturaResult.dados_hash_sha256,
-        status: resp?.ata?.status || 'RECEBIDA',
+        transmitida,
+        status: transmitida ? resp?.ata?.status || 'RECEBIDA' : 'PENDENTE_ENVIO',
       });
       setAtaEnviadaComSucesso(true);
-      setTimeout(() => setAtaEnviadaComSucesso(false), 9000);
+      setTimeout(() => setAtaEnviadaComSucesso(false), 12000);
     } catch (err) {
-      console.warn('[Dia D] Falha ao processar assinatura/envio:', err.message);
-      setAtaEnviadaComSucesso(true);
-      setTimeout(() => setAtaEnviadaComSucesso(false), 9000);
+      console.warn('[Dia D] Falha ao assinar a ata:', err.message);
+      Alert.alert('Ata não assinada', 'Não foi possível assinar a ata neste aparelho. Tente novamente.');
     } finally {
       setEnviandoAta(false);
     }
@@ -249,10 +254,16 @@ export default function ElectionDayScreen() {
           {/* MÓDULO DE ESCANEAMENTO DE ATAS COM CRIPTOGRAFIA E GEOFENCING */}
           {ataEnviadaComSucesso ? (
             <View style={styles.sucessoCard}>
-              <Text style={styles.sucessoEmoji}>🛡️</Text>
-              <Text style={styles.sucessoTitulo}>Ata Assinada e Transmitida!</Text>
+              <Text style={styles.sucessoEmoji}>{reciboCriptografico?.transmitida === false ? '⏳' : '🛡️'}</Text>
+              <Text style={styles.sucessoTitulo}>
+                {reciboCriptografico?.transmitida === false
+                  ? 'Ata assinada, ainda não transmitida'
+                  : 'Ata Assinada e Transmitida!'}
+              </Text>
               <Text style={styles.sucessoTexto}>
-                Validação espacial concluída: registo executado a {distanciaMetros}m da mesa oficial.
+                {reciboCriptografico?.transmitida === false
+                  ? 'Sem ligação à central. A ata ficou guardada e assinada neste aparelho; reenvie quando houver rede.'
+                  : `Validação espacial concluída: registo executado a ${distanciaMetros}m da mesa oficial.`}
               </Text>
               {reciboCriptografico && (
                 <View style={styles.cryptoReceiptBox}>
@@ -267,7 +278,7 @@ export default function ElectionDayScreen() {
                     SHA-256 Foto: <Text style={styles.cryptoCode}>{reciboCriptografico.sha256Foto.slice(0, 24)}...</Text>
                   </Text>
                   <Text style={styles.cryptoReceiptStatus}>
-                    Status no Tribunal/Comitê: <Text style={{ color: THEME.colors.bastaio, fontWeight: 'bold' }}>{reciboCriptografico.status}</Text>
+                    Status no Tribunal/Comitê: <Text style={{ color: reciboCriptografico.transmitida === false ? THEME.colors.batalha : THEME.colors.bastaio, fontWeight: 'bold' }}>{reciboCriptografico.status}</Text>
                   </Text>
                 </View>
               )}

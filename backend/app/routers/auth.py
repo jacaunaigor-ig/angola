@@ -1,6 +1,7 @@
+from typing import Annotated
+
 import bcrypt
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from typing import Annotated
 
 from ..schemas import LoginRequest
 from ..security import create_access_token, current_user

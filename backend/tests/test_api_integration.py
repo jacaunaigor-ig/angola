@@ -2,7 +2,6 @@ from datetime import UTC, datetime
 from uuid import uuid4
 
 import psycopg
-
 from conftest import ACTIVIST_ID, CAMPAIGN_ID, ZONE_ID, token_for
 
 

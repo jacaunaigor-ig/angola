@@ -33,9 +33,11 @@ services:
   # 2. Backend RESTful API em Python/FastAPI (Offline-First Sync & PostGIS)
   backend:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: backend/Dockerfile
     container_name: angola_backend_api
+    volumes:
+      - evidencias_data:/srv/data/storage
     restart: unless-stopped
     environment:
       APP_ENV: production
@@ -102,6 +104,8 @@ services:
 
 volumes:
   postgis_data:
+    driver: local
+  evidencias_data:
     driver: local
 
 networks:

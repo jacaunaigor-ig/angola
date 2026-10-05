@@ -51,3 +51,12 @@ Thumbs.db
 # Dados temporários ou logs
 *.log
 terminals/
+.pytest_cache/
+.ruff_cache/
+.venv-1/
+
+# Evidências enviadas em desenvolvimento (fotos de atas)
+data/storage/
+
+# O repositório não tem package.json na raiz; este lock vem de installs acidentais
+/package-lock.json

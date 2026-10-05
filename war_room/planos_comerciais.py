@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any
 
-PLANOS: Dict[str, Dict[str, Any]] = {
+PLANOS: dict[str, dict[str, Any]] = {
     "MUNICIPAL": {
         "codigo": "MUNICIPAL",
         "nome": "Plano Municipal",
@@ -116,7 +116,7 @@ MUNICIPIOS_VENDAVEIS = [
 ]
 
 
-def obter_plano(codigo: str) -> Optional[Dict[str, Any]]:
+def obter_plano(codigo: str) -> dict[str, Any] | None:
     return PLANOS.get(str(codigo or "").upper())
 
 
@@ -124,7 +124,7 @@ def formatar_aoa(valor: int) -> str:
     return f"{int(valor):,}".replace(",", ".") + " AOA"
 
 
-def resolver_circunscricao(territorio: Any) -> Optional[Dict[str, Optional[str]]]:
+def resolver_circunscricao(territorio: Any) -> dict[str, str | None] | None:
     if territorio is None:
         return None
     if isinstance(territorio, dict):
@@ -139,7 +139,7 @@ def resolver_circunscricao(territorio: Any) -> Optional[Dict[str, Optional[str]]
     return {"municipio": None, "provincia": texto}
 
 
-def nomes_no_ambito(plano_codigo: str, territorio: Any) -> Dict[str, Any]:
+def nomes_no_ambito(plano_codigo: str, territorio: Any) -> dict[str, Any]:
     plano = obter_plano(plano_codigo)
     if not plano:
         return {"ok": False, "erro": "Plano desconhecido.", "nomes": []}
@@ -164,7 +164,7 @@ def _norm(valor: Any) -> str:
     return str(valor or "").strip().casefold()
 
 
-def unidade_no_ambito(props: Dict[str, Any], ambito: Dict[str, Any]) -> bool:
+def unidade_no_ambito(props: dict[str, Any], ambito: dict[str, Any]) -> bool:
     if not ambito or ambito.get("irrestrito"):
         return True
     alvos = {_norm(n) for n in ambito.get("nomes") or []}
@@ -172,7 +172,7 @@ def unidade_no_ambito(props: Dict[str, Any], ambito: Dict[str, Any]) -> bool:
     return any(_norm(c) in alvos for c in candidatos if c)
 
 
-def filtrar_geojson(geo: Optional[Dict[str, Any]], plano_codigo: str, territorio: Any) -> Dict[str, Any]:
+def filtrar_geojson(geo: dict[str, Any] | None, plano_codigo: str, territorio: Any) -> dict[str, Any]:
     ambito = nomes_no_ambito(plano_codigo, territorio)
     if not geo or "features" not in geo:
         return {"type": "FeatureCollection", "features": [], "ambito": ambito}
@@ -184,7 +184,7 @@ def filtrar_geojson(geo: Optional[Dict[str, Any]], plano_codigo: str, territorio
     return {**geo, "features": features, "ambito": ambito}
 
 
-def calcular_orcamento(plano_codigo: str, territorio: Any = None, brigadistas: Optional[int] = None) -> Dict[str, Any]:
+def calcular_orcamento(plano_codigo: str, territorio: Any = None, brigadistas: int | None = None) -> dict[str, Any]:
     plano = obter_plano(plano_codigo)
     if not plano:
         return {"ok": False, "erro": "Plano desconhecido."}
@@ -204,7 +204,7 @@ def calcular_orcamento(plano_codigo: str, territorio: Any = None, brigadistas: O
     }
 
 
-def matriz_comparativa() -> List[Dict[str, Any]]:
+def matriz_comparativa() -> list[dict[str, Any]]:
     linhas = []
     campos = [
         ("Âmbito", lambda p: "1 município" if p["ambito"] == "MUNICIPIO" else "1 província" if p["ambito"] == "PROVINCIA" else "21 províncias"),
@@ -222,7 +222,7 @@ def matriz_comparativa() -> List[Dict[str, Any]]:
     ]
     for rotulo, fn in campos:
         linha = {"Capacidade": rotulo}
-        for codigo, plano in PLANOS.items():
+        for plano in PLANOS.values():
             linha[plano["nome"]] = str(fn(plano))
         linhas.append(linha)
     return linhas

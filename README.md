@@ -1,136 +1,110 @@
-# 🇦🇴 GPS de Marketing Político — Angola 2027 (Plataforma v2)
+# GPS de Marketing Político — Angola 2027
 
-> **Plataforma B2B Demonstrável e Vendável de Inteligência Territorial, Micro-Targeting Eleitoral, Operações Mobile Offline-First, IA com Governança Humana e Apuramento Paralelo do Dia D.**
+Plataforma B2B de inteligência territorial para campanhas eleitorais angolanas: zonamento por margem, simulador do método de Hondt, operação de campo offline, apuramento paralelo com assinatura digital e canal do eleitor por WhatsApp.
 
-[![CI - Testes e Qualidade](https://github.com/jacaunaigor-ig/angola/actions/workflows/ci.yml/badge.svg)](https://github.com/jacaunaigor-ig/angola/actions)
-![Status dos Testes](https://img.shields.io/badge/Testes-66%2F66%20Passaram-10B981)
-![Planos](https://img.shields.io/badge/Planos-Municipal%20%7C%20Provincial%20%7C%20Nacional-F97316)
-![PostGIS](https://img.shields.io/badge/PostGIS-SRID%204326-38BDF8)
-![Segurança](https://img.shields.io/badge/Segurança-JWT%20%7C%20RBAC%20%7C%20RLS-818CF8)
+[![CI](https://github.com/jacaunaigor-ig/angola/actions/workflows/ci.yml/badge.svg)](https://github.com/jacaunaigor-ig/angola/actions)
 
----
+## Princípios
 
-## 🏛️ Princípios Inegociáveis da Plataforma
+1. **Honestidade dos dados.** Todo número mostra a origem: `OFICIAL` (CNE, INE), `ESTIMADO` (projecção documentada), `SIMULADO` (demonstração ou cenário) ou `PROVISORIO`. Nada é inventado para preencher lacunas; as lacunas ficam declaradas nos próprios ficheiros e no painel.
+2. **Privacidade (Lei n.º 22/11).** Coordenadas de campo são perturbadas em ~110 m, não se gravam nomes, BI nem preferências individuais, e o canal do eleitor **nunca** consulta o caderno eleitoral. Telefones são mascarados e guardados só como hash.
+3. **IA propõe, pessoa decide.** Discursos são sempre `RASCUNHO`; promessas saem marcadas `[PROMESSA — REVISAR]` e exigem aprovação do comité.
+4. **Matemática auditável.** Zonamento: `margem = % partido − % oponente` (≥ 15 bastião, ≤ −15 oposição). Prioridade: `(potencial × competitividade Hondt) ÷ custo logístico^0,65`. As fórmulas aparecem na interface.
+5. **Prova com valor jurídico.** Cada ata é assinada com Ed25519 no aparelho do delegado, leva o SHA-256 da fotografia e é verificada pela API antes de entrar.
 
-1. **Honestidade dos Dados:** Cada número e mapa possui etiquetação de proveniência (`OFICIAL`, `ESTIMADO`, `SIMULADO`). Quando o banco está desconectado, o sistema assume explicitamente o selo **`MODO DEMONSTRAÇÃO (DADOS AUDITADOS)`**.
-2. **Agregação e Privacidade:** Operamos sob a Lei n.º 22/11 de Angola. As visitas de campo sofrem perturbação proposital de coordenadas (~110m) e não gravam nomes, números de BI ou preferências individuais.
-3. **IA Apoia, Humano Decide:** Discursos gerados com Anthropic Claude são rotulados obrigatoriamente como **`RASCUNHO`** e toda proposta recebe a chancela obrigatória **`[PROMESSA — REVISAR]`**, exigindo aprovação expressa do comitê de campanha.
-4. **Neutralidade Técnica:** Rótulos da campanha ("Nosso Partido", "Oposição Consolidada"), cores e limiares de margem são 100% configuráveis.
-5. **Transparência Matemática:** O zonamento político é calculado por fórmula auditável e visível ($\text{Margem} = \% \text{Partido} - \% \text{Oponente}$), eliminando classificações subjetivas digitadas à mão.
+## Arquitectura
 
----
+```mermaid
+flowchart LR
+  subgraph Clientes
+    W["Sala de comando<br/>React + Leaflet"]
+    M["App móvel<br/>Expo / React Native"]
+    E["Eleitor<br/>WhatsApp Cloud API"]
+  end
+  W -->|/api| A
+  M -->|JWT + outbox offline| A
+  E -->|webhook| A
+  A["API FastAPI<br/>JWT · RBAC · rate limit · OTel"]
+  A --> P[("PostgreSQL 16 + PostGIS<br/>RLS por campanha")]
+  A --> S[("Storage de evidências<br/>tickets HMAC, S3/R2 em produção")]
+  A --> D["war_room/<br/>Hondt · custo logístico · Ed25519 · canal do eleitor"]
+  A --> R["data/raw/ e geo_angola/<br/>CNE · INE · DPA · Malha Vetorial"]
+```
 
-## 📦 Estrutura do Repositório
+Detalhes e decisões em [docs/arquitetura.md](docs/arquitetura.md).
+
+## Arranque rápido
+
+Requisitos: Python 3.11+, Node 20+ e, para as rotas de campanha, PostgreSQL 16 com PostGIS.
+
+```bash
+# 1. API (as rotas de cartografia, Hondt e série histórica funcionam sem base de dados)
+python -m venv .venv && source .venv/bin/activate      # Windows: .venv\Scripts\Activate.ps1
+pip install -r backend/requirements-dev.txt
+cp .env.example .env                                    # Windows: copy .env.example .env
+cd backend && PYTHONPATH=.. uvicorn app.main:app --port 8000
+```
+
+```powershell
+# Windows (PowerShell)
+$env:PYTHONPATH = "C:\caminho\para\projeto_angola"
+cd backend; python -m uvicorn app.main:app --port 8000
+```
+
+```bash
+# 2. Sala de comando
+cd web && npm install && npm run dev                    # http://localhost:5173
+```
+
+Execute o `uvicorn` a partir de `backend/`: na raiz, `app.py` (protótipo Streamlit) tem o mesmo nome do pacote `app`.
+
+Com Docker: `cp .env.example .env`, defina `POSTGRES_PASSWORD` e `JWT_SECRET_KEY`, depois `docker compose up --build`. A sala de comando fica em `:3000`, a API em `:8000`.
+
+## O que a plataforma faz
+
+| Área | Entrega | Onde |
+| --- | --- | --- |
+| Território | Zonamento por margem, contorno nacional, malhas DPA 2016 (18) e 2024 (21) | `web/`, `GET /api/territorio/*` |
+| Motor político | Hondt por círculo (5 cadeiras), votos para virar a cadeira, simulador com choques ±30 % | `war_room/motor_hondt.py`, `/api/eleicoes/hondt-*` |
+| Priorização | Custo logístico por província integrado no score | `war_room/custo_logistico.py` |
+| Histórico | Série nacional 2012–2022 com lacunas declaradas | `data/raw/serie_historica_eleicoes_cne.json` |
+| Campo | Visitas offline com idempotência, outbox, geofence e jitter | `mobile/`, `/api/sincronizar-visitas` |
+| Dia D | Ata com SHA-256 + Ed25519, evidência em storage desacoplado | `/api/dia-d/*`, `/api/evidencias/*` |
+| Eleitor | Mesas de exemplo e queixas agregadas, sem caderno pessoal | `war_room/canal_eleitor.py`, `/api/whatsapp/*` |
+| Comercial | Planos Municipal, Provincial e Nacional com entitlements | `/api/planos`, `war_room/planos_comerciais.py` |
+
+## Testes e qualidade
+
+```bash
+python -m ruff check backend/app backend/tests war_room    # lint
+python -m pytest backend/tests                              # contrato; integração se TEST_DATABASE_URL existir
+cd web && npm run build                                     # compila a sala de comando
+cd mobile && npm ci && npx expo export --platform android   # valida o bundle móvel
+```
+
+Os testes de integração exigem uma base PostGIS isolada cujo nome termina em `_test`. O CI corre tudo isto, mais a construção das imagens Docker.
+
+## Estrutura
 
 ```text
-projeto_angola/
-├── .github/workflows/ci.yml             # Pipeline de CI (Lint + Testes + Compilação + Audit)
-├── backend/                              # API RESTful em Python e FastAPI
-│   ├── app/                             # Rotas, configurações, autenticação e observabilidade
-│   ├── tests/                           # Contratos e integração real PostgreSQL/PostGIS
-│   ├── requirements.txt                 # Dependências do backend
-│   ├── boot.py                          # Valida PostGIS e inicia Uvicorn
-│   └── create_user.py                   # Provisionamento seguro de contas da API
-├── data/
-│   ├── raw/                             # Dados brutos oficiais com proveniência auditada
-│   │   ├── README.md                    # Dicionário de dados brutos
-│   │   ├── malha_angola_dpa2016.geojson # Malha das 18 províncias históricas (Lei 18/16)
-│   │   ├── malha_angola_dpa2024.geojson # Malha das 21 províncias da DPA 2024
-│   │   ├── de_para_dpa_2016_2024.json   # Tabela de correspondência territorial
-│   │   ├── populacao_projecoes_ine.json # Projeções oficiais do INE Angola (18+ e juventude)
-│   │   └── resultados_eleitorais_cne_2022.json # Resultados oficiais CNE das Eleições 2022
-│   └── relatorio_qualidade_carga.json   # Relatório emitido pelo ETL (100% SRID 4326)
-├── database/                            # Scripts de migração e cargas SQL
-│   ├── 01_schema_postgis.sql            # Esquema base e funções espaciais
-│   ├── 02_seed_angola_data.sql          # Dados de teste Luanda, Huambo e Lobito
-│   ├── 03_seed_municipios_angola.sql    # Matriz oficial CNE
-│   ├── 04_carga_territorial_oficial.sql # Carga gerada pelo ETL com DPA 2016/2024
-│   ├── 05_migration_fastapi_evidence.sql # Persistência de evidências de campo
-│   ├── 06_migration_fastapi_users.sql   # Contas e associação a mobilizadores
-│   └── 07_migration_rls_multi_tenancy.sql # Isolamento multi-tenancy e Row-Level Security (RLS)
-├── docs/                                # Documentação Técnica e de Negócio
-│   ├── auditoria.md                     # Relatório de auditoria técnica (Passo 0)
-│   ├── legal.md                         # Marco legal eleitoral e conformidade com a CNE
-│   ├── privacidade.md                   # Política de minimização, retenção e privacidade
-│   └── demo_guide.md                    # Roteiro de demonstração comercial e vendas B2B
-├── mobile/                              # Aplicação Móvel & Simulador
-│   ├── App.js                           # App React Native / Expo
-│   ├── index.js                         # Entrada Expo
-│   ├── preview.html                    # Simulador Mobile interativo
-│   └── src/screens/                     # 3 Ecrãs: Mapa, Porta-a-Porta e Dia D
-├── pages/1_Paineis_Executivos.py        # Quatro painéis executivos Streamlit
-├── scripts/
-│   ├── etl_territorial.js               # Pipeline ETL com auditoria de qualidade
-│   └── integrar_cartografia.js          # Conversão cartográfica
-├── web/                                 # War Room React (cliente da API)
-├── app.py                               # Protótipo Streamlit da sala de guerra
-├── api_client.py                        # Cliente HTTP da API para o War Room
-├── docker-compose.yml                   # Orquestração de microsserviços
-├── render.yaml                          # Blueprint de deploy em nuvem
-├── requirements.txt                     # Dependências Python
-└── tests/test_fluxo_completo.js         # Suíte de validação do fluxo funcional
+backend/        API FastAPI (app/), testes e scripts de provisionamento
+war_room/       Núcleo analítico em Python, sem dependência de web
+web/            Sala de comando React (hooks/, components/, views/)
+mobile/         App Expo: campo, Dia D, assinatura Ed25519, EAS (APK)
+data/raw/       Dados com proveniência; ver data/raw/README.md
+database/       Esquema PostGIS, seeds e migrations 01–07
+docs/           Arquitectura, roadmap, privacidade, legal, auditoria, demo
+app.py, pages/  Protótipo Streamlit (mantido, não é o cliente operacional)
+backend/src/    API Node legada, mantida por compatibilidade
 ```
 
----
+## Documentação
 
-## 🚀 Como Executar
-
-### 1. Suíte de Testes Automatizada
-```bash
-node tests/test_fluxo_completo.js
-```
-Os testes FastAPI de integração necessitam de PostgreSQL/PostGIS real, configurado em `TEST_DATABASE_URL` para um banco isolado terminado em `_test`:
-```bash
-python -m pytest backend/tests -q
-```
-
-### 2. Executar o Pipeline ETL Territorial
-```bash
-node scripts/etl_territorial.js
-```
-
-### 3. Iniciar o Backend API (Python + FastAPI)
-```bash
-python -m pip install -r backend/requirements.txt
-copy .env.example .env
-python boot.py        # Valida ambiente e PostGIS, depois inicia a API na porta 8000
-```
-Em bases existentes, aplique as migrations SQL `05`, `06` e `07` antes de iniciar a API. Em novas bases, o Docker Compose executa os scripts SQL por ordem no primeiro arranque.
-Para uma base nova fora do Compose, execute os scripts `01` a `07` de `database/` em ordem, usando `psql` com `ON_ERROR_STOP=1`, antes do primeiro deploy.
-
-Crie uma conta ligada a um mobilizador já cadastrado na campanha (não passe a senha como argumento):
-```bash
-python backend/create_user.py --campanha-id <UUID> --ativista-id <UUID> --nome "Mobilizador" --email mobilizador@example.org --perfil BRIGADISTA
-```
-Para a conta do War Room, configure um JWT válido em `API_AUTH_TOKEN`; o token respeita a expiração definida por `JWT_ACCESS_TOKEN_EXPIRE_MINUTES`.
-
-### 4. Sala de guerra (React + API)
-O cliente operacional está em `web/` e consome a API em `/api` (proxy do Vite em desenvolvimento, nginx no contentor).
-
-```bash
-cd web
-npm install
-npm run dev
-```
-
-Abra [http://localhost:5173](http://localhost:5173) com a API em [http://localhost:8000](http://localhost:8000). No Compose, o serviço `web` publica o build em [http://localhost:3000](http://localhost:3000).
-
-Cartografia, série 2012–2022 e catálogo de planos não exigem sessão. Discursos e Dia D usam `POST /api/auth/token`.
-
-O Streamlit (`streamlit run app.py`, porta 8501) permanece como protótipo.
-
-### 5. Simulador Mobile Interativo
-Abra com duplo clique no navegador: `mobile/preview.html`
-Para executar o aplicativo Expo, instale as dependências com `npm ci` dentro de `mobile/` e use `npx expo start`.
-
-### 6. Painéis executivos
-A página `Painéis Executivos` apresenta abas para redes sociais, intenção de voto, tráfego pago e finanças. Os valores estão marcados como simulados; conecte fontes auditadas antes de uso operacional.
-
----
-
-## 📖 Documentação Adicional
-
-- [Relatório de Auditoria Técnica](docs/auditoria.md)
-- [Guia de Demonstração e Vendas B2B](docs/demo_guide.md)
-- [Marco Jurídico e Legislação Eleitoral CNE](docs/legal.md)
-- [Política de Privacidade e Retenção de Dados](docs/privacidade.md)
+- [Arquitectura e decisões](docs/arquitetura.md)
+- [Roadmap e lacunas conhecidas](docs/roadmap.md)
+- [Privacidade e retenção](docs/privacidade.md)
+- [Marco legal eleitoral](docs/legal.md)
+- [Auditoria técnica](docs/auditoria.md)
+- [Guia de demonstração B2B](docs/demo_guide.md)
+- [Dicionário de dados brutos](data/raw/README.md)
+- [Como contribuir](CONTRIBUTING.md)

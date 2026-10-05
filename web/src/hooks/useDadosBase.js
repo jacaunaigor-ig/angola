@@ -1,0 +1,73 @@
+import { useEffect, useState } from "react";
+import { api } from "../api.js";
+
+/** Dados que não dependem do plano comercial: série histórica, catálogo, Hondt e contorno. */
+export function useDadosGlobais() {
+  const [estado, setEstado] = useState({
+    carregando: true,
+    erro: "",
+    serie: null,
+    planos: [],
+    hondtGeral: null,
+    contorno: null,
+  });
+  const [tentativa, setTentativa] = useState(0);
+
+  useEffect(() => {
+    let cancelado = false;
+    setEstado((atual) => ({ ...atual, carregando: true, erro: "" }));
+    Promise.all([
+      api("/api/eleicoes/serie-historica"),
+      api("/api/planos"),
+      api("/api/eleicoes/hondt-provincias").catch(() => null),
+      api("/api/territorio/contorno-nacional").catch(() => null),
+    ])
+      .then(([serie, catalogo, hondt, limite]) => {
+        if (cancelado) return;
+        setEstado({
+          carregando: false,
+          erro: "",
+          serie,
+          planos: catalogo?.planos || [],
+          hondtGeral: hondt,
+          contorno: limite?.type === "FeatureCollection" ? limite : null,
+        });
+      })
+      .catch((exc) => {
+        if (cancelado) return;
+        setEstado((atual) => ({ ...atual, carregando: false, erro: exc.message || "API indisponível." }));
+      });
+    return () => {
+      cancelado = true;
+    };
+  }, [tentativa]);
+
+  return { ...estado, recarregar: () => setTentativa((n) => n + 1) };
+}
+
+/** Malha territorial enriquecida pela API; muda com o plano e a versão da DPA. */
+export function useTerritorio(plano, versao) {
+  const [estado, setEstado] = useState({ carregando: true, erro: "", features: [] });
+
+  useEffect(() => {
+    let cancelado = false;
+    setEstado((atual) => ({ ...atual, carregando: true, erro: "" }));
+    api(`/api/territorio/unidades?versao=${versao}&formato=geojson&plano=${plano}`, { plano })
+      .then((geo) => {
+        if (!cancelado) setEstado({ carregando: false, erro: "", features: geo?.features || [] });
+      })
+      .catch((exc) => {
+        if (cancelado) return;
+        const erro =
+          exc.status === 402
+            ? "A malha de 2016 no plano municipal exige upgrade. Use DPA 2024 ou um plano provincial."
+            : exc.message;
+        setEstado({ carregando: false, erro, features: [] });
+      });
+    return () => {
+      cancelado = true;
+    };
+  }, [plano, versao]);
+
+  return estado;
+}

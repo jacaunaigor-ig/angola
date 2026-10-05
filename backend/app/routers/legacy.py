@@ -4,13 +4,24 @@ import logging
 import re
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Annotated, Optional
-from uuid import UUID, uuid4
+from typing import Annotated
+from uuid import UUID
 
 from anthropic import Anthropic
-from fastapi import APIRouter, Body, Depends, Header, HTTPException, Query, Request
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
+from fastapi.responses import FileResponse
 from psycopg import Error
+
+from war_room.assinatura_eleitoral import (
+    montar_digest_canonico_ata,
+    verificar_assinatura_ed25519,
+)
+from war_room.custo_logistico import (
+    calcular_indice_prioridade_completo,
+)
+from war_room.motor_hondt import (
+    simular_hondt_provincial,
+)
 
 from ..schemas import (
     AtaSubmissionRequest,
@@ -21,24 +32,12 @@ from ..schemas import (
     ZoningRequest,
 )
 from ..security import require_roles
-from war_room.motor_hondt import (
-    calcular_hondt,
-    simular_cenario_com_variacao,
-    simular_hondt_provincial,
-)
-from war_room.custo_logistico import (
-    calcular_indice_prioridade_completo,
-    obter_custo_logistico,
-)
-from war_room.assinatura_eleitoral import (
-    montar_digest_canonico_ata,
-    verificar_assinatura_ed25519,
-)
 
 router = APIRouter(prefix="/api", tags=["legacy-compatible"])
 logger = logging.getLogger("angola.api")
 ROOT = Path(__file__).resolve().parents[3]
 RAW = ROOT / "data" / "raw"
+GEO_ANGOLA = ROOT / "geo_angola"
 ROLE_REVIEW = require_roles("ADMIN", "ANALISTA")
 ROLE_FIELD = require_roles("ADMIN", "COORDENADOR", "BRIGADISTA")
 
@@ -349,7 +348,7 @@ def territory_versions():
     }
 
 
-def _pct(eleicao: dict, sigla: str) -> Optional[float]:
+def _pct(eleicao: dict, sigla: str) -> float | None:
     for partido in eleicao.get("partidos") or []:
         if partido.get("sigla") == sigla:
             return partido.get("percentagem_validos")
@@ -365,7 +364,7 @@ def historical_election_series():
 
     eleicoes = serie["eleicoes"]
     tendencia = []
-    for anterior, seguinte in zip(eleicoes, eleicoes[1:]):
+    for anterior, seguinte in zip(eleicoes, eleicoes[1:], strict=False):
         delta = {"de": anterior["ano"], "para": seguinte["ano"], "unidade": "pontos_percentuais"}
         for sigla in ("MPLA", "UNITA"):
             a, b = _pct(anterior, sigla), _pct(seguinte, sigla)
@@ -491,22 +490,49 @@ def territory_correspondence():
     return {"sucesso": True, "de_para": data}
 
 
+@router.get("/territorio/contorno-nacional")
+def national_outline():
+    """Limite territorial nacional de Angola gerado a partir dos arquivos da pasta geo_angola."""
+    source = GEO_ANGOLA / "contorno_nacional.geojson"
+    if not source.is_file():
+        source = GEO_ANGOLA / "geoBoundaries-AGO-ADM1_simplified.geojson"
+    if not source.is_file():
+        raise HTTPException(status_code=404, detail="Arquivos territoriais da pasta geo_angola indisponíveis.")
+    return FileResponse(source, media_type="application/geo+json")
+
+
+@router.get("/territorio/geo-angola")
+def geo_angola_malha(arquivo: str = "simplificado"):
+    """Fornece os arquivos GeoJSON diretamente da pasta geo_angola."""
+    mapa_arquivos = {
+        "simplificado": "geoBoundaries-AGO-ADM1_simplified.geojson",
+        "completo": "geoBoundaries-AGO-ADM1.geojson",
+        "contorno": "contorno_nacional.geojson",
+    }
+    nome = mapa_arquivos.get(arquivo, "geoBoundaries-AGO-ADM1_simplified.geojson")
+    source = GEO_ANGOLA / nome
+    if not source.is_file():
+        raise HTTPException(status_code=404, detail=f"Arquivo {nome} não encontrado na pasta geo_angola.")
+    return FileResponse(source, media_type="application/geo+json")
+
+
 @router.get("/territorio/unidades")
 def territory_units(
     request: Request,
     versao: str = "DPA_2016_18P",
     formato: str = "json",
-    plano: Optional[str] = Query(default=None),
-    territorio: Optional[str] = Query(default=None),
-    x_plano_campanha: Optional[str] = Header(default=None),
+    plano: str | None = Query(default=None),
+    territorio: str | None = Query(default=None),
+    x_plano_campanha: str | None = Header(default=None),
 ):
     if versao not in {"DPA_2016_18P", "DPA_2024_21P"}:
         raise HTTPException(status_code=404, detail=f"Versão {versao} não encontrada.")
     if formato not in {"json", "geojson"}:
         raise HTTPException(status_code=422, detail="formato deve ser json ou geojson.")
 
-    from .plans import exigir_funcionalidade, resolver_plano_request
     from war_room.planos_comerciais import nomes_no_ambito, unidade_no_ambito
+
+    from .plans import exigir_funcionalidade, resolver_plano_request
 
     plano_codigo = resolver_plano_request(x_plano_campanha, plano)
     if "2016" in versao and plano_codigo == "MUNICIPAL":
@@ -601,8 +627,8 @@ def election_count(
     request: Request,
     user: Annotated[dict, Depends(ROLE_REVIEW)],
     campanha_id: UUID | None = None,
-    x_plano_campanha: Optional[str] = Header(default=None),
-    plano: Optional[str] = Query(default=None),
+    x_plano_campanha: str | None = Header(default=None),
+    plano: str | None = Query(default=None),
 ):
     from .plans import exigir_funcionalidade, resolver_plano_request
 
@@ -679,8 +705,8 @@ def submit_election_record(
     payload: AtaSubmissionRequest,
     request: Request,
     user: Annotated[dict, Depends(ROLE_FIELD)],
-    x_plano_campanha: Optional[str] = Header(default=None),
-    plano: Optional[str] = Query(default=None),
+    x_plano_campanha: str | None = Header(default=None),
+    plano: str | None = Query(default=None),
 ):
     from .plans import exigir_funcionalidade, resolver_plano_request
 
@@ -795,8 +821,8 @@ def create_legal_case(
     payload: LegalCaseCreateRequest,
     request: Request,
     user: Annotated[dict, Depends(ROLE_REVIEW)],
-    x_plano_campanha: Optional[str] = Header(default=None),
-    plano: Optional[str] = Query(default=None),
+    x_plano_campanha: str | None = Header(default=None),
+    plano: str | None = Query(default=None),
 ):
     from .plans import exigir_funcionalidade, resolver_plano_request
 
