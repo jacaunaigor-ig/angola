@@ -58,6 +58,7 @@ def test_fastapi_contract_registers_health_auth_and_legacy_routes():
     assert "/api/planos" in schema["paths"]
     assert "/api/propostas" in schema["paths"]
     assert "/api/visitas/invalidar-lote" in schema["paths"]
+    assert "/api/eleicoes/serie-historica" in schema["paths"]
 
 
 def test_commercial_plans_entitlements_guard():

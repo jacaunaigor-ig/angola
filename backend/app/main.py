@@ -25,13 +25,27 @@ def create_app(settings: Settings | None = None, pool: ConnectionPool | None = N
             configured.database_pool_max_size,
         )
         app.state.db_pool = active_pool
+        db_ready = False
         try:
             active_pool.open(wait=True, timeout=configured.database_connect_timeout)
             with active_pool.connection() as connection:
                 connection.execute("SELECT 1").fetchone()
+            db_ready = True
+        except Exception:
+            logger.exception(
+                "PostgreSQL indisponível. Cartografia, série histórica e planos continuam; rotas de campanha não."
+            )
+            try:
+                active_pool.close()
+            except Exception:
+                pass
+            app.state.db_pool = None
+        app.state.db_ready = db_ready
+        try:
             yield
         finally:
-            active_pool.close()
+            if db_ready:
+                active_pool.close()
 
     application = FastAPI(
         title=configured.app_name,

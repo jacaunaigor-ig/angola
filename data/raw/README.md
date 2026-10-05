@@ -43,8 +43,15 @@ Em estrita conformidade com o **Princípio de Honestidade dos Dados**, cada arqu
 - **Campos Principais:** `populacao_total`, `populacao_18_mais` (população em idade de votar), `populacao_jovem_18_35`, `indice_urbanizacao`.
 
 ### 5. `resultados_eleitorais_cne_2022.json`
-- **Descrição:** Resultados oficiais apurados das Eleições Gerais de 24 de Agosto de 2022 pela Comissão Nacional Eleitoral (CNE), agregados por província e municípios estratégicos.
-- **Proveniência:** `OFICIAL`
-- **Fonte:** Comissão Nacional Eleitoral (CNE Angola) — *Ata de Apuramento Geral Definitivo dos Resultados das Eleições Gerais de 2022*.
-- **Campos Principais:** `eleitores_registados`, `votantes_total`, `abstencao_perc`, `votos_partido_governo_perc`, `votos_oposicao_perc`, `margem_votos_perc`, `vencedor_historico`.
-- **Caveat:** O detalhamento a nível de mesa de voto de 2022 foi agregado por circunscrição municipal e provincial pela CNE.
+- **Descrição:** Resultados das Eleições Gerais de 24 de Agosto de 2022 agregados pelas 18 províncias da DPA 2016. O ficheiro não contém municípios.
+- **Proveniência:** `OFICIAL` (rótulo do ficheiro; conferir cada província contra a acta antes de uso externo)
+- **Fonte:** Comissão Nacional Eleitoral (CNE Angola) — difusão dos resultados de 2022.
+- **Campos Principais:** `eleitores_registados`, `votantes`, `abstencao_perc`, `votos_partido_a`, `votos_partido_b`, `votos_validos`.
+- **Caveat:** Não há chave `municipios`. O zonamento provincial usa só esta malha de 18.
+
+### 6. `serie_historica_eleicoes_cne.json`
+- **Descrição:** Totais nacionais oficiais de 2012, 2017 e 2022 (inscritos, votantes, abstenção, votos e deputados dos principais partidos) e recortes provinciais provisórios de 2017 em cinco províncias.
+- **Proveniência:** `OFICIAL` no bloco nacional; `PROVISORIO` no bloco `recortes_provinciais_2017_provisorios`.
+- **Fonte:** CNE via VOA (2012), proclamação de 6 Set 2017, portal `resultados2022eleicoesgerais.cne.ao` e ANGOP (2022). DW de 25 Ago 2017 para os recortes ainda com 97,82% das mesas.
+- **Uso:** `GET /api/eleicoes/serie-historica` e o painel do War Room. Não alimenta o zonamento.
+- **Lacuna:** município, círculo completo de 2012/2017 e infraestrutura continuam de fora. O campo `lacunas` do JSON lista o que não foi inventado.

@@ -335,6 +335,42 @@ def territory_versions():
     }
 
 
+def _pct(eleicao: dict, sigla: str) -> Optional[float]:
+    for partido in eleicao.get("partidos") or []:
+        if partido.get("sigla") == sigla:
+            return partido.get("percentagem_validos")
+    return None
+
+
+@router.get("/eleicoes/serie-historica")
+def historical_election_series():
+    """Totais nacionais oficiais 2012, 2017 e 2022. Sem resultados municipais inventados."""
+    serie = _read_json(RAW / "serie_historica_eleicoes_cne.json")
+    if not serie or not serie.get("eleicoes"):
+        raise HTTPException(status_code=503, detail="Série histórica eleitoral indisponível.")
+
+    eleicoes = serie["eleicoes"]
+    tendencia = []
+    for anterior, seguinte in zip(eleicoes, eleicoes[1:]):
+        delta = {"de": anterior["ano"], "para": seguinte["ano"], "unidade": "pontos_percentuais"}
+        for sigla in ("MPLA", "UNITA"):
+            a, b = _pct(anterior, sigla), _pct(seguinte, sigla)
+            if a is not None and b is not None:
+                delta[sigla] = round(b - a, 3)
+        abst_a, abst_b = anterior.get("abstencao_perc"), seguinte.get("abstencao_perc")
+        if abst_a is not None and abst_b is not None:
+            delta["abstencao"] = round(abst_b - abst_a, 2)
+        tendencia.append(delta)
+
+    return {
+        "sucesso": True,
+        "proveniencia": serie.get("metadados", {}).get("proveniencia", "OFICIAL"),
+        "nivel_completo": "NACIONAL",
+        "serie": serie,
+        "tendencia_pp": tendencia,
+    }
+
+
 @router.get("/territorio/correspondencia")
 def territory_correspondence():
     data = _read_json(RAW / "de_para_dpa_2016_2024.json")

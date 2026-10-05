@@ -630,6 +630,50 @@ with aba_mapa:
     st.subheader("🗺️ Cartografia Tática e Camadas Coropléticas de Angola")
     st.markdown(f"**Malha Ativa:** `{versao_selecionada}` • **Fonte:** `{proveniencia_unidades}` • **SRID:** 4326")
 
+    serie_path = os.path.join(os.path.dirname(__file__), "data", "raw", "serie_historica_eleicoes_cne.json")
+    with st.expander("Série histórica nacional — eleições de 2012, 2017 e 2022", expanded=True):
+        if not os.path.isfile(serie_path):
+            st.warning("Ficheiro da série histórica não encontrado em data/raw.")
+        else:
+            with open(serie_path, encoding="utf-8") as serie_file:
+                serie = json.load(serie_file)
+            linhas_serie = []
+            for eleicao in serie.get("eleicoes", []):
+                partidos = {p["sigla"]: p for p in eleicao.get("partidos", [])}
+                linhas_serie.append({
+                    "Ano": eleicao["ano"],
+                    "Inscritos": eleicao.get("eleitores_inscritos"),
+                    "Votantes": eleicao.get("votantes"),
+                    "Abstenção %": eleicao.get("abstencao_perc"),
+                    "MPLA %": (partidos.get("MPLA") or {}).get("percentagem_validos"),
+                    "UNITA %": (partidos.get("UNITA") or {}).get("percentagem_validos"),
+                    "Deputados MPLA": (partidos.get("MPLA") or {}).get("deputados"),
+                    "Deputados UNITA": (partidos.get("UNITA") or {}).get("deputados"),
+                    "Proveniência": eleicao.get("proveniencia"),
+                })
+            df_serie = pd.DataFrame(linhas_serie)
+            fig_serie = go.Figure()
+            fig_serie.add_trace(go.Scatter(x=df_serie["Ano"], y=df_serie["MPLA %"], name="MPLA % válidos", mode="lines+markers"))
+            fig_serie.add_trace(go.Scatter(x=df_serie["Ano"], y=df_serie["UNITA %"], name="UNITA % válidos", mode="lines+markers"))
+            fig_serie.add_trace(go.Scatter(x=df_serie["Ano"], y=df_serie["Abstenção %"], name="Abstenção % inscritos", mode="lines+markers", line={"dash": "dot"}))
+            fig_serie.update_layout(
+                template="plotly_dark",
+                plot_bgcolor="rgba(0,0,0,0)",
+                paper_bgcolor="rgba(0,0,0,0)",
+                height=320,
+                margin={"l": 16, "r": 16, "t": 24, "b": 16},
+                yaxis_title="Percentagem",
+                xaxis={"dtick": 5},
+                legend={"orientation": "h", "y": -0.2},
+            )
+            st.plotly_chart(fig_serie, width="stretch")
+            st.dataframe(df_serie, width="stretch", hide_index=True)
+            st.caption(
+                "Nacional e oficial. O mapa abaixo continua só com a margem provincial de 2022. "
+                "Município e círculo de 2012/2017 não foram preenchidos. "
+                + " ".join(serie.get("lacunas") or [])
+            )
+
     col_camada, col_export = st.columns([3, 1])
     with col_camada:
         camada_visual = st.segmented_control(
@@ -727,7 +771,10 @@ with aba_mapa:
 # ------------------------------------------------------------------------------
 with aba_prioridade:
     st.subheader("🎯 Matriz de Priorização Territorial & Alocação de Recursos")
-    st.markdown("O algoritmo calcula o Score de Prioridade (0-100) ponderando competitividade de votos, abstenção e juventude.")
+    st.markdown(
+        "O score (0–100) pondera disputa (margem apertada), volume de eleitores, abstenção e juventude. "
+        "Ainda não multiplica potencial de voto × competitividade × custo de alcance: não há camada de infraestrutura nem custo logístico por território."
+    )
 
     # Gráfico de Barras Plotly dos Territórios Prioritários
     top_10 = df_territorio.head(10)

@@ -28,10 +28,10 @@ class Settings(BaseSettings):
     jwt_access_token_expire_minutes: int = Field(default=60, ge=1, le=1440)
     jwt_issuer: str = "angola-campaign"
 
-    cors_allowed_origins: str = "http://localhost:3000,http://localhost:8501"
+    cors_allowed_origins: str = "http://localhost:3000,http://localhost:5173,http://127.0.0.1:5173,http://localhost:8501"
     cors_allow_credentials: bool = True
     cors_allow_methods: str = "GET,POST,PUT,PATCH,DELETE,OPTIONS"
-    cors_allow_headers: str = "Authorization,Content-Type,X-Request-ID,Accept"
+    cors_allow_headers: str = "Authorization,Content-Type,X-Request-ID,Accept,X-Plano-Campanha"
     rate_limit_enabled: bool = True
     rate_limit_per_minute: int = Field(default=120, ge=1, le=10000)
 

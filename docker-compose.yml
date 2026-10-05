@@ -42,7 +42,7 @@ services:
       API_PORT: 8000
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgis:5432/${POSTGRES_DB:-angola_geomarketing}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Defina JWT_SECRET_KEY no .env}
-      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:8501,http://localhost:3000}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:5173,http://localhost:8501}
       RATE_LIMIT_ENABLED: ${RATE_LIMIT_ENABLED:-true}
       RATE_LIMIT_PER_MINUTE: ${RATE_LIMIT_PER_MINUTE:-120}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
@@ -55,7 +55,21 @@ services:
     networks:
       - rede_eleitoral
 
-  # 3. Painel Executivo / Sala de Guerra (Streamlit Dark Mode)
+  # 3. Sala de guerra em React. O nginx faz proxy de /api para o FastAPI.
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: angola_war_room_web
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - rede_eleitoral
+
+  # 3b. Protótipo Streamlit. O cliente operacional é o serviço web.
   war-room:
     build:
       context: .
