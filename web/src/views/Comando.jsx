@@ -11,6 +11,11 @@ const CAMADAS = [
   ["score", "Prioridade"],
   ["custo", "Logística"],
 ];
+const FUNDOS_OPCOES = [
+  ["ruas", "Ruas"],
+  ["satelite", "Satélite"],
+  ["nenhum", "Só malha"],
+];
 
 function deputados(hondt) {
   if (!hondt) return null;
@@ -22,45 +27,74 @@ function PainelTerritorio({ foco }) {
   const zona = foco.zonamento_activo || foco.zonamento;
   const cadeiras = deputados(foco.hondt_deputados);
   const geomSimulada = foco.proveniencia_geometria === "SIMULADO";
+  const mplaAssentos = cadeiras ? cadeiras[0] : 0;
+  const unitaAssentos = cadeiras ? cadeiras[1] : 0;
+  const totalAssentos = Math.max(mplaAssentos + unitaAssentos, 1);
+
   return (
     <div className="detalhe">
       <div className="detalhe-topo">
-        <h2>{foco.nome}</h2>
+        <div>
+          <span className="eyebrow">{foco.regiao || "Círculo Provincial"}</span>
+          <h2>{foco.nome}</h2>
+        </div>
         <span className={`zona ${zona}`}>{rotuloZona(zona)}</span>
       </div>
-      {geomSimulada && (
-        <p className="muted">Traçado <Selo tipo="SIMULADO" />: a DPA 2024 ainda não tem fronteira oficial neste mapa. O ponto marca o centróide estimado.</p>
-      )}
-      <dl className="factos">
-        <div><dt>Margem 2022</dt><dd>{fmtPct(foco.margem_apurada_perc)}</dd></div>
-        <div><dt>Eleitores aptos</dt><dd>{fmtInt(foco.eleitores_cne)}</dd></div>
-        <div><dt>Abstenção</dt><dd>{fmtPct(foco.abstencao_perc)}</dd></div>
-        <div><dt>Jovens</dt><dd>{fmtPct(foco.juventude_perc)}</dd></div>
-      </dl>
 
-      {foco.custo_logistico_fator && (
-        <div className="bloco">
-          <p>
-            <strong>Custo logístico</strong> {foco.custo_logistico_fator}×
-            <span className={`badge badge-${(foco.custo_logistico_dificuldade || "media").toLowerCase()}`}>
-              Acesso {foco.custo_logistico_dificuldade}
-            </span>
-          </p>
-          <p className="muted">{foco.custo_logistico_modal}: {foco.custo_logistico_descricao}</p>
-        </div>
+      {geomSimulada && (
+        <p className="muted" style={{ fontSize: "11.5px" }}>
+          Traçado <Selo tipo="SIMULADO" />: nova província DPA 2024. Ponto indica o centróide estimado.
+        </p>
       )}
+
+      <dl className="factos">
+        <div>
+          <dt>Margem 2022</dt>
+          <dd style={{ color: foco.margem_apurada_perc >= 0 ? "var(--ok)" : "var(--bad)" }}>
+            {fmtPct(foco.margem_apurada_perc)}
+          </dd>
+        </div>
+        <div>
+          <dt>Eleitores aptos</dt>
+          <dd>{fmtInt(foco.eleitores_cne)}</dd>
+        </div>
+        <div>
+          <dt>Abstenção</dt>
+          <dd>{fmtPct(foco.abstencao_perc)}</dd>
+        </div>
+        <div>
+          <dt>Jovens (18–35)</dt>
+          <dd>{fmtPct(foco.juventude_perc)}</dd>
+        </div>
+      </dl>
 
       {cadeiras && (
         <div className="bloco">
-          <p><strong>Deputados do círculo</strong> <Selo tipo={foco.proveniencia_dados || "OFICIAL"} /></p>
-          <div className="seats-display" aria-label={`${cadeiras[0]} para o partido A, ${cadeiras[1]} para o partido B`}>
-            {Array.from({ length: cadeiras[0] }, (_, i) => <span key={`a${i}`} className="seat-circle seat-a">A</span>)}
-            {Array.from({ length: cadeiras[1] }, (_, i) => <span key={`b${i}`} className="seat-circle seat-b">B</span>)}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+            <span style={{ fontSize: "12px", fontWeight: "600" }}>Círculo Provincial (5 Deputados)</span>
+            <Selo tipo={foco.proveniencia_dados || "OFICIAL"} />
           </div>
+
+          <div className="seat-bar-container">
+            <div className="seat-bar" aria-label={`MPLA: ${mplaAssentos}, UNITA: ${unitaAssentos}`}>
+              <div className="seat-bar-fatia mpla" style={{ width: `${(mplaAssentos / totalAssentos) * 100}%` }} />
+              <div className="seat-bar-fatia unita" style={{ width: `${(unitaAssentos / totalAssentos) * 100}%` }} />
+            </div>
+          </div>
+
+          <div className="seats-display">
+            <span className="seat-pill mpla">
+              <i className="seat-dot mpla" /> {mplaAssentos} MPLA
+            </span>
+            <span className="seat-pill unita">
+              <i className="seat-dot unita" /> {unitaAssentos} UNITA
+            </span>
+          </div>
+
           {foco.hondt_votos_proxima_cadeira > 0 && (
-            <p className="muted">
-              Faltam <strong>{fmtInt(foco.hondt_votos_proxima_cadeira)}</strong> votos para virar a próxima cadeira.
-              <span className={`badge badge-${(foco.hondt_volatilidade_cadeira || "media").toLowerCase()}`}>
+            <p className="muted" style={{ fontSize: "12px", marginTop: "6px" }}>
+              Faltam <strong>+{fmtInt(foco.hondt_votos_proxima_cadeira)}</strong> votos para virar próxima cadeira.
+              <span className={`badge badge-${(foco.hondt_volatilidade_cadeira || "media").toLowerCase()}`} style={{ marginLeft: "6px" }}>
                 Volatilidade {foco.hondt_volatilidade_cadeira}
               </span>
             </p>
@@ -68,11 +102,50 @@ function PainelTerritorio({ foco }) {
         </div>
       )}
 
+      {foco.custo_logistico_fator && (
+        <div className="bloco">
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontSize: "12px", fontWeight: "600" }}>Alcance Logístico</span>
+            <span className={`badge badge-${(foco.custo_logistico_dificuldade || "media").toLowerCase()}`}>
+              Acesso {foco.custo_logistico_dificuldade} · {foco.custo_logistico_fator}×
+            </span>
+          </div>
+          <p className="muted" style={{ fontSize: "11.5px", marginTop: "4px" }}>
+            <strong>{foco.custo_logistico_modal}</strong>: {foco.custo_logistico_descricao}
+          </p>
+        </div>
+      )}
+
       <div className="bloco destaque">
-        <span className="muted">Prioridade integrada</span>
-        <strong className="score">{foco.score ?? "—"}<small> / 100</small></strong>
-        <p className="muted">
-          {foco.formula_prioridade || "(Potencial × Competitividade Hondt) ÷ Custo logístico de alcance"}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+          <span className="muted" style={{ fontWeight: "600", textTransform: "uppercase", fontSize: "11px" }}>Prioridade Integrada</span>
+          <strong className="score">{foco.score ?? "—"}<small> / 100</small></strong>
+        </div>
+
+        {foco.potencial_voto !== undefined && (
+          <div className="score-breakdown">
+            <div className="score-item">
+              <div className="score-item-header">
+                <span>Potencial de Voto</span>
+                <strong>{foco.potencial_voto}</strong>
+              </div>
+              <div className="score-bar">
+                <i style={{ width: `${Math.min(foco.potencial_voto, 100)}%` }} />
+              </div>
+            </div>
+            <div className="score-item">
+              <div className="score-item-header">
+                <span>Competitividade Hondt</span>
+                <strong>{foco.competitividade}</strong>
+              </div>
+              <div className="score-bar">
+                <i style={{ width: `${Math.min(foco.competitividade, 100)}%` }} />
+              </div>
+            </div>
+          </div>
+        )}
+        <p className="muted" style={{ fontSize: "10.5px", margin: "4px 0 0" }}>
+          Fórmula: (Potencial × Competitividade Hondt) ÷ (Custo Logístico)^0.65
         </p>
       </div>
     </div>
@@ -86,8 +159,8 @@ export default function Comando({ dados, territorio, plano, setPlano, versao, se
   const [camada, setCamada] = useState("zona");
   const [filtroZona, setFiltroZona] = useState("");
   const [busca, setBusca] = useState("");
-  const [nomes, setNomes] = useState(true);
   const [fundo, setFundo] = useState("ruas");
+  const [recentralizar, setRecentralizar] = useState(0);
 
   const linhas = useMemo(() => {
     const marcadas = territorio.features.map((f) => ({
@@ -126,11 +199,12 @@ export default function Comando({ dados, territorio, plano, setPlano, versao, se
   const contagem = linhas.reduce((acc, r) => ({ ...acc, [r.zonamento_activo]: (acc[r.zonamento_activo] || 0) + 1 }), {});
   const foco = selecionado ? linhas.find((l) => l.nome === selecionado.nome) || selecionado : visiveis[0] || linhas[0];
   const aCarregar = territorio.carregando;
+
   const notaCamada = {
-    zona: "Zonamento pela margem 2022, com limiares ajustáveis.",
-    margem: "Verde = vantagem do partido A; vermelho = vantagem do oponente.",
-    score: "Prioridade integrada (potencial × Hondt ÷ logística).",
-    custo: "Dificuldade de alcance logístico do território.",
+    zona: "Zonamento da margem apurada em 2022 com limiares estratégicos configuráveis.",
+    margem: "Gradiente contínuo: azul/verde para vantagem do partido, vermelho para vantagem da oposição.",
+    score: "Prioridade integrada: ponderação de potencial de votos, disputa Hondt e acessibilidade logística.",
+    custo: "Classificação logística de acesso para deslocamento de brigadas e comícios.",
   }[camada];
 
   return (
@@ -139,39 +213,52 @@ export default function Comando({ dados, territorio, plano, setPlano, versao, se
 
       <section className="kpis" aria-label="Indicadores nacionais">
         <Kpi rotulo="Eleitorado 2022" valor={fmtInt(soma("eleitores_cne"))} selo="OFICIAL" carregando={aCarregar} />
-        <Kpi rotulo="População" valor={fmtInt(soma("populacao_total"))} selo="ESTIMADO" carregando={aCarregar} />
-        <Kpi rotulo="Bastiões" valor={contagem.BASTIAO || 0} carregando={aCarregar} />
-        <Kpi rotulo="Em disputa" valor={contagem.CAMPO_BATALHA || 0} carregando={aCarregar} />
-        <Kpi rotulo="Oposição" valor={contagem.OPOSICAO || 0} carregando={aCarregar} />
+        <Kpi rotulo="População Total" valor={fmtInt(soma("populacao_total"))} selo="ESTIMADO" carregando={aCarregar} />
+        <article className="kpi kpi-bastiao">
+          <span>Bastiões <Selo tipo="OFICIAL" /></span>
+          <strong className={aCarregar ? "skeleton" : ""}>{aCarregar ? "\u00a0" : contagem.BASTIAO || 0}</strong>
+        </article>
+        <article className="kpi kpi-batalha">
+          <span>Em Disputa <Selo tipo="OFICIAL" /></span>
+          <strong className={aCarregar ? "skeleton" : ""}>{aCarregar ? "\u00a0" : contagem.CAMPO_BATALHA || 0}</strong>
+        </article>
+        <article className="kpi kpi-oposicao">
+          <span>Oposição <Selo tipo="OFICIAL" /></span>
+          <strong className={aCarregar ? "skeleton" : ""}>{aCarregar ? "\u00a0" : contagem.OPOSICAO || 0}</strong>
+        </article>
       </section>
 
       <section className="controlos" aria-label="Parâmetros do zonamento">
-        <label>Malha territorial
+        <label>
+          Malha Territorial
           <select value={versao} onChange={(e) => { setVersao(e.target.value); setSelecionado(null); }}>
-            <option value="DPA_2016_18P">DPA 2016 · 18 províncias (base CNE 2022)</option>
-            <option value="DPA_2024_21P">DPA 2024 · 21 províncias (planeamento 2027)</option>
+            <option value="DPA_2016_18P">DPA 2016 · 18 Províncias (Eleições 2022 CNE)</option>
+            <option value="DPA_2024_21P">DPA 2024 · 21 Províncias (Planeamento 2027)</option>
           </select>
         </label>
-        <label>Plano comercial
+        <label>
+          Plano Comercial
           <select value={plano} onChange={(e) => setPlano(e.target.value)}>
-            <option value="NACIONAL">Nacional · 21 províncias</option>
-            <option value="PROVINCIAL">Provincial · 1 província</option>
-            <option value="MUNICIPAL">Municipal · 1 município</option>
+            <option value="NACIONAL">Nacional · 21 Províncias Irrestrito</option>
+            <option value="PROVINCIAL">Provincial · Círculo Único</option>
+            <option value="MUNICIPAL">Municipal · 1 Município</option>
           </select>
         </label>
-        <label>Bastião se margem ≥ (p.p.)
+        <label>
+          Limiar Bastião (≥ % margem)
           <input type="number" value={bastiao} onChange={(e) => setBastiao(Number(e.target.value))} />
         </label>
-        <label>Oposição se margem ≤ (p.p.)
+        <label>
+          Limiar Oposição (≤ % margem)
           <input type="number" value={oposicao} onChange={(e) => setOposicao(Number(e.target.value))} />
         </label>
       </section>
 
-      <section className="grid-2">
+      <section className="palco">
         <Cartao
           className="map-card"
-          titulo="Território"
-          nota={`${notaCamada} Leaflet + OpenStreetMap; pode afastar o zoom para ver RDC, Congo, Zâmbia e Namíbia.`}
+          titulo="Mapa Estratégico de Angola"
+          nota={notaCamada}
           acao={
             <div className="legenda-zonas" aria-label="Legenda de zonas">
               <span><i className="ponto bastiao" /> Bastião</span>
@@ -180,43 +267,74 @@ export default function Comando({ dados, territorio, plano, setPlano, versao, se
             </div>
           }
         >
-          <div className="mapa-toolbar" role="toolbar" aria-label="Camadas do mapa">
-            {CAMADAS.map(([id, rotulo]) => (
-              <button key={id} type="button" className={camada === id ? "ghost activa" : "ghost"} onClick={() => setCamada(id)}>
-                {rotulo}
-              </button>
-            ))}
-            <button type="button" className={nomes ? "ghost activa" : "ghost"} onClick={() => setNomes((v) => !v)}>
-              Nomes
+          <div className="mapa-toolbar-wrapper">
+            <div className="mapa-toolbar-seccao">
+              <span>Camadas</span>
+              <div className="btn-group">
+                {CAMADAS.map(([id, rotulo]) => (
+                  <button
+                    key={id}
+                    type="button"
+                    className={camada === id ? "activa" : ""}
+                    onClick={() => setCamada(id)}
+                  >
+                    {rotulo}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="mapa-toolbar-seccao">
+              <span>Fundo</span>
+              <div className="btn-group">
+                {FUNDOS_OPCOES.map(([id, rotulo]) => (
+                  <button
+                    key={id}
+                    type="button"
+                    className={fundo === id ? "activa" : ""}
+                    onClick={() => setFundo(id)}
+                  >
+                    {rotulo}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <button
+              type="button"
+              className="ghost"
+              onClick={() => {
+                setSelecionado(null);
+                setRecentralizar((c) => c + 1);
+              }}
+            >
+              ↺ Centrar Angola
             </button>
-            <button type="button" className={fundo === "ruas" ? "ghost activa" : "ghost"} onClick={() => setFundo("ruas")}>Ruas</button>
-            <button type="button" className={fundo === "satelite" ? "ghost activa" : "ghost"} onClick={() => setFundo("satelite")}>Satélite</button>
-            <button type="button" className={fundo === "nenhum" ? "ghost activa" : "ghost"} onClick={() => setFundo("nenhum")}>Só malha</button>
-            <button type="button" className="ghost" onClick={() => setSelecionado(null)}>Angola</button>
           </div>
-          {aCarregar ? (
-            <div className="mapa skeleton" aria-busy="true" />
-          ) : (
-            <MapaTerritorio
-              features={featuresActivas}
-              contorno={dados.contorno}
-              onSelect={setSelecionado}
-              selecionado={selecionado?.nome}
-              camada={camada}
-              filtro={filtroZona}
-              mostrarNomes={nomes}
-              fundo={fundo}
-            />
-          )}
+
+          <MapaTerritorio
+            features={featuresActivas}
+            contorno={dados.contorno}
+            onSelect={setSelecionado}
+            selecionado={selecionado?.nome}
+            camada={camada}
+            filtro={filtroZona}
+            fundo={fundo}
+            carregando={aCarregar}
+            resetTrigger={recentralizar}
+          />
         </Cartao>
 
-        <Cartao className="lateral">
+        <Cartao className="lateral" titulo="Diagnóstico Territorial">
           <PainelTerritorio foco={foco} />
-          <div className="controlos tabela-filtro">
-            <label>Pesquisar
-              <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Huambo, Luanda…" />
+
+          <div className="row" style={{ marginTop: "10px", marginBottom: "4px" }}>
+            <label className="cresce">
+              Filtrar por nome
+              <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Huambo, Luanda, Benguela…" />
             </label>
-            <label>Filtrar zona
+            <label>
+              Zona
               <select value={filtroZona} onChange={(e) => setFiltroZona(e.target.value)}>
                 <option value="">Todas</option>
                 <option value="BASTIAO">Bastião</option>
@@ -225,68 +343,117 @@ export default function Comando({ dados, territorio, plano, setPlano, versao, se
               </select>
             </label>
           </div>
-          <table>
-            <caption className="sr-only">Territórios ordenados por prioridade</caption>
-            <thead>
-              <tr><th>Território</th><th>Zona</th><th>Dep.</th><th>Custo</th><th>Score</th></tr>
-            </thead>
-            <tbody>
-              {visiveis.slice(0, 12).map((row) => {
-                const c = deputados(row.hondt_deputados);
-                return (
-                  <tr
-                    key={row.nome}
-                    className={foco?.nome === row.nome ? "activa" : ""}
-                    onClick={() => setSelecionado(row)}
-                    tabIndex={0}
-                    onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && setSelecionado(row)}
-                  >
-                    <td>{row.nome}</td>
-                    <td className={`zona ${row.zonamento_activo}`}>{rotuloZona(row.zonamento_activo)}</td>
-                    <td>{c ? `${c[0]}–${c[1]}` : "—"}</td>
-                    <td>{row.custo_logistico_fator ? `${row.custo_logistico_fator}×` : "1,0×"}</td>
-                    <td><strong>{row.score}</strong></td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+
+          <div className="table-responsive">
+            <table>
+              <caption className="sr-only">Territórios ordenados por prioridade</caption>
+              <thead>
+                <tr>
+                  <th>Território</th>
+                  <th>Zona</th>
+                  <th>Dep.</th>
+                  <th>Acesso</th>
+                  <th className="num">Score</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visiveis.slice(0, 12).map((row) => {
+                  const c = deputados(row.hondt_deputados);
+                  return (
+                    <tr
+                      key={row.nome}
+                      className={foco?.nome === row.nome ? "activa" : ""}
+                      onClick={() => setSelecionado(row)}
+                      tabIndex={0}
+                      onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && setSelecionado(row)}
+                    >
+                      <td><strong>{row.nome}</strong></td>
+                      <td><span className={`zona ${row.zonamento_activo}`}>{rotuloZona(row.zonamento_activo)}</span></td>
+                      <td>
+                        {c ? (
+                          <span style={{ fontSize: "11px", fontWeight: "600" }}>
+                            <span style={{ color: "var(--mpla)" }}>{c[0]}</span>–<span style={{ color: "var(--unita)" }}>{c[1]}</span>
+                          </span>
+                        ) : "—"}
+                      </td>
+                      <td>
+                        <span className={`badge badge-${(row.custo_logistico_dificuldade || "media").toLowerCase()}`}>
+                          {row.custo_logistico_fator ? `${row.custo_logistico_fator}×` : "1×"}
+                        </span>
+                      </td>
+                      <td className="num">
+                        <strong style={{ color: "var(--accent)" }}>{row.score}</strong>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </Cartao>
       </section>
 
       <Cartao
-        titulo="Série nacional 2012–2022"
+        titulo="Evolução da Campanha Nacional (2012–2022)"
+        nota="Série histórica oficial CNE: votos válidos, abstenção e assentos na Assembleia Nacional (220 deputados)."
         acao={
           <div className="legend" aria-hidden="true">
             <span><i className="swatch mpla" /> MPLA</span>
             <span><i className="swatch unita" /> UNITA</span>
             <span><i className="swatch abs" /> Abstenção</span>
+            <Selo tipo="OFICIAL" />
           </div>
         }
       >
+        <div className="trend-pills">
+          <div className="trend-pill down">
+            <span>MPLA (2012–22): 71,8% → 51,2% (-20,6 p.p.)</span>
+          </div>
+          <div className="trend-pill up">
+            <span>UNITA (2012–22): 18,7% → 44,0% (+25,3 p.p.)</span>
+          </div>
+          <div className="trend-pill neutral">
+            <span>Abstenção recorde em 2022: 55,2% (7,9 milhões de ausências)</span>
+          </div>
+        </div>
+
         <GraficoSerie pontos={pontos} />
-        <table>
-          <caption className="sr-only">Resultados nacionais por eleição</caption>
-          <thead>
-            <tr><th>Ano</th><th>Inscritos</th><th>Votantes</th><th>Abstenção</th><th>MPLA</th><th>UNITA</th><th>Deputados</th></tr>
-          </thead>
-          <tbody>
-            {pontos.map((p) => (
-              <tr key={p.ano}>
-                <td>{p.ano}</td>
-                <td>{fmtInt(p.inscritos)}</td>
-                <td>{fmtInt(p.votantes)}</td>
-                <td>{fmtPct(p.abstencao)}</td>
-                <td>{fmtPct(p.mpla)}</td>
-                <td>{fmtPct(p.unita)}</td>
-                <td>{p.depMpla} / {p.depUnita}</td>
+
+        <div className="table-responsive">
+          <table>
+            <caption className="sr-only">Resultados nacionais por eleição</caption>
+            <thead>
+              <tr>
+                <th>Ano</th>
+                <th className="num">Inscritos</th>
+                <th className="num">Votantes</th>
+                <th className="num">Abstenção</th>
+                <th className="num">MPLA</th>
+                <th className="num">UNITA</th>
+                <th className="num">Deputados AN</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {pontos.map((p) => (
+                <tr key={p.ano}>
+                  <td><strong>{p.ano}</strong></td>
+                  <td className="num">{fmtInt(p.inscritos)}</td>
+                  <td className="num">{fmtInt(p.votantes)}</td>
+                  <td className="num">{fmtPct(p.abstencao)}</td>
+                  <td className="num" style={{ color: "var(--mpla)", fontWeight: "600" }}>{fmtPct(p.mpla)}</td>
+                  <td className="num" style={{ color: "var(--unita)", fontWeight: "600" }}>{fmtPct(p.unita)}</td>
+                  <td className="num">
+                    <strong>{p.depMpla}</strong> <small className="muted">MPLA</small> / <strong>{p.depUnita}</strong> <small className="muted">UNITA</small>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
         <details className="lacunas">
-          <summary>O que este painel ainda não cobre</summary>
-          <p className="muted">{(dados.serie?.serie?.lacunas || []).join(" ")}</p>
+          <summary>Critérios de Proveniência & Lacunas de Dados Históricos</summary>
+          <p className="muted" style={{ marginTop: "6px" }}>{(dados.serie?.serie?.lacunas || []).join(" ")}</p>
         </details>
       </Cartao>
     </main>

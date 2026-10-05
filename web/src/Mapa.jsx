@@ -1,6 +1,6 @@
 import L from "leaflet";
 import { useEffect, useMemo, useRef } from "react";
-import { CircleMarker, GeoJSON, MapContainer, Marker, TileLayer, Tooltip, useMap } from "react-leaflet";
+import { CircleMarker, GeoJSON, MapContainer, TileLayer, Tooltip, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import { corCamada, fmtInt, fmtPct, rotuloZona } from "./territorio.js";
 
@@ -29,7 +29,7 @@ function boundsDe(features) {
   return caixa.isValid() ? caixa : null;
 }
 
-function Enquadrar({ malhaId, features, alvoNome }) {
+function Enquadrar({ malhaId, features, alvoNome, resetTrigger }) {
   const map = useMap();
   const actual = useRef(features);
   actual.current = features;
@@ -39,7 +39,7 @@ function Enquadrar({ malhaId, features, alvoNome }) {
     const caixa = alvo ? boundsDe([alvo]) : boundsDe(malha);
     if (!caixa) return;
     map.fitBounds(caixa.pad(alvo ? 0.08 : 0.35), { maxZoom: alvo ? 8 : 5.4, animate: true });
-  }, [map, malhaId, alvoNome]);
+  }, [map, malhaId, alvoNome, resetTrigger]);
   return null;
 }
 
@@ -50,15 +50,6 @@ function Creditos({ fundo }) {
     map.attributionControl.addAttribution("geo_angola · CC BY 4.0");
   }, [map, fundo]);
   return null;
-}
-
-function iconRotulo(nome) {
-  return L.divIcon({
-    className: "mapa-rotulo",
-    html: `<span>${nome}</span>`,
-    iconSize: [0, 0],
-    iconAnchor: [0, 0],
-  });
 }
 
 function tooltipHtml(props) {
@@ -77,7 +68,7 @@ function estilo(feature, { camada, selecionado, filtro, fundo }) {
     color: activo ? "#d6b25e" : comFundo ? "#f4f1e8" : "#0b1016",
     weight: activo ? 2.4 : comFundo ? 1.1 : 1,
     fillColor: corCamada(camada, props),
-    fillOpacity: dim ? 0.08 : comFundo ? 0.52 : 0.78,
+    fillOpacity: dim ? 0.08 : comFundo ? 0.38 : 0.78,
     opacity: dim ? 0.35 : 1,
   };
 }
@@ -89,9 +80,10 @@ export default function MapaTerritorio({
   selecionado,
   camada = "zona",
   filtro = "",
-  mostrarNomes = true,
   compacto = false,
   fundo = "ruas",
+  carregando = false,
+  resetTrigger = 0,
 }) {
   const lista = features || [];
   const poligonos = useMemo(() => lista.filter((f) => f.geometry?.type !== "Point"), [lista]);
@@ -99,8 +91,16 @@ export default function MapaTerritorio({
   const malhaId = poligonos.map((f) => f.properties?.codigo_dpa || f.properties?.nome).join("|");
   const tiles = FUNDOS[fundo];
 
+  if (carregando) {
+    return <div className={compacto ? "mapa mapa-compacto skeleton" : "mapa skeleton"} aria-busy="true" />;
+  }
+
   if (!lista.length) {
-    return <p className="vazio">A malha territorial não está disponível para este plano.</p>;
+    return (
+      <div className={compacto ? "mapa mapa-compacto" : "mapa"} style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <p className="vazio">A malha territorial não está disponível para este plano.</p>
+      </div>
+    );
   }
 
   const chave = `${camada}|${filtro}|${selecionado}|${fundo}|${poligonos.map((f) => f.properties?.codigo_dpa || f.properties?.nome).join(",")}`;
@@ -127,7 +127,7 @@ export default function MapaTerritorio({
           crossOrigin
         />
       )}
-      <Enquadrar malhaId={malhaId} features={poligonos} alvoNome={selecionado} />
+      <Enquadrar malhaId={malhaId} features={poligonos} alvoNome={selecionado} resetTrigger={resetTrigger} />
       {contorno?.features && (
         <GeoJSON
           data={contorno}
@@ -174,19 +174,6 @@ export default function MapaTerritorio({
           </CircleMarker>
         );
       })}
-      {mostrarNomes &&
-        poligonos.map((f) => {
-          const centro = f.properties?.centroide;
-          if (!Array.isArray(centro) || centro.length < 2) return null;
-          return (
-            <Marker
-              key={`rotulo-${f.properties?.codigo_dpa || f.properties?.nome}`}
-              position={[centro[1], centro[0]]}
-              icon={iconRotulo(f.properties?.nome || "")}
-              interactive={false}
-            />
-          );
-        })}
     </MapContainer>
   );
 }
