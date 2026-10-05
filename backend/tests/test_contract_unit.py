@@ -59,6 +59,8 @@ def test_fastapi_contract_registers_health_auth_and_legacy_routes():
     assert "/api/propostas" in schema["paths"]
     assert "/api/visitas/invalidar-lote" in schema["paths"]
     assert "/api/eleicoes/serie-historica" in schema["paths"]
+    assert "/api/eleicoes/hondt-provincias" in schema["paths"]
+    assert "/api/eleicoes/hondt-simulador" in schema["paths"]
 
 
 def test_commercial_plans_entitlements_guard():
@@ -110,3 +112,41 @@ def test_schema_validations_and_sanitization():
             foto_hash_sha256="not-a-valid-sha256",
             localizacao_envio={"longitude": 13.2, "latitude": -8.9},
         )
+
+
+def test_hondt_engine_angola_circles():
+    from war_room.motor_hondt import simular_hondt_provincial
+
+    # Huambo 2022: MPLA 3, UNITA 2
+    res_huambo = simular_hondt_provincial(257500, 248890, 15610, "MPLA", "UNITA", assentos_circulo=5)
+    assert res_huambo["assentos"]["MPLA"] == 3
+    assert res_huambo["assentos"]["UNITA"] == 2
+    assert res_huambo["disputa_proxima_cadeira"]["MPLA"]["votos_para_proximo_assento"] > 0
+
+    # Luanda 2022: MPLA 2, UNITA 3
+    res_luanda = simular_hondt_provincial(783100, 1471600, 96500, "MPLA", "UNITA", assentos_circulo=5)
+    assert res_luanda["assentos"]["MPLA"] == 2
+    assert res_luanda["assentos"]["UNITA"] == 3
+
+    # Cabinda 2022: MPLA 1, UNITA 4
+    res_cabinda = simular_hondt_provincial(47050, 122360, 9090, "MPLA", "UNITA", assentos_circulo=5)
+    assert res_cabinda["assentos"]["MPLA"] == 1
+    assert res_cabinda["assentos"]["UNITA"] == 4
+
+
+def test_custo_logistico_and_priority_index():
+    from war_room.custo_logistico import calcular_indice_prioridade_completo, obter_custo_logistico
+
+    luanda_custo = obter_custo_logistico("Luanda")
+    assert luanda_custo["fator_custo"] == 1.00
+    assert luanda_custo["dificuldade_acesso"] == "BAIXA"
+
+    cuando_custo = obter_custo_logistico("Cuando Cubango")
+    assert cuando_custo["fator_custo"] == 4.40
+    assert cuando_custo["dificuldade_acesso"] == "CRITICA"
+
+    prio_luanda = calcular_indice_prioridade_completo(4652250, -29.28, 48.0, 67.0, "Luanda")
+    prio_cuando = calcular_indice_prioridade_completo(250000, 35.0, 56.0, 58.0, "Cuando Cubango")
+
+    assert prio_luanda["score_prioridade"] > prio_cuando["score_prioridade"]
+    assert "Potencial" in prio_luanda["formula_aplicada"]

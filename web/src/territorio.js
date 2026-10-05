@@ -30,16 +30,27 @@ export function corZona(zona) {
   return "#F97316";
 }
 
+export function corLogistica(dificuldade) {
+  if (dificuldade === "BAIXA") return "#10B981";
+  if (dificuldade === "BAIXA_MEDIA" || dificuldade === "MEDIA") return "#38BDF8";
+  if (dificuldade === "MEDIA_ALTA" || dificuldade === "ALTA") return "#F97316";
+  return "#EF4444";
+}
+
 export function priorizar(unidades, pesos) {
   const maxEleitores = Math.max(...unidades.map((u) => Number(u.eleitores_cne) || 0), 1);
-  const soma = pesos.disputa + pesos.volume + pesos.abstencao + pesos.jovens;
   return unidades
     .map((row) => {
+      // Se a API já calculou o índice integrado completo (com custo logístico e Hondt):
+      if (row.score_prioridade !== undefined && row.score_prioridade !== null) {
+        return { ...row, score: Number(row.score_prioridade) };
+      }
       const margem = Math.abs(Number(row.margem_apurada_perc) || 0);
       const disputa = Math.max(0, 100 - margem * 2);
       const volume = ((Number(row.eleitores_cne) || 0) / maxEleitores) * 100;
       const abstencao = Number(row.abstencao_perc) || 0;
       const jovens = Number(row.juventude_perc) || 0;
+      const soma = pesos.disputa + pesos.volume + pesos.abstencao + pesos.jovens;
       const score =
         (disputa * pesos.disputa +
           volume * pesos.volume +

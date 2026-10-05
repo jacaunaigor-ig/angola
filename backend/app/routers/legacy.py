@@ -14,12 +14,22 @@ from psycopg import Error
 
 from ..schemas import (
     AtaSubmissionRequest,
+    HondtSimulationRequest,
     LegalCaseCreateRequest,
     SpeechGenerateRequest,
     SpeechStatusUpdateRequest,
     ZoningRequest,
 )
 from ..security import require_roles
+from war_room.motor_hondt import (
+    calcular_hondt,
+    simular_cenario_com_variacao,
+    simular_hondt_provincial,
+)
+from war_room.custo_logistico import (
+    calcular_indice_prioridade_completo,
+    obter_custo_logistico,
+)
 
 router = APIRouter(prefix="/api", tags=["legacy-compatible"])
 logger = logging.getLogger("angola.api")
@@ -371,6 +381,104 @@ def historical_election_series():
     }
 
 
+@router.get("/eleicoes/hondt-provincias")
+def hondt_provincial_overview():
+    """Retorna a distribuição de 5 deputados por círculo provincial em Angola com cálculo de votos para próxima cadeira."""
+    cne = _read_json(RAW / "resultados_eleitorais_cne_2022.json", {})
+    provincias = cne.get("provincias", [])
+    if not provincias:
+        raise HTTPException(status_code=503, detail="Dados de apuramento provincial indisponíveis.")
+
+    resultados = []
+    totais_deputados = {"partido_a": 0, "partido_b": 0, "outros": 0}
+    for prov in provincias:
+        votos_a = prov.get("votos_partido_a", 0)
+        votos_b = prov.get("votos_partido_b", 0)
+        votos_val = prov.get("votos_validos", 0)
+        outros = max(0, votos_val - (votos_a + votos_b))
+        sim = simular_hondt_provincial(votos_a, votos_b, outros, "MPLA", "UNITA", assentos_circulo=5)
+        totais_deputados["partido_a"] += sim["assentos"].get("MPLA", 0)
+        totais_deputados["partido_b"] += sim["assentos"].get("UNITA", 0)
+        totais_deputados["outros"] += sim["assentos"].get("Outras Forças", 0)
+
+        resultados.append({
+            "codigo_cne": prov.get("codigo_cne"),
+            "provincia": prov.get("provincia"),
+            "votos_validos": votos_val,
+            "abstencao_perc": prov.get("abstencao_perc"),
+            "assentos": sim["assentos"],
+            "quociente_corte": sim["quociente_corte"],
+            "disputa_proxima_cadeira": sim["disputa_proxima_cadeira"],
+            "resumo": sim["resumo_verbal"],
+        })
+
+    return {
+        "sucesso": True,
+        "proveniencia": "OFICIAL_CNE_2022",
+        "metodo": "HONDT",
+        "assentos_por_circulo": 5,
+        "total_provincias": len(resultados),
+        "total_deputados_provinciais": totais_deputados,
+        "provincias": resultados,
+    }
+
+
+@router.post("/eleicoes/hondt-simulador")
+def hondt_simulator(payload: HondtSimulationRequest):
+    """Simula a atribuição de assentos pelo Método de Hondt para qualquer cenário ou choque de votação."""
+    votos_a = payload.votos_partido_a
+    votos_b = payload.votos_partido_b
+    votos_outros = payload.votos_outros or 0
+
+    dados_base_oficial = None
+    if payload.provincia:
+        cne = _read_json(RAW / "resultados_eleitorais_cne_2022.json", {}).get("provincias", [])
+        prov_match = next((p for p in cne if p.get("provincia", "").lower() == payload.provincia.lower() or p.get("codigo_cne", "").lower() == payload.provincia.lower()), None)
+        if prov_match:
+            dados_base_oficial = prov_match
+            if votos_a is None:
+                votos_a = prov_match.get("votos_partido_a", 0)
+            if votos_b is None:
+                votos_b = prov_match.get("votos_partido_b", 0)
+            if not votos_outros:
+                votos_val = prov_match.get("votos_validos", 0)
+                votos_outros = max(0, votos_val - (votos_a + votos_b))
+
+    v_a = max(0, int(votos_a or 0))
+    v_b = max(0, int(votos_b or 0))
+
+    if payload.variacao_a_perc != 0.0:
+        v_a = int(v_a * (1.0 + payload.variacao_a_perc / 100.0))
+    if payload.variacao_b_perc != 0.0:
+        v_b = int(v_b * (1.0 + payload.variacao_b_perc / 100.0))
+
+    simulacao = simular_hondt_provincial(
+        votos_partido_a=v_a,
+        votos_partido_b=v_b,
+        votos_outros=votos_outros,
+        nome_partido_a=payload.nome_partido_a,
+        nome_partido_b=payload.nome_partido_b,
+        assentos_circulo=payload.assentos,
+    )
+
+    return {
+        "sucesso": True,
+        "parametros": {
+            "provincia": payload.provincia,
+            "variacao_a_perc": payload.variacao_a_perc,
+            "variacao_b_perc": payload.variacao_b_perc,
+            "assentos": payload.assentos,
+        },
+        "votos_aplicados": {
+            payload.nome_partido_a: v_a,
+            payload.nome_partido_b: v_b,
+            "Outras Forças": votos_outros,
+        },
+        "dados_base_oficial": dados_base_oficial,
+        "resultado": simulacao,
+    }
+
+
 @router.get("/territorio/correspondencia")
 def territory_correspondence():
     data = _read_json(RAW / "de_para_dpa_2016_2024.json")
@@ -413,21 +521,54 @@ def territory_units(
         props = feature.get("properties", {})
         cne_data = cne_by_code.get(props.get("codigo_dpa"), {})
         ine_data = ine_by_code.get(props.get("codigo_dpa"), {})
-        stats = _zone(
-            cne_data.get("votos_partido_a", 0),
-            cne_data.get("votos_partido_b", 0),
-            cne_data.get("votos_validos", 0),
+        votos_a = cne_data.get("votos_partido_a", 0)
+        votos_b = cne_data.get("votos_partido_b", 0)
+        votos_val = cne_data.get("votos_validos", 0)
+        stats = _zone(votos_a, votos_b, votos_val)
+
+        nome_unidade = props.get("nome") or props.get("provincia") or "Território"
+        hondt_res = (
+            simular_hondt_provincial(votos_a, votos_b, max(0, votos_val - (votos_a + votos_b)), "Nosso Partido", "Oposição")
+            if (votos_a or votos_b)
+            else {"assentos": {}, "disputa_proxima_cadeira": {}}
         )
+        hondt_disputa_a = hondt_res.get("disputa_proxima_cadeira", {}).get("Nosso Partido", {})
+        votos_virar = hondt_disputa_a.get("votos_para_proximo_assento")
+        volatilidade = hondt_disputa_a.get("volatilidade_cadeira", "MEDIA")
+
+        eleitores = cne_data.get("eleitores_registados") or 0
+        abstencao = cne_data.get("abstencao_perc") or 50.0
+        juventude = ine_data.get("jovens_perc_eleitorado") or 60.0
+        prio_info = calcular_indice_prioridade_completo(
+            eleitores_aptos=eleitores,
+            margem_apurada_perc=stats["margem_perc"],
+            abstencao_perc=abstencao,
+            juventude_perc=juventude,
+            nome_territorio=nome_unidade,
+            votos_para_virar_cadeira=votos_virar,
+        )
+
         feature_props = {
             **props,
             "populacao_total": ine_data.get("populacao_total"),
             "populacao_18_mais": ine_data.get("populacao_18_mais"),
-            "juventude_perc": ine_data.get("jovens_perc_eleitorado"),
-            "eleitores_cne": cne_data.get("eleitores_registados"),
-            "abstencao_perc": cne_data.get("abstencao_perc"),
+            "juventude_perc": juventude,
+            "eleitores_cne": eleitores,
+            "abstencao_perc": abstencao,
             "margem_apurada_perc": stats["margem_perc"],
             "zonamento": stats["zonamento"],
             "formula_explicativa": stats["formula_aplicada"],
+            "score_prioridade": prio_info["score_prioridade"],
+            "potencial_voto": prio_info["potencial_voto"],
+            "competitividade": prio_info["competitividade"],
+            "custo_logistico_fator": prio_info["custo_logistico"]["fator"],
+            "custo_logistico_dificuldade": prio_info["custo_logistico"]["dificuldade"],
+            "custo_logistico_modal": prio_info["custo_logistico"]["modal"],
+            "custo_logistico_descricao": prio_info["custo_logistico"]["descricao"],
+            "hondt_deputados": hondt_res.get("assentos", {}),
+            "hondt_votos_proxima_cadeira": votos_virar,
+            "hondt_volatilidade_cadeira": volatilidade,
+            "formula_prioridade": prio_info["formula_aplicada"],
             "proveniencia_dados": "OFICIAL",
         }
         features.append({**feature, "properties": feature_props})

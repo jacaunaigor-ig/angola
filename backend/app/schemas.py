@@ -104,3 +104,16 @@ class SpeechStatusUpdateRequest(BaseModel):
     responsavel_revisao: str = Field(min_length=2, max_length=150)
     comentarios_revisao: str | None = Field(default=None, max_length=2000)
     model_config = ConfigDict(extra="ignore")
+
+
+class HondtSimulationRequest(BaseModel):
+    provincia: str | None = Field(default=None, max_length=100)
+    votos_partido_a: int | None = Field(default=None, ge=0)
+    votos_partido_b: int | None = Field(default=None, ge=0)
+    votos_outros: int | None = Field(default=0, ge=0)
+    nome_partido_a: str = Field(default="Nosso Partido", max_length=100)
+    nome_partido_b: str = Field(default="Oposição", max_length=100)
+    assentos: int = Field(default=5, ge=1, le=220)
+    variacao_a_perc: float = Field(default=0.0, ge=-100.0, le=500.0)
+    variacao_b_perc: float = Field(default=0.0, ge=-100.0, le=500.0)
+    model_config = ConfigDict(extra="ignore")
