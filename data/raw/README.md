@@ -49,12 +49,12 @@ Em estrita conformidade com o **Princípio de Honestidade dos Dados**, cada arqu
 - **Campos Principais:** `eleitores_registados`, `votantes`, `abstencao_perc`, `votos_partido_a`, `votos_partido_b`, `votos_validos`.
 - **Caveat:** Não há chave `municipios`. O zonamento provincial usa só esta malha de 18.
 
-### 6. `geoBoundaries-AGO-ADM0.geojson`
-- **Descrição:** Limite internacional de Angola, nível administrativo 0, incluindo o enclave de Cabinda. Serve de moldura do mapa. Não é a malha provincial da DPA.
-- **Proveniência:** `OFICIAL` (fronteira de referência aberta; não é a acta cadastral do IGCA)
-- **Fonte:** geoBoundaries, `shapeISO=AGO`, `shapeType=ADM0`. Citação: Runfola et al. (2020), PLoS ONE 15(4): e0231866. Licença CC BY 4.0.
-- **SRID:** 4326.
-- **Uso:** `GET /api/territorio/contorno-nacional` e o contorno da sala de comando.
+### 6. Pasta `geo_angola/`
+- **Descrição:** Conjunto oficial de delimitações vetoriais com as 18 províncias históricas de Angola (nível ADM1: `geoBoundaries-AGO-ADM1_simplified.geojson`, `geoBoundaries-AGO-ADM1.geojson`, shapefiles e topojson) e o contorno nacional gerado (`contorno_nacional.geojson`).
+- **Proveniência:** `OFICIAL` (fronteiras vetoriais de referência aberta, licença CC BY 4.0 / Public Domain conforme metadados da pasta).
+- **Fonte:** Pasta `geo_angola/` do projecto (U.S. Census Bureau / geoBoundaries).
+- **SRID:** 4326 (WGS 84).
+- **Uso:** `GET /api/territorio/contorno-nacional`, `GET /api/territorio/geo-angola`, enriquecimento geométrico da malha DPA 2016 e visualização cartográfica na sala de comando.
 
 ### 7. `serie_historica_eleicoes_cne.json`
 - **Descrição:** Totais nacionais oficiais de 2012, 2017 e 2022 (inscritos, votantes, abstenção, votos e deputados dos principais partidos) e recortes provinciais provisórios de 2017 em cinco províncias.

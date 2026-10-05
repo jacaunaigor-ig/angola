@@ -4,9 +4,9 @@ import time
 import uuid
 from contextvars import ContextVar
 from datetime import UTC, datetime
-from collections import defaultdict
 
 from fastapi import Request
+from fastapi.responses import JSONResponse
 from opentelemetry import metrics
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader

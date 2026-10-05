@@ -11,8 +11,9 @@ from __future__ import annotations
 import json
 import os
 from collections import defaultdict
-from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from collections.abc import Iterable
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from shapely.geometry import Point, shape
 from shapely.prepared import prep
@@ -21,11 +22,11 @@ LIMIAR_FORMULARIOS_PADRAO = 50
 JANELA_MINUTOS_PADRAO = 5
 
 
-def _parse_dt(valor: Any) -> Optional[datetime]:
+def _parse_dt(valor: Any) -> datetime | None:
     if valor is None:
         return None
     if isinstance(valor, datetime):
-        return valor if valor.tzinfo else valor.replace(tzinfo=timezone.utc)
+        return valor if valor.tzinfo else valor.replace(tzinfo=UTC)
     texto = str(valor).strip()
     if not texto:
         return None
@@ -35,7 +36,7 @@ def _parse_dt(valor: Any) -> Optional[datetime]:
         return None
 
 
-def _coord(visita: Dict[str, Any]) -> Optional[Tuple[float, float]]:
+def _coord(visita: dict[str, Any]) -> tuple[float, float] | None:
     try:
         lon = float(visita.get("longitude") if visita.get("longitude") is not None else visita.get("localizacao", {}).get("longitude"))
         lat = float(visita.get("latitude") if visita.get("latitude") is not None else visita.get("localizacao", {}).get("latitude"))
@@ -46,16 +47,16 @@ def _coord(visita: Dict[str, Any]) -> Optional[Tuple[float, float]]:
     return lon, lat
 
 
-def carregar_malha_shapely(geojson_obj: Optional[Dict[str, Any]] = None, caminho: Optional[str] = None) -> List[Dict[str, Any]]:
+def carregar_malha_shapely(geojson_obj: dict[str, Any] | None = None, caminho: str | None = None) -> list[dict[str, Any]]:
     """Converte FeatureCollection em polígonos Shapely preparados."""
     dados = geojson_obj
     if dados is None and caminho and os.path.exists(caminho):
-        with open(caminho, "r", encoding="utf-8") as fh:
+        with open(caminho, encoding="utf-8") as fh:
             dados = json.load(fh)
     if not dados:
         return []
 
-    poligonos: List[Dict[str, Any]] = []
+    poligonos: list[dict[str, Any]] = []
     for feat in dados.get("features") or []:
         geom = feat.get("geometry") or {}
         if geom.get("type") not in ("Polygon", "MultiPolygon"):
@@ -85,12 +86,12 @@ def carregar_malha_shapely(geojson_obj: Optional[Dict[str, Any]] = None, caminho
 
 
 def detectar_rajada_formularios(
-    visitas: Iterable[Dict[str, Any]],
+    visitas: Iterable[dict[str, Any]],
     limiar: int = LIMIAR_FORMULARIOS_PADRAO,
     janela_minutos: int = JANELA_MINUTOS_PADRAO,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """Identifica ativistas com mais de `limiar` formulários em `janela_minutos`."""
-    por_ativista: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+    por_ativista: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for visita in visitas:
         momento = _parse_dt(visita.get("registado_em"))
         if momento is None:
@@ -98,7 +99,7 @@ def detectar_rajada_formularios(
         chave = str(visita.get("ativista_id") or visita.get("ativista_nome") or "desconhecido")
         por_ativista[chave].append({**visita, "_dt": momento})
 
-    alertas: List[Dict[str, Any]] = []
+    alertas: list[dict[str, Any]] = []
     janela = timedelta(minutes=janela_minutos)
 
     for ativista_id, registos in por_ativista.items():
@@ -132,15 +133,15 @@ def detectar_rajada_formularios(
 
 
 def detectar_coordenadas_fora_municipio(
-    visitas: Iterable[Dict[str, Any]],
-    poligonos: List[Dict[str, Any]],
-) -> List[Dict[str, Any]]:
+    visitas: Iterable[dict[str, Any]],
+    poligonos: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
     """Marca visitas cujo ponto cai fora do município/província mapeado."""
     if not poligonos:
         return []
 
     por_nome = {p["nome_norm"]: p for p in poligonos}
-    alertas: List[Dict[str, Any]] = []
+    alertas: list[dict[str, Any]] = []
 
     for visita in visitas:
         par = _coord(visita)
@@ -197,12 +198,12 @@ def detectar_coordenadas_fora_municipio(
 
 
 def analisar_integridade_campo(
-    visitas: Iterable[Dict[str, Any]],
-    geojson_malha: Optional[Dict[str, Any]] = None,
-    caminho_malha: Optional[str] = None,
+    visitas: Iterable[dict[str, Any]],
+    geojson_malha: dict[str, Any] | None = None,
+    caminho_malha: str | None = None,
     limiar: int = LIMIAR_FORMULARIOS_PADRAO,
     janela_minutos: int = JANELA_MINUTOS_PADRAO,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     visitas_lista = list(visitas)
     poligonos = carregar_malha_shapely(geojson_malha, caminho_malha)
     rajadas = detectar_rajada_formularios(visitas_lista, limiar=limiar, janela_minutos=janela_minutos)
@@ -218,9 +219,9 @@ def analisar_integridade_campo(
     }
 
 
-def visitas_demonstracao_risco() -> List[Dict[str, Any]]:
+def visitas_demonstracao_risco() -> list[dict[str, Any]]:
     """Lote SIMULADO apenas para exercitar a tabela de risco quando a API não tem amostra."""
-    base = datetime(2026, 9, 30, 10, 0, tzinfo=timezone.utc)
+    base = datetime(2026, 9, 30, 10, 0, tzinfo=UTC)
     ativista = "b0000000-0000-0000-0000-000000000001"
     visitas = []
     for i in range(52):

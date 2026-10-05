@@ -7,6 +7,7 @@ estimado do repositório e deve ser apresentada como SIMULADO.
 from __future__ import annotations
 
 import hashlib
+import hmac
 import re
 import unicodedata
 from pathlib import Path
@@ -44,9 +45,10 @@ def mascarar_telefone(valor: str) -> str:
     return f"***{digitos[-3:]}"
 
 
-def hash_telefone(valor: str) -> str:
+def hash_telefone(valor: str, segredo: str) -> str:
+    """HMAC-SHA256 com segredo do servidor. Um hash simples de telefone inverte-se por força bruta."""
     digitos = re.sub(r"\D", "", valor or "")
-    return hashlib.sha256(digitos.encode("utf-8")).hexdigest()
+    return hmac.new(segredo.encode("utf-8"), digitos.encode("utf-8"), hashlib.sha256).hexdigest()
 
 
 def carregar_assembleias_publicas(seed_sql: Path) -> list[dict[str, str]]:

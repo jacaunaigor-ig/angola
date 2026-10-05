@@ -14,7 +14,7 @@ Fundamentação de Ciência Política e Logística Eleitoral de Angola:
 from __future__ import annotations
 
 import unicodedata
-from typing import Any, Dict, Optional
+from typing import Any
 
 
 def _normalizar(texto: str) -> str:
@@ -28,7 +28,7 @@ def _normalizar(texto: str) -> str:
 # Matriz de Custo Logístico de Alcance Territorial (1.0 = baseline Luanda)
 # Fatores ponderados: Distância do hub Luanda, malha rodoviária asfaltada (vs terra/areia),
 # disponibilidade de combustível/alojamento, relevo e necessidade de transporte aéreo/fluvial.
-MATRIZ_CUSTO_LOGISTICO_PROVINCIAL: Dict[str, Dict[str, Any]] = {
+MATRIZ_CUSTO_LOGISTICO_PROVINCIAL: dict[str, dict[str, Any]] = {
     "luanda": {
         "fator_custo": 1.00,
         "dificuldade_acesso": "BAIXA",
@@ -158,7 +158,7 @@ MATRIZ_CUSTO_LOGISTICO_PROVINCIAL: Dict[str, Dict[str, Any]] = {
 }
 
 
-def obter_custo_logistico(nome_ou_codigo: str) -> Dict[str, Any]:
+def obter_custo_logistico(nome_ou_codigo: str) -> dict[str, Any]:
     """Retorna os dados de custo logístico por nome ou código de província."""
     chave = _normalizar(nome_ou_codigo)
     # Tenta casamento exato
@@ -183,9 +183,9 @@ def calcular_indice_prioridade_completo(
     abstencao_perc: float,
     juventude_perc: float,
     nome_territorio: str,
-    votos_para_virar_cadeira: Optional[int] = None,
+    votos_para_virar_cadeira: int | None = None,
     max_eleitores_referencia: int = 4_652_250,  # Luanda 2022
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Calcula o índice de prioridade combinando:
 
     1. Potencial de Voto: Volume de eleitores ajustado pelo reservatório (abstenção) e juventude

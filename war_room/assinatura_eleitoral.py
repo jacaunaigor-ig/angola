@@ -12,7 +12,7 @@ Conforme as melhores práticas de integridade de apuramento eleitoral e auditori
 from __future__ import annotations
 
 import binascii
-from typing import Any, Dict, Optional, Tuple
+
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric import ed25519
 
@@ -27,13 +27,13 @@ def montar_digest_canonico_ata(
     total_votantes: int,
     foto_hash_sha256: str,
     registado_em: str,
-    longitude: Optional[float] = None,
-    latitude: Optional[float] = None,
+    longitude: float | None = None,
+    latitude: float | None = None,
 ) -> bytes:
     """Monta a sequência canônica determinística para assinatura criptográfica da ata."""
     lon_str = f"{float(longitude):.6f}" if longitude is not None else "0.000000"
     lat_str = f"{float(latitude):.6f}" if latitude is not None else "0.000000"
-    
+
     elementos = [
         str(local_voto_id).strip().lower(),
         str(int(mesa_numero)),
@@ -62,7 +62,7 @@ def verificar_assinatura_ed25519(
         sig_bytes = bytes.fromhex(assinatura_hex.strip())
         if len(pub_bytes) != 32 or len(sig_bytes) != 64:
             return False
-        
+
         public_key = ed25519.Ed25519PublicKey.from_public_bytes(pub_bytes)
         public_key.verify(sig_bytes, mensagem_bytes)
         return True
@@ -70,11 +70,11 @@ def verificar_assinatura_ed25519(
         return False
 
 
-def gerar_par_chaves_ed25519() -> Tuple[str, str]:
+def gerar_par_chaves_ed25519() -> tuple[str, str]:
     """Gera um novo par de chaves Ed25519 retornando (chave_privada_hex, chave_publica_hex)."""
     private_key = ed25519.Ed25519PrivateKey.generate()
     public_key = private_key.public_key()
-    
+
     priv_hex = private_key.private_bytes_raw().hex()
     pub_hex = public_key.public_bytes_raw().hex()
     return priv_hex, pub_hex

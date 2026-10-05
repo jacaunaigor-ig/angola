@@ -10,13 +10,13 @@ Conforme a Lei Orgânica sobre as Eleições Gerais de Angola (Lei n.º 36/11 e 
 from __future__ import annotations
 
 import math
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 
 def calcular_hondt(
-    votos_partidos: Dict[str, int],
+    votos_partidos: dict[str, int],
     total_assentos: int = 5,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Aplica o Método de Hondt estrito a uma distribuição de votos.
 
     Retorna:
@@ -38,7 +38,7 @@ def calcular_hondt(
         }
 
     # Gera todos os quocientes: votos / divisor para divisor de 1 até total_assentos
-    todos_quocientes: List[Tuple[float, str, int, int]] = []  # (quociente, partido, divisor, votos_originais)
+    todos_quocientes: list[tuple[float, str, int, int]] = []  # (quociente, partido, divisor, votos_originais)
     for partido, votos in partidos_validos.items():
         for d in range(1, total_assentos + 1):
             q = votos / d
@@ -54,7 +54,7 @@ def calcular_hondt(
     ultimo_eleito = eleitos[-1][1] if eleitos else None
 
     # Contagem de assentos atribuídos
-    assentos: Dict[str, int] = {p: 0 for p in votos_partidos}
+    assentos: dict[str, int] = {p: 0 for p in votos_partidos}
     for _, partido, _, _ in eleitos:
         assentos[partido] = assentos.get(partido, 0) + 1
 
@@ -63,7 +63,7 @@ def calcular_hondt(
     melhor_nao_eleito_q = nao_eleitos[0][0] if nao_eleitos else 0.0
 
     # Análise de sensibilidade: quantos votos faltam para +1 assento / folga do assento atual
-    disputa: Dict[str, Dict[str, Any]] = {}
+    disputa: dict[str, dict[str, Any]] = {}
     votos_totais_validos = sum(partidos_validos.values())
 
     for partido in votos_partidos:
@@ -124,7 +124,7 @@ def simular_hondt_provincial(
     nome_partido_a: str = "Nosso Partido",
     nome_partido_b: str = "Oposição",
     assentos_circulo: int = 5,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Helper prático para os 5 deputados de um círculo provincial angolano."""
     votos = {
         nome_partido_a: max(0, int(votos_partido_a)),
@@ -148,13 +148,13 @@ def simular_hondt_provincial(
 
 
 def simular_cenario_com_variacao(
-    votos_base: Dict[str, int],
+    votos_base: dict[str, int],
     variacao_partido_a_perc: float = 0.0,
     variacao_partido_b_perc: float = 0.0,
     nome_partido_a: str = "Nosso Partido",
     nome_partido_b: str = "Oposição",
     assentos: int = 5,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Simula um cenário prospectivo aplicando choque de votação (ex: +5% comparecimento ou migração)."""
     votos_modificados = dict(votos_base)
     if nome_partido_a in votos_modificados:

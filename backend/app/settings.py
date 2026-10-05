@@ -37,6 +37,7 @@ class Settings(BaseSettings):
 
     whatsapp_verify_token: str | None = None
     whatsapp_access_token: str | None = None
+    whatsapp_app_secret: str | None = None
     anthropic_api_key: str | None = None
     ai_model: str = "claude-3-5-sonnet-20241022"
     log_level: str = "INFO"

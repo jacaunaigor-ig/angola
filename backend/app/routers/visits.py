@@ -1,15 +1,23 @@
-from datetime import UTC, datetime, timedelta
 import hashlib
-from pathlib import Path
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Body, Depends, File, Header, HTTPException, Query, Request, UploadFile
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import FileResponse
 from psycopg.types.json import Jsonb
 
 from ..schemas import PresignedUploadRequest, VisitsSyncRequest
 from ..security import require_roles
+from ..settings import Settings, get_settings
+from ..storage import (
+    MAX_UPLOAD_BYTES,
+    TICKET_TTL_SECONDS,
+    campaign_of_key,
+    resolve_storage_path,
+    sign_upload_ticket,
+    verify_upload_ticket,
+)
 
 router = APIRouter(prefix="/api", tags=["field-operations"])
 field_user = require_roles("ADMIN", "COORDENADOR", "BRIGADISTA")
@@ -264,6 +272,7 @@ def upload_visit_evidence(
 @router.post("/visitas/invalidar-lote")
 def invalidate_visit_batch(
     request: Request,
+    user: Annotated[dict, Depends(require_roles("ADMIN", "COORDENADOR"))],
     body: dict = Body(...),
     x_plano_campanha: str | None = Header(default=None),
     plano: str | None = Query(default=None),
@@ -278,10 +287,15 @@ def invalidate_visit_batch(
         raise HTTPException(status_code=400, detail="Informe o array 'uuids' do lote a invalidar.")
 
     motivo = str(body.get("motivo") or "LOTE_INVALIDADO_COORDENACAO")
-    responsavel = str(body.get("responsavel") or "coordenacao_war_room")
+    responsavel = str(user.get("email") or body.get("responsavel") or "coordenacao_war_room")
+    motivo_registado = f"{motivo} · por {responsavel}"[:500]
 
     with request.app.state.db_pool.connection() as connection:
         with connection.transaction():
+            connection.execute(
+                "SELECT set_config('app.current_campanha_id', %s, true)",
+                (str(user["campaign_id"]),),
+            )
             rows = connection.execute(
                 """
                 UPDATE visitas_terreno
@@ -290,7 +304,7 @@ def invalidate_visit_batch(
                 WHERE id = ANY(%s::uuid[])
                 RETURNING id
                 """,
-                (motivo, [str(u) for u in uuids]),
+                (motivo_registado, [str(u) for u in uuids]),
             ).fetchall()
 
     return {
@@ -307,13 +321,11 @@ def admin_ping(user: Annotated[dict, Depends(require_roles("ADMIN"))]):
     return {"status": "AUTHORIZED", "perfil": user["perfil"]}
 
 
-STORAGE_ROOT = Path(__file__).resolve().parents[3] / "data" / "storage"
-
-
 @router.post("/evidencias/presigned-upload")
 def request_presigned_upload(
     payload: PresignedUploadRequest,
     user: Annotated[dict, Depends(field_user)],
+    settings: Annotated[Settings, Depends(get_settings)],
 ):
     """Gera um ticket de upload direto desacoplado do banco de dados (S3/R2 ou local de objetos)."""
     campaign_id = payload.campanha_id or UUID(user["campaign_id"])
@@ -325,8 +337,8 @@ def request_presigned_upload(
     nome_sanitizado = "".join(c for c in payload.nome_arquivo if c.isalnum() or c in "._-")
     storage_key = f"{subpasta}/{campaign_id}/{file_id}_{nome_sanitizado}"
 
-    # Retorna o link de upload direto e URL pública de visualização
-    upload_url = f"/api/evidencias/storage/{storage_key}"
+    expires, signature = sign_upload_ticket(settings.jwt_secret_key, storage_key)
+    upload_url = f"/api/evidencias/storage/{storage_key}?expires={expires}&signature={signature}"
     public_url = f"/api/evidencias/storage/{storage_key}"
 
     return {
@@ -337,7 +349,7 @@ def request_presigned_upload(
         "public_url": public_url,
         "mime_type": payload.mime_type,
         "sha256_esperado": payload.sha256_esperado,
-        "expira_em_segundos": 900,
+        "expira_em_segundos": TICKET_TTL_SECONDS,
         "instrucao": "Envie o binário da imagem via método PUT diretamente para a upload_url antes de submeter a ata.",
     }
 
@@ -346,16 +358,21 @@ def request_presigned_upload(
 async def upload_binary_storage(
     file_key: str,
     request: Request,
+    settings: Annotated[Settings, Depends(get_settings)],
+    expires: int = Query(...),
+    signature: str = Query(...),
 ):
-    """Recebe o binário da imagem diretamente e persiste no storage desacoplado."""
-    if ".." in file_key or file_key.startswith("/"):
-        raise HTTPException(status_code=400, detail="Caminho de arquivo inválido.")
-
-    destino = STORAGE_ROOT / file_key
+    """Recebe o binário só com ticket assinado e válido, e persiste no storage desacoplado."""
+    verify_upload_ticket(settings.jwt_secret_key, file_key, expires, signature)
+    destino = resolve_storage_path(file_key)
+    if destino.exists():
+        raise HTTPException(status_code=409, detail="Evidência já enviada; os ficheiros são imutáveis.")
     destino.parent.mkdir(parents=True, exist_ok=True)
 
     content = await request.body()
-    if len(content) > 5 * 1024 * 1024:
+    if not content:
+        raise HTTPException(status_code=400, detail="Corpo vazio.")
+    if len(content) > MAX_UPLOAD_BYTES:
         raise HTTPException(status_code=413, detail="O arquivo excede o limite máximo de 5 MB.")
 
     digest = hashlib.sha256(content).hexdigest()
@@ -371,12 +388,14 @@ async def upload_binary_storage(
 
 
 @router.get("/evidencias/storage/{file_key:path}")
-def serve_binary_storage(file_key: str):
-    """Serve a evidência ou fotografia armazenada."""
-    if ".." in file_key or file_key.startswith("/"):
-        raise HTTPException(status_code=400, detail="Caminho inválido.")
-
-    destino = STORAGE_ROOT / file_key
+def serve_binary_storage(
+    file_key: str,
+    user: Annotated[dict, Depends(require_roles("ADMIN", "ANALISTA", "COORDENADOR", "BRIGADISTA"))],
+):
+    """Serve a evidência só à campanha dona do ficheiro."""
+    destino = resolve_storage_path(file_key)
+    if campaign_of_key(file_key) != user["campaign_id"]:
+        raise HTTPException(status_code=403, detail="A evidência pertence a outra campanha.")
     if not destino.is_file():
         raise HTTPException(status_code=404, detail="Arquivo de evidência não encontrado.")
 

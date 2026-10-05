@@ -1,16 +1,15 @@
 """Router de planos comerciais, SKUs e pedidos de proposta (FastAPI)."""
 
 from datetime import UTC, datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 from uuid import uuid4
 
-from fastapi import APIRouter, Body, Header, HTTPException, Query, Request
+from fastapi import APIRouter, Body, HTTPException, Query
 
 from war_room.planos_comerciais import (
     MUNICIPIOS_VENDAVEIS,
     PLANOS,
     calcular_orcamento,
-    formatar_aoa,
     nomes_no_ambito,
     obter_plano,
 )
@@ -18,12 +17,12 @@ from war_room.planos_comerciais import (
 router = APIRouter(prefix="/api", tags=["planos-comerciais"])
 
 # Registro volátil / auditoria de pedidos de proposta na sessão da API
-_pedidos_proposta: List[Dict[str, Any]] = []
+_pedidos_proposta: list[dict[str, Any]] = []
 
 
 def resolver_plano_request(
-    x_plano_campanha: Optional[str] = None,
-    plano: Optional[str] = None,
+    x_plano_campanha: str | None = None,
+    plano: str | None = None,
 ) -> str:
     codigo = (x_plano_campanha or plano or "NACIONAL").upper().strip()
     return codigo if codigo in PLANOS else "NACIONAL"
@@ -75,7 +74,7 @@ def obter_detalhes_plano(codigo: str):
 
 
 @router.post("/planos/orcamento")
-def orcamento_plano(body: Dict[str, Any] = Body(...)):
+def orcamento_plano(body: dict[str, Any] = Body(...)):
     plano_codigo = body.get("plano", "MUNICIPAL")
     territorio = body.get("territorio")
     brigadistas = body.get("brigadistas")
@@ -88,7 +87,7 @@ def orcamento_plano(body: Dict[str, Any] = Body(...)):
 @router.get("/campanha/entitlements")
 def campaign_entitlements(
     plano: str = Query(default="NACIONAL"),
-    territorio: Optional[str] = Query(default=None),
+    territorio: str | None = Query(default=None),
 ):
     ambito = nomes_no_ambito(plano, territorio)
     if not ambito.get("ok"):
@@ -110,7 +109,7 @@ def campaign_entitlements(
 
 
 @router.post("/propostas", status_code=201)
-def submit_proposal_request(body: Dict[str, Any] = Body(...)):
+def submit_proposal_request(body: dict[str, Any] = Body(...)):
     organizacao = str(body.get("organizacao", "")).strip()
     contacto = str(body.get("contacto", "")).strip()
     plano_codigo = str(body.get("plano", "")).strip().upper()
