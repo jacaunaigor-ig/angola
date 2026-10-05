@@ -4,10 +4,11 @@ import MapaTerritorio from "./Mapa.jsx";
 import { classificar, fmtInt, fmtPct, priorizar, rotuloZona, serieParaGrafico } from "./territorio.js";
 
 const ABAS = [
-  ["comando", "Comando"],
-  ["planos", "Planos"],
-  ["discurso", "Discursos"],
-  ["diad", "Dia D"],
+  ["comando", "Comando & Prioridade"],
+  ["hondt", "Simulador de Hondt (Deputados)"],
+  ["planos", "Planos & Contratação"],
+  ["discurso", "Discursos & Governança"],
+  ["diad", "Dia D & Apuramento"],
 ];
 
 function GraficoSerie({ pontos }) {
@@ -56,18 +57,29 @@ export default function App() {
   const [apuramento, setApuramento] = useState(null);
   const [avisoAuth, setAvisoAuth] = useState("");
 
+  // Estados específicos para Simulação de Hondt
+  const [hondtGeral, setHondtGeral] = useState(null);
+  const [provinciaHondt, setProvinciaHondt] = useState("Huambo");
+  const [choqueA, setChoqueA] = useState(0.0);
+  const [choqueB, setChoqueB] = useState(0.0);
+  const [simulacaoHondt, setSimulacaoHondt] = useState(null);
+  const [carregandoSimulacao, setCarregandoSimulacao] = useState(false);
+
   useEffect(() => {
     let cancelado = false;
     async function carregar() {
       setErro("");
       try {
-        const [hist, catalogo] = await Promise.all([
+        const [hist, catalogo, hondt] = await Promise.all([
           api("/api/eleicoes/serie-historica"),
           api("/api/planos"),
+          api("/api/eleicoes/hondt-provincias").catch(() => null),
         ]);
         if (cancelado) return;
         setSerie(hist);
         setPlanos(catalogo.planos || []);
+        if (hondt) setHondtGeral(hondt);
+
         try {
           const geo = await api(`/api/territorio/unidades?versao=${versao}&formato=geojson&plano=${plano}`, { plano });
           if (cancelado) return;
@@ -87,6 +99,34 @@ export default function App() {
     carregar();
     return () => { cancelado = true; };
   }, [plano, versao]);
+
+  // Efeito para rodar a simulação de Hondt sempre que a província ou choques mudarem
+  useEffect(() => {
+    let ativo = true;
+    async function simular() {
+      setCarregandoSimulacao(true);
+      try {
+        const resp = await api("/api/eleicoes/hondt-simulador", {
+          method: "POST",
+          body: {
+            provincia: provinciaHondt,
+            variacao_a_perc: Number(choqueA) || 0.0,
+            variacao_b_perc: Number(choqueB) || 0.0,
+            nome_partido_a: "MPLA",
+            nome_partido_b: "UNITA",
+            assentos: 5,
+          },
+        });
+        if (ativo) setSimulacaoHondt(resp);
+      } catch (err) {
+        console.warn("Falha no simulador Hondt:", err);
+      } finally {
+        if (ativo) setCarregandoSimulacao(false);
+      }
+    }
+    simular();
+    return () => { ativo = false; };
+  }, [provinciaHondt, choqueA, choqueB]);
 
   const linhas = useMemo(() => {
     const marcadas = unidades.map((u) => ({
@@ -200,7 +240,7 @@ export default function App() {
         <div>
           <p className="eyebrow">REPÚBLICA DE ANGOLA · PLEITO 2027</p>
           <h1>Sala de comando</h1>
-          <p className="sub">Cliente React sobre a API FastAPI. O Streamlit fica como protótipo.</p>
+          <p className="sub">War Room Eleitoral B2B • Método de Hondt • Custo Logístico de Alcance • React + FastAPI</p>
         </div>
         <div className="chips">
           <span className="chip">Plano {plano}</span>
@@ -208,13 +248,14 @@ export default function App() {
           <span className="chip">API /api</span>
         </div>
       </header>
-      {erro && <div className="banner">A API não respondeu: {erro}. Arranque o FastAPI em :8000.</div>}
+      {erro && <div className="banner">Aviso da API: {erro}</div>}
       <nav className="tabs">
         {ABAS.map(([id, nome]) => (
           <button key={id} className={aba === id ? "active" : ""} onClick={() => setAba(id)}>{nome}</button>
         ))}
       </nav>
 
+      {/* ABA 1: COMANDO & PRIORIZAÇÃO */}
       {aba === "comando" && (
         <main className="page">
           <section className="kpis">
@@ -224,9 +265,10 @@ export default function App() {
             <article className="kpi"><span>Em disputa</span><strong>{contagem.CAMPO_BATALHA || 0}</strong></article>
             <article className="kpi"><span>Oposição</span><strong>{contagem.OPOSICAO || 0}</strong></article>
           </section>
+
           <section className="card">
             <h2>Série nacional 2012–2022</h2>
-            <p className="muted">Azul MPLA, laranja UNITA, tracejado abstenção. Nível nacional oficial. O mapa usa a margem provincial de 2022.</p>
+            <p className="muted">Azul MPLA, laranja UNITA, tracejado abstenção. Nível nacional oficial CNE. O mapa usa a margem provincial de 2022.</p>
             <GraficoSerie pontos={pontos} />
             <table>
               <thead>
@@ -250,27 +292,29 @@ export default function App() {
             </table>
             <p className="muted">{(serie?.serie?.lacunas || []).join(" ")}</p>
           </section>
+
           <section className="row">
-            <label>Malha
+            <label>Malha Territorial
               <select value={versao} onChange={(e) => setVersao(e.target.value)}>
-                <option value="DPA_2016_18P">DPA 2016 · 18 províncias</option>
-                <option value="DPA_2024_21P">DPA 2024 · 21 províncias</option>
+                <option value="DPA_2016_18P">DPA 2016 · 18 províncias (Base CNE 2022)</option>
+                <option value="DPA_2024_21P">DPA 2024 · 21 províncias (Planeamento 2027)</option>
               </select>
             </label>
-            <label>Plano
+            <label>Plano Comercial
               <select value={plano} onChange={(e) => setPlano(e.target.value)}>
-                <option value="NACIONAL">Nacional</option>
-                <option value="PROVINCIAL">Provincial</option>
-                <option value="MUNICIPAL">Municipal</option>
+                <option value="NACIONAL">Nacional (21 Províncias)</option>
+                <option value="PROVINCIAL">Provincial (1 Província)</option>
+                <option value="MUNICIPAL">Municipal (1 Município)</option>
               </select>
             </label>
-            <label>Bastião ≥
+            <label>Limiar Bastião (Margem ≥ %)
               <input type="number" value={bastiao} onChange={(e) => setBastiao(Number(e.target.value))} />
             </label>
-            <label>Oposição ≤
+            <label>Limiar Oposição (Margem ≤ %)
               <input type="number" value={oposicao} onChange={(e) => setOposicao(Number(e.target.value))} />
             </label>
           </section>
+
           <section className="grid-2">
             <div className="card">
               <MapaTerritorio
@@ -283,22 +327,65 @@ export default function App() {
               {foco && (
                 <>
                   <p className={`zona ${foco.zonamento_activo || foco.zonamento}`}>{rotuloZona(foco.zonamento_activo || foco.zonamento)}</p>
-                  <p>Margem 2022: {fmtPct(foco.margem_apurada_perc)}</p>
-                  <p>Eleitores: {fmtInt(foco.eleitores_cne)}</p>
-                  <p>Abstenção: {fmtPct(foco.abstencao_perc)}</p>
-                  <p>Jovens: {fmtPct(foco.juventude_perc)}</p>
-                  <p>Prioridade: {foco.score ?? "—"} / 100</p>
-                  <p className="muted">O score pondera disputa, volume, abstenção e juventude. Não inclui custo de alcance.</p>
+                  <p><strong>Margem 2022:</strong> {fmtPct(foco.margem_apurada_perc)}</p>
+                  <p><strong>Eleitores Aptos:</strong> {fmtInt(foco.eleitores_cne)}</p>
+                  <p><strong>Abstenção / Jovens:</strong> {fmtPct(foco.abstencao_perc)} / {fmtPct(foco.juventude_perc)}</p>
+                  
+                  {foco.custo_logistico_fator && (
+                    <div style={{ margin: "10px 0" }}>
+                      <strong>Custo Logístico de Alcance:</strong> {foco.custo_logistico_fator}x 
+                      <span className={`badge badge-${foco.custo_logistico_dificuldade?.toLowerCase() || 'media'}`} style={{ marginLeft: 6 }}>
+                        Acesso {foco.custo_logistico_dificuldade}
+                      </span>
+                      <br />
+                      <span className="muted">{foco.custo_logistico_modal}: {foco.custo_logistico_descricao}</span>
+                    </div>
+                  )}
+
+                  {foco.hondt_deputados && Object.keys(foco.hondt_deputados).length > 0 && (
+                    <div style={{ margin: "10px 0" }}>
+                      <strong>Distribuição de Deputados (Círculo de 5):</strong>
+                      <div className="seats-display">
+                        {Array.from({ length: foco.hondt_deputados["Nosso Partido"] || foco.hondt_deputados["MPLA"] || 0 }).map((_, i) => (
+                          <span key={`a-${i}`} className="seat-circle seat-a" title="Partido A (MPLA)">A</span>
+                        ))}
+                        {Array.from({ length: foco.hondt_deputados["Oposição"] || foco.hondt_deputados["UNITA"] || 0 }).map((_, i) => (
+                          <span key={`b-${i}`} className="seat-circle seat-b" title="Partido B (UNITA)">B</span>
+                        ))}
+                      </div>
+                      {foco.hondt_votos_proxima_cadeira > 0 && (
+                        <p className="muted">
+                          Faltam <strong>{fmtInt(foco.hondt_votos_proxima_cadeira)}</strong> votos para virar a próxima cadeira.
+                          <span className={`badge badge-${foco.hondt_volatilidade_cadeira?.toLowerCase() || 'media'}`} style={{ marginLeft: 6 }}>
+                            Volatilidade {foco.hondt_volatilidade_cadeira}
+                          </span>
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  <p><strong>Score de Prioridade Integrado:</strong> <span style={{ fontSize: "1.2em", color: "var(--accent)" }}>{foco.score ?? "—"} / 100</span></p>
+                  <p className="muted" style={{ fontSize: "12px" }}>
+                    {foco.formula_prioridade || "Fórmula: (Potencial de Voto × Competitividade Hondt) ÷ Custo Logístico de Alcance"}
+                  </p>
                 </>
               )}
               <table>
-                <thead><tr><th>Território</th><th>Zona</th><th>Score</th></tr></thead>
+                <thead>
+                  <tr><th>Território</th><th>Zona</th><th>Deputados</th><th>Custo Log.</th><th>Score</th></tr>
+                </thead>
                 <tbody>
-                  {linhas.slice(0, 8).map((row) => (
-                    <tr key={row.nome}>
+                  {linhas.slice(0, 10).map((row) => (
+                    <tr key={row.nome} style={{ cursor: "pointer" }} onClick={() => setSelecionado(row)}>
                       <td>{row.nome}</td>
                       <td className={`zona ${row.zonamento_activo}`}>{rotuloZona(row.zonamento_activo)}</td>
-                      <td>{row.score}</td>
+                      <td>
+                        {row.hondt_deputados
+                          ? `${row.hondt_deputados["Nosso Partido"] || row.hondt_deputados["MPLA"] || 0} - ${row.hondt_deputados["Oposição"] || row.hondt_deputados["UNITA"] || 0}`
+                          : "—"}
+                      </td>
+                      <td>{row.custo_logistico_fator ? `${row.custo_logistico_fator}x` : "1.0x"}</td>
+                      <td><strong>{row.score}</strong></td>
                     </tr>
                   ))}
                 </tbody>
@@ -308,6 +395,110 @@ export default function App() {
         </main>
       )}
 
+      {/* ABA 2: SIMULADOR DE HONDT */}
+      {aba === "hondt" && (
+        <main className="page">
+          <section className="card">
+            <h2>Simulador do Método de Hondt (Círculos Provinciais de Angola)</h2>
+            <p className="muted">
+              Conforme a Lei Orgânica sobre as Eleições Gerais de Angola, cada província elege <strong>5 deputados</strong> pelo Método de Hondt.
+              A eleição parlamentar e presidencial é decidida na <em>disputa da última cadeira</em> de cada círculo.
+            </p>
+            <div className="row" style={{ marginTop: 12 }}>
+              <label>Selecione o Círculo Provincial
+                <select value={provinciaHondt} onChange={(e) => setProvinciaHondt(e.target.value)}>
+                  {["Luanda", "Huambo", "Benguela", "Huíla", "Cuanza Sul", "Bié", "Uíge", "Malanje", "Zaire", "Cunene", "Cabinda", "Lunda Norte", "Lunda Sul", "Moxico", "Cuando Cubango", "Namibe", "Bengo", "Cuanza Norte"].map((p) => (
+                    <option key={p} value={p}>{p}</option>
+                  ))}
+                </select>
+              </label>
+              <label>Choque Votos Partido A (MPLA): {choqueA > 0 ? `+${choqueA}%` : `${choqueA}%`}
+                <input type="range" min="-30" max="30" step="1" value={choqueA} onChange={(e) => setChoqueA(Number(e.target.value))} />
+              </label>
+              <label>Choque Votos Partido B (UNITA): {choqueB > 0 ? `+${choqueB}%` : `${choqueB}%`}
+                <input type="range" min="-30" max="30" step="1" value={choqueB} onChange={(e) => setChoqueB(Number(e.target.value))} />
+              </label>
+              <button className="ghost" type="button" onClick={() => { setChoqueA(0); setChoqueB(0); }}>Redefinir Choques</button>
+            </div>
+          </section>
+
+          {simulacaoHondt && simulacaoHondt.resultado && (
+            <section className="grid-2">
+              <div className="card">
+                <h3>Projeção de Mandatos: {provinciaHondt} (5 Assentos)</h3>
+                <div className="seats-display" style={{ margin: "16px 0" }}>
+                  {Array.from({ length: simulacaoHondt.resultado.assentos?.MPLA || 0 }).map((_, i) => (
+                    <span key={`sim-a-${i}`} className="seat-circle seat-a" style={{ width: 36, height: 36, fontSize: 14 }}>MPLA</span>
+                  ))}
+                  {Array.from({ length: simulacaoHondt.resultado.assentos?.UNITA || 0 }).map((_, i) => (
+                    <span key={`sim-b-${i}`} className="seat-circle seat-b" style={{ width: 36, height: 36, fontSize: 14 }}>UNITA</span>
+                  ))}
+                </div>
+                <p><strong>Resultado:</strong> {simulacaoHondt.resultado.resumo_verbal}</p>
+                <p><strong>Quociente de Corte (Última Cadeira):</strong> <code>{fmtInt(simulacaoHondt.resultado.quociente_corte)}</code> (Levada por: {simulacaoHondt.resultado.ultimo_eleito})</p>
+                
+                <h4 style={{ marginTop: 16 }}>Análise da Disputa da Próxima Cadeira:</h4>
+                {Object.entries(simulacaoHondt.resultado.disputa_proxima_cadeira || {}).map(([partido, info]) => (
+                  <div key={partido} style={{ padding: "8px 0", borderBottom: "1px solid var(--line)" }}>
+                    <strong>{partido}:</strong> {info.assentos} assentos.
+                    {info.votos_para_proximo_assento > 0 ? (
+                      <span> Precisa de <strong>+{fmtInt(info.votos_para_proximo_assento)}</strong> votos ({info.esforco_perc_validos}% dos válidos) para ganhar +1 deputado. 
+                        <span className={`badge badge-${info.volatilidade_cadeira?.toLowerCase() || 'media'}`} style={{ marginLeft: 6 }}>
+                          Volatilidade {info.volatilidade_cadeira}
+                        </span>
+                      </span>
+                    ) : (
+                      <span> Já conquistou a totalidade das vagas possíveis no cenário.</span>
+                    )}
+                    {info.folga_votos_manter_ultimo > 0 && (
+                      <span className="muted" style={{ display: "block", fontSize: 12 }}>
+                        Folga de segurança: pode perder até {fmtInt(info.folga_votos_manter_ultimo)} votos antes de ceder 1 deputado ao adversário.
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              <div className="card">
+                <h3>Panorama Nacional dos 18 Círculos Provinciais (CNE 2022)</h3>
+                <p className="muted">90 deputados provinciais distribuídos pelos 18 círculos.</p>
+                {hondtGeral && (
+                  <div className="kpis" style={{ gridTemplateColumns: "1fr 1fr", marginBottom: 12 }}>
+                    <article className="kpi"><span>MPLA (Provincial)</span><strong>{hondtGeral.total_deputados_provinciais?.partido_a}</strong></article>
+                    <article className="kpi"><span>UNITA (Provincial)</span><strong>{hondtGeral.total_deputados_provinciais?.partido_b}</strong></article>
+                  </div>
+                )}
+                <table>
+                  <thead>
+                    <tr><th>Círculo</th><th>MPLA</th><th>UNITA</th><th>Corte (Q)</th><th>Virar Cadeira</th></tr>
+                  </thead>
+                  <tbody>
+                    {(hondtGeral?.provincias || []).map((p) => {
+                      const disp = p.disputa_proxima_cadeira?.MPLA || {};
+                      return (
+                        <tr key={p.provincia} style={{ cursor: "pointer" }} onClick={() => setProvinciaHondt(p.provincia)}>
+                          <td><strong>{p.provincia}</strong></td>
+                          <td><span className="seat-circle seat-a" style={{ display: "inline-flex", width: 20, height: 20, fontSize: 11 }}>{p.assentos?.MPLA || 0}</span></td>
+                          <td><span className="seat-circle seat-b" style={{ display: "inline-flex", width: 20, height: 20, fontSize: 11 }}>{p.assentos?.UNITA || 0}</span></td>
+                          <td>{fmtInt(p.quociente_corte)}</td>
+                          <td>
+                            {disp.votos_para_proximo_assento ? `+${fmtInt(disp.votos_para_proximo_assento)}` : "—"}
+                            <span className={`badge badge-${disp.volatilidade_cadeira?.toLowerCase() || 'baixa'}`} style={{ marginLeft: 4 }}>
+                              {disp.volatilidade_cadeira}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )}
+        </main>
+      )}
+
+      {/* ABA 3: PLANOS */}
       {aba === "planos" && (
         <main className="page">
           <section className="plans">
@@ -322,7 +513,7 @@ export default function App() {
             ))}
           </section>
           <form className="card" onSubmit={pedirProposta}>
-            <h2>Proposta</h2>
+            <h2>Proposta Formal</h2>
             <div className="row">
               <label>Organização<input required value={proposta.organizacao} onChange={(e) => setProposta({ ...proposta, organizacao: e.target.value })} /></label>
               <label>Contacto<input required value={proposta.contacto} onChange={(e) => setProposta({ ...proposta, contacto: e.target.value })} /></label>
@@ -337,11 +528,12 @@ export default function App() {
         </main>
       )}
 
+      {/* ABA 4: DISCURSOS */}
       {aba === "discurso" && (
         <main className="page">
           <form className="card" onSubmit={entrar}>
-            <h2>Sessão</h2>
-            <p className="muted">Discursos e Dia D passam pelo JWT da campanha. Cartografia e série histórica não exigem sessão.</p>
+            <h2>Sessão do War Room</h2>
+            <p className="muted">Discursos e Dia D passam pelo JWT da campanha. Cartografia, Hondt e série histórica não exigem sessão.</p>
             <div className="row">
               <label>Campanha<input value={login.campanha_id} onChange={(e) => setLogin({ ...login, campanha_id: e.target.value })} placeholder="UUID" /></label>
               <label>E-mail<input value={login.email} onChange={(e) => setLogin({ ...login, email: e.target.value })} /></label>
@@ -353,7 +545,7 @@ export default function App() {
             </div>
           </form>
           <form className="card" onSubmit={gerarDiscurso}>
-            <h2>Rascunho por município</h2>
+            <h2>Rascunho de Discurso por Município</h2>
             <div className="row">
               <label>Município<input value={municipio} onChange={(e) => setMunicipio(e.target.value)} /></label>
               <button className="primary" type="submit">Pedir rascunho à API</button>
@@ -379,6 +571,7 @@ export default function App() {
         </main>
       )}
 
+      {/* ABA 5: DIA D */}
       {aba === "diad" && (
         <main className="page">
           <section className="card">
