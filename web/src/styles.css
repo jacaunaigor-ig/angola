@@ -136,9 +136,9 @@ tbody tr.activa { background: rgba(214, 178, 94, 0.09); }
 .legenda-zonas, .legend { display: flex; gap: 14px; color: var(--muted); font-size: 12px; flex-wrap: wrap; }
 .legenda-zonas span, .legend span { display: inline-flex; align-items: center; gap: 6px; }
 .ponto { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
-.ponto.bastiao { background: #10b981; }
-.ponto.batalha { background: #f97316; }
-.ponto.oposicao { background: #ef4444; }
+.ponto.bastiao { background: #3dbe8b; }
+.ponto.batalha { background: #e08a3c; }
+.ponto.oposicao { background: #e15b5b; }
 .swatch { width: 14px; height: 3px; display: inline-block; border-radius: 2px; }
 .swatch.mpla { background: var(--mpla); }
 .swatch.unita { background: var(--unita); }
@@ -186,7 +186,26 @@ tbody tr.activa { background: rgba(214, 178, 94, 0.09); }
 
 /* Mapa e detalhe */
 .map-card { padding: 12px; }
-.mapa { height: 520px; width: 100%; border-radius: 8px; background: #0b1016; }
+.mapa { height: 560px; width: 100%; border-radius: 8px; background: #0b1016; }
+.mapa-compacto { height: 380px; }
+.mapa-toolbar { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+.mapa-toolbar .ghost { font-size: 12px; padding: 4px 10px; min-width: 0; }
+.mapa-toolbar .ghost.activa { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.tabela-filtro { margin: 8px 0; }
+.leaflet-container { background: #0b1016; font: inherit; }
+.leaflet-tooltip.mapa-tip {
+  background: #161c25; color: #f3f5f7; border: 1px solid #2c3644;
+  border-radius: 8px; box-shadow: none; font-size: 12px;
+}
+.leaflet-control-attribution {
+  background: rgba(12, 16, 22, 0.88) !important;
+  color: var(--muted);
+}
+.mapa-rotulo { background: none !important; border: 0 !important; }
+.mapa-rotulo span {
+  color: #f4f1e8; font-size: 10px; font-weight: 600; letter-spacing: 0.02em;
+  text-shadow: 0 1px 2px #0b1016, 0 0 8px #0b1016; white-space: nowrap;
+}
 .lateral { display: grid; gap: 4px; }
 .detalhe-topo { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
 .factos { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; margin: 12px 0; }

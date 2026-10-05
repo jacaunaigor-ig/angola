@@ -74,7 +74,7 @@ export default function App() {
           {aba === "comando" && (
             <Comando dados={dados} territorio={territorio} plano={plano} setPlano={setPlano} versao={versao} setVersao={setVersao} />
           )}
-          {aba === "hondt" && <Hondt hondtGeral={dados.hondtGeral} />}
+          {aba === "hondt" && <Hondt hondtGeral={dados.hondtGeral} contorno={dados.contorno} />}
           {aba === "planos" && <Planos planos={dados.planos} plano={plano} setPlano={setPlano} />}
           {aba === "discurso" && <Discursos plano={plano} sessao={sessao} />}
           {aba === "diad" && <DiaD plano={plano} sessao={sessao} />}

@@ -1,6 +1,19 @@
 import { useEffect, useState } from "react";
 import { api } from "../api.js";
 
+async function comRetry(tarefa, tentativas = 5) {
+  let ultimo;
+  for (let i = 0; i < tentativas; i += 1) {
+    try {
+      return await tarefa();
+    } catch (exc) {
+      ultimo = exc;
+      await new Promise((ok) => setTimeout(ok, 350 * (i + 1)));
+    }
+  }
+  throw ultimo;
+}
+
 /** Dados que não dependem do plano comercial: série histórica, catálogo, Hondt e contorno. */
 export function useDadosGlobais() {
   const [estado, setEstado] = useState({
@@ -16,12 +29,14 @@ export function useDadosGlobais() {
   useEffect(() => {
     let cancelado = false;
     setEstado((atual) => ({ ...atual, carregando: true, erro: "" }));
-    Promise.all([
-      api("/api/eleicoes/serie-historica"),
-      api("/api/planos"),
-      api("/api/eleicoes/hondt-provincias").catch(() => null),
-      api("/api/territorio/contorno-nacional").catch(() => null),
-    ])
+    comRetry(() =>
+      Promise.all([
+        api("/api/eleicoes/serie-historica"),
+        api("/api/planos"),
+        api("/api/eleicoes/hondt-provincias").catch(() => null),
+        api("/api/territorio/contorno-nacional").catch(() => null),
+      ]),
+    )
       .then(([serie, catalogo, hondt, limite]) => {
         if (cancelado) return;
         setEstado({
@@ -52,7 +67,7 @@ export function useTerritorio(plano, versao) {
   useEffect(() => {
     let cancelado = false;
     setEstado((atual) => ({ ...atual, carregando: true, erro: "" }));
-    api(`/api/territorio/unidades?versao=${versao}&formato=geojson&plano=${plano}`, { plano })
+    comRetry(() => api(`/api/territorio/unidades?versao=${versao}&formato=geojson&plano=${plano}`, { plano }))
       .then((geo) => {
         if (!cancelado) setEstado({ carregando: false, erro: "", features: geo?.features || [] });
       })

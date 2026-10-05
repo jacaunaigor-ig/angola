@@ -451,3 +451,34 @@ def test_contorno_nacional_e_arquivos_geo_angola():
     res_geo = client.get("/api/territorio/geo-angola?arquivo=simplificado")
     assert res_geo.status_code == 200
     assert len(res_geo.json()["features"]) == 18
+
+
+def test_unidades_ancoram_geometria_geo_angola_sem_inventar_dpa2024():
+    from fastapi.testclient import TestClient
+
+    app = create_app(
+        Settings(
+            app_env="test",
+            jwt_secret_key="secret-key-at-least-32-chars-long!",
+            cors_allowed_origins="http://localhost:3000",
+        )
+    )
+    client = TestClient(app)
+    dpa2016 = client.get("/api/territorio/unidades?versao=DPA_2016_18P&formato=geojson")
+    assert dpa2016.status_code == 200
+    luanda = next(f for f in dpa2016.json()["features"] if f["properties"]["nome"] == "Luanda")
+    assert luanda["geometry"]["type"] in {"Polygon", "MultiPolygon"}
+    assert luanda["properties"]["geometria_fonte"] == "geo_angola"
+    assert luanda["properties"]["proveniencia_geometria"] == "OFICIAL"
+    assert luanda["properties"]["proveniencia_dados"] == "OFICIAL"
+
+    dpa2024 = client.get("/api/territorio/unidades?versao=DPA_2024_21P&formato=geojson")
+    assert dpa2024.status_code == 200
+    assert len(dpa2024.json()["features"]) == 21
+    icolo = next(f for f in dpa2024.json()["features"] if f["properties"]["nome"] == "Icolo e Bengo")
+    assert icolo["geometry"]["type"] == "Point"
+    assert icolo["properties"]["proveniencia_geometria"] == "SIMULADO"
+    assert icolo["properties"]["proveniencia_dados"] == "SIMULADO"
+    huambo = next(f for f in dpa2024.json()["features"] if f["properties"]["nome"] == "Huambo")
+    assert huambo["geometry"]["type"] in {"Polygon", "MultiPolygon"}
+    assert huambo["properties"]["geometria_fonte"] == "geo_angola"

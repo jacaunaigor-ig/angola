@@ -5,6 +5,12 @@ import MapaTerritorio from "../Mapa.jsx";
 import { classificar, fmtInt, fmtPct, priorizar, rotuloZona, serieParaGrafico } from "../territorio.js";
 
 const PESOS_PADRAO = { disputa: 4, volume: 3, abstencao: 3, jovens: 2 };
+const CAMADAS = [
+  ["zona", "Zonamento"],
+  ["margem", "Margem"],
+  ["score", "Prioridade"],
+  ["custo", "Logística"],
+];
 
 function deputados(hondt) {
   if (!hondt) return null;
@@ -15,12 +21,16 @@ function PainelTerritorio({ foco }) {
   if (!foco) return <p className="vazio">Escolha um território no mapa ou na tabela.</p>;
   const zona = foco.zonamento_activo || foco.zonamento;
   const cadeiras = deputados(foco.hondt_deputados);
+  const geomSimulada = foco.proveniencia_geometria === "SIMULADO";
   return (
     <div className="detalhe">
       <div className="detalhe-topo">
         <h2>{foco.nome}</h2>
         <span className={`zona ${zona}`}>{rotuloZona(zona)}</span>
       </div>
+      {geomSimulada && (
+        <p className="muted">Traçado <Selo tipo="SIMULADO" />: a DPA 2024 ainda não tem fronteira oficial neste mapa. O ponto marca o centróide estimado.</p>
+      )}
       <dl className="factos">
         <div><dt>Margem 2022</dt><dd>{fmtPct(foco.margem_apurada_perc)}</dd></div>
         <div><dt>Eleitores aptos</dt><dd>{fmtInt(foco.eleitores_cne)}</dd></div>
@@ -42,7 +52,7 @@ function PainelTerritorio({ foco }) {
 
       {cadeiras && (
         <div className="bloco">
-          <p><strong>Deputados do círculo</strong> <Selo tipo="OFICIAL" /></p>
+          <p><strong>Deputados do círculo</strong> <Selo tipo={foco.proveniencia_dados || "OFICIAL"} /></p>
           <div className="seats-display" aria-label={`${cadeiras[0]} para o partido A, ${cadeiras[1]} para o partido B`}>
             {Array.from({ length: cadeiras[0] }, (_, i) => <span key={`a${i}`} className="seat-circle seat-a">A</span>)}
             {Array.from({ length: cadeiras[1] }, (_, i) => <span key={`b${i}`} className="seat-circle seat-b">B</span>)}
@@ -73,6 +83,11 @@ export default function Comando({ dados, territorio, plano, setPlano, versao, se
   const [bastiao, setBastiao] = useState(15);
   const [oposicao, setOposicao] = useState(-15);
   const [selecionado, setSelecionado] = useState(null);
+  const [camada, setCamada] = useState("zona");
+  const [filtroZona, setFiltroZona] = useState("");
+  const [busca, setBusca] = useState("");
+  const [nomes, setNomes] = useState(true);
+  const [fundo, setFundo] = useState("ruas");
 
   const linhas = useMemo(() => {
     const marcadas = territorio.features.map((f) => ({
@@ -83,21 +98,40 @@ export default function Comando({ dados, territorio, plano, setPlano, versao, se
   }, [territorio.features, bastiao, oposicao]);
 
   const featuresActivas = useMemo(() => {
-    const porNome = new Map(linhas.map((l) => [l.nome, l.zonamento_activo]));
-    return territorio.features.map((f) => ({
-      ...f,
-      properties: {
-        ...f.properties,
-        zonamento_activo: porNome.get(f.properties?.nome) || f.properties?.zonamento,
-      },
-    }));
+    const porNome = new Map(linhas.map((l) => [l.nome, l]));
+    return territorio.features.map((f) => {
+      const linha = porNome.get(f.properties?.nome);
+      return {
+        ...f,
+        properties: {
+          ...f.properties,
+          zonamento_activo: linha?.zonamento_activo || f.properties?.zonamento,
+          score: linha?.score,
+        },
+      };
+    });
   }, [territorio.features, linhas]);
+
+  const visiveis = useMemo(() => {
+    const q = busca.trim().toLowerCase();
+    return linhas.filter((row) => {
+      if (filtroZona && row.zonamento_activo !== filtroZona) return false;
+      if (q && !(row.nome || "").toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [linhas, filtroZona, busca]);
 
   const pontos = serieParaGrafico(dados.serie?.serie?.eleicoes);
   const soma = (campo) => linhas.reduce((s, r) => s + (Number(r[campo]) || 0), 0);
   const contagem = linhas.reduce((acc, r) => ({ ...acc, [r.zonamento_activo]: (acc[r.zonamento_activo] || 0) + 1 }), {});
-  const foco = selecionado ? linhas.find((l) => l.nome === selecionado.nome) || selecionado : linhas[0];
+  const foco = selecionado ? linhas.find((l) => l.nome === selecionado.nome) || selecionado : visiveis[0] || linhas[0];
   const aCarregar = territorio.carregando;
+  const notaCamada = {
+    zona: "Zonamento pela margem 2022, com limiares ajustáveis.",
+    margem: "Verde = vantagem do partido A; vermelho = vantagem do oponente.",
+    score: "Prioridade integrada (potencial × Hondt ÷ logística).",
+    custo: "Dificuldade de alcance logístico do território.",
+  }[camada];
 
   return (
     <main className="page">
@@ -113,7 +147,7 @@ export default function Comando({ dados, territorio, plano, setPlano, versao, se
 
       <section className="controlos" aria-label="Parâmetros do zonamento">
         <label>Malha territorial
-          <select value={versao} onChange={(e) => setVersao(e.target.value)}>
+          <select value={versao} onChange={(e) => { setVersao(e.target.value); setSelecionado(null); }}>
             <option value="DPA_2016_18P">DPA 2016 · 18 províncias (base CNE 2022)</option>
             <option value="DPA_2024_21P">DPA 2024 · 21 províncias (planeamento 2027)</option>
           </select>
@@ -137,7 +171,7 @@ export default function Comando({ dados, territorio, plano, setPlano, versao, se
         <Cartao
           className="map-card"
           titulo="Território"
-          nota="Margem = % partido − % oponente · malha territorial geo_angola"
+          nota={`${notaCamada} Leaflet + OpenStreetMap; pode afastar o zoom para ver RDC, Congo, Zâmbia e Namíbia.`}
           acao={
             <div className="legenda-zonas" aria-label="Legenda de zonas">
               <span><i className="ponto bastiao" /> Bastião</span>
@@ -146,22 +180,58 @@ export default function Comando({ dados, territorio, plano, setPlano, versao, se
             </div>
           }
         >
+          <div className="mapa-toolbar" role="toolbar" aria-label="Camadas do mapa">
+            {CAMADAS.map(([id, rotulo]) => (
+              <button key={id} type="button" className={camada === id ? "ghost activa" : "ghost"} onClick={() => setCamada(id)}>
+                {rotulo}
+              </button>
+            ))}
+            <button type="button" className={nomes ? "ghost activa" : "ghost"} onClick={() => setNomes((v) => !v)}>
+              Nomes
+            </button>
+            <button type="button" className={fundo === "ruas" ? "ghost activa" : "ghost"} onClick={() => setFundo("ruas")}>Ruas</button>
+            <button type="button" className={fundo === "satelite" ? "ghost activa" : "ghost"} onClick={() => setFundo("satelite")}>Satélite</button>
+            <button type="button" className={fundo === "nenhum" ? "ghost activa" : "ghost"} onClick={() => setFundo("nenhum")}>Só malha</button>
+            <button type="button" className="ghost" onClick={() => setSelecionado(null)}>Angola</button>
+          </div>
           {aCarregar ? (
             <div className="mapa skeleton" aria-busy="true" />
           ) : (
-            <MapaTerritorio features={featuresActivas} contorno={dados.contorno} onSelect={setSelecionado} />
+            <MapaTerritorio
+              features={featuresActivas}
+              contorno={dados.contorno}
+              onSelect={setSelecionado}
+              selecionado={selecionado?.nome}
+              camada={camada}
+              filtro={filtroZona}
+              mostrarNomes={nomes}
+              fundo={fundo}
+            />
           )}
         </Cartao>
 
         <Cartao className="lateral">
           <PainelTerritorio foco={foco} />
+          <div className="controlos tabela-filtro">
+            <label>Pesquisar
+              <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Huambo, Luanda…" />
+            </label>
+            <label>Filtrar zona
+              <select value={filtroZona} onChange={(e) => setFiltroZona(e.target.value)}>
+                <option value="">Todas</option>
+                <option value="BASTIAO">Bastião</option>
+                <option value="CAMPO_BATALHA">Disputa</option>
+                <option value="OPOSICAO">Oposição</option>
+              </select>
+            </label>
+          </div>
           <table>
-            <caption className="sr-only">Dez territórios com maior prioridade</caption>
+            <caption className="sr-only">Territórios ordenados por prioridade</caption>
             <thead>
               <tr><th>Território</th><th>Zona</th><th>Dep.</th><th>Custo</th><th>Score</th></tr>
             </thead>
             <tbody>
-              {linhas.slice(0, 10).map((row) => {
+              {visiveis.slice(0, 12).map((row) => {
                 const c = deputados(row.hondt_deputados);
                 return (
                   <tr

@@ -3,6 +3,7 @@ import json
 import logging
 import re
 from datetime import UTC, datetime
+from functools import lru_cache
 from pathlib import Path
 from typing import Annotated
 from uuid import UUID
@@ -62,6 +63,39 @@ def _read_json(path: Path, default=None):
         return default
     with path.open(encoding="utf-8") as source:
         return json.load(source)
+
+
+@lru_cache(maxsize=1)
+def _geometrias_geo_angola() -> dict:
+    dados = _read_json(GEO_ANGOLA / "geoBoundaries-AGO-ADM1_simplified.geojson") or {}
+    return {
+        (feat.get("properties") or {}).get("shapeName"): feat.get("geometry")
+        for feat in dados.get("features") or []
+        if (feat.get("properties") or {}).get("shapeName") and feat.get("geometry")
+    }
+
+
+def _ancorar_geometria(feature: dict) -> dict:
+    """Usa o traçado de geo_angola quando o nome coincide; não inventa fronteiras da DPA 2024."""
+    props = dict(feature.get("properties") or {})
+    nome = props.get("nome") or props.get("provincia")
+    real = _geometrias_geo_angola().get(nome)
+    if real:
+        props["geometria_fonte"] = "geo_angola"
+        props["proveniencia_geometria"] = "OFICIAL"
+        return {**feature, "geometry": real, "properties": props}
+    centro = props.get("centroide")
+    if isinstance(centro, list) and len(centro) >= 2:
+        props["geometria_fonte"] = "centroide_estimado"
+        props["proveniencia_geometria"] = "SIMULADO"
+        return {
+            **feature,
+            "geometry": {"type": "Point", "coordinates": [float(centro[0]), float(centro[1])]},
+            "properties": props,
+        }
+    props["geometria_fonte"] = "esquema"
+    props["proveniencia_geometria"] = "SIMULADO"
+    return {**feature, "properties": props}
 
 
 @router.get("/locais-proximos")
@@ -548,6 +582,7 @@ def territory_units(
     ine_by_code = {item.get("codigo_ine"): item for item in ine}
     features = []
     for feature in geojson["features"]:
+        feature = _ancorar_geometria(feature)
         props = feature.get("properties", {})
         cne_data = cne_by_code.get(props.get("codigo_dpa"), {})
         ine_data = ine_by_code.get(props.get("codigo_dpa"), {})
@@ -599,7 +634,7 @@ def territory_units(
             "hondt_votos_proxima_cadeira": votos_virar,
             "hondt_volatilidade_cadeira": volatilidade,
             "formula_prioridade": prio_info["formula_aplicada"],
-            "proveniencia_dados": "OFICIAL",
+            "proveniencia_dados": "OFICIAL" if cne_data else "SIMULADO",
         }
         features.append({**feature, "properties": feature_props})
 
