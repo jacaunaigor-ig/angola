@@ -1,107 +1,166 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Crypto from 'expo-crypto';
+import * as FileSystem from 'expo-file-system';
+import * as SecureStore from 'expo-secure-store';
 
 const STORAGE_KEYS = {
   QUEUE_VISITAS: '@gps_angola_queue_visitas',
   HISTORICO_VISITAS: '@gps_angola_historico_visitas',
   ASSEMBLEIAS_CACHE: '@gps_angola_assembleias_cache',
-  CONFIG_USUARIO: '@gps_angola_config_usuario',
 };
+const TOKEN_KEY = 'gps_angola_access_token';
+const IDENTITY_KEY = 'gps_angola_identity';
+const MAX_EVIDENCE_BYTES = 5 * 1024 * 1024;
 
-// Gerador simplificado de UUIDv4 compatível com ambientes offline
+let queueOperation = Promise.resolve();
+
+function serializeQueue(operation) {
+  const current = queueOperation.then(operation, operation);
+  queueOperation = current.then(() => undefined, () => undefined);
+  return current;
+}
+
+function parseStoredList(raw, key) {
+  if (!raw) return [];
+  try {
+    const value = JSON.parse(raw);
+    if (!Array.isArray(value)) throw new TypeError('Esperada uma lista.');
+    return value;
+  } catch (error) {
+    throw new Error(`Dados locais corrompidos em ${key}: ${error.message}`);
+  }
+}
+
 export function generateUUID() {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0;
-    const v = c === 'x' ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
+  return Crypto.randomUUID();
 }
 
 export const offlineStorage = {
-  /**
-   * Enfileira uma nova visita no armazenamento local do telemóvel
-   */
-  async enfileirarVisita(visita) {
+  async guardarToken(token) {
+    if (!token) throw new Error('Não é permitido guardar um token vazio.');
+    await SecureStore.setItemAsync(TOKEN_KEY, token);
+  },
+
+  async obterToken() {
+    return SecureStore.getItemAsync(TOKEN_KEY);
+  },
+
+  async guardarIdentidade(identity) {
+    await SecureStore.setItemAsync(IDENTITY_KEY, JSON.stringify(identity));
+  },
+
+  async obterIdentidade() {
+    const stored = await SecureStore.getItemAsync(IDENTITY_KEY);
+    if (!stored) return null;
     try {
-      const filaExistente = await this.obterFilaVisitas();
+      return JSON.parse(stored);
+    } catch (error) {
+      throw new Error(`Identidade local corrompida: ${error.message}`);
+    }
+  },
+
+  async removerToken() {
+    await SecureStore.deleteItemAsync(TOKEN_KEY);
+    await SecureStore.deleteItemAsync(IDENTITY_KEY);
+  },
+
+  async enfileirarVisita(visita) {
+    return serializeQueue(async () => {
+      const fila = await this.obterFilaVisitas();
       const novaVisita = {
         ...visita,
         id: visita.id || generateUUID(),
         registado_em: visita.registado_em || new Date().toISOString(),
+        evidencias: Array.isArray(visita.evidencias) ? visita.evidencias : [],
         sincronizado: false,
       };
-
-      filaExistente.push(novaVisita);
-      await AsyncStorage.setItem(STORAGE_KEYS.QUEUE_VISITAS, JSON.stringify(filaExistente));
+      if (fila.some((item) => item.id === novaVisita.id)) {
+        throw new Error(`Já existe uma visita local com o ID ${novaVisita.id}.`);
+      }
+      fila.push(novaVisita);
+      await AsyncStorage.setItem(STORAGE_KEYS.QUEUE_VISITAS, JSON.stringify(fila));
       return novaVisita;
-    } catch (error) {
-      console.error('[OfflineStorage] Erro ao enfileirar visita:', error);
-      throw error;
-    }
+    });
   },
 
-  /**
-   * Retorna a lista de visitas acumuladas offline e pendentes de envio
-   */
   async obterFilaVisitas() {
-    try {
-      const raw = await AsyncStorage.getItem(STORAGE_KEYS.QUEUE_VISITAS);
-      return raw ? JSON.parse(raw) : [];
-    } catch (error) {
-      console.error('[OfflineStorage] Erro ao carregar fila:', error);
-      return [];
-    }
+    const raw = await AsyncStorage.getItem(STORAGE_KEYS.QUEUE_VISITAS);
+    return parseStoredList(raw, STORAGE_KEYS.QUEUE_VISITAS);
   },
 
-  /**
-   * Remove visitas já sincronizadas com o backend e guarda no histórico local
-   */
-  async confirmarSincronizacao(idsSincronizados) {
-    try {
+  async anexarEvidencia(visitaId, sourceUri, mimeType = 'image/jpeg') {
+    if (!['image/jpeg', 'image/png'].includes(mimeType)) {
+      throw new Error('A evidência deve ser uma imagem JPEG ou PNG.');
+    }
+    return serializeQueue(async () => {
+      const info = await FileSystem.getInfoAsync(sourceUri, { size: true });
+      if (!info.exists || !info.uri) throw new Error('O ficheiro de evidência não está disponível.');
+      if (info.size > MAX_EVIDENCE_BYTES) throw new Error('A evidência não pode exceder 5 MB.');
+
+      const directory = `${FileSystem.documentDirectory}evidencias/${visitaId}/`;
+      await FileSystem.makeDirectoryAsync(directory, { intermediates: true });
+      const extension = mimeType === 'image/png' ? 'png' : 'jpg';
+      const evidence = {
+        id: generateUUID(),
+        uri: `${directory}${generateUUID()}.${extension}`,
+        nome_arquivo: `evidencia-${Date.now()}.${extension}`,
+        mime_type: mimeType,
+        tamanho_bytes: info.size,
+      };
+      await FileSystem.copyAsync({ from: sourceUri, to: evidence.uri });
+
       const fila = await this.obterFilaVisitas();
-      const sincronizadas = fila.filter((v) => idsSincronizados.includes(v.id));
-      const restantes = fila.filter((v) => !idsSincronizados.includes(v.id));
-
-      // Atualiza a fila com o que sobrou
-      await AsyncStorage.setItem(STORAGE_KEYS.QUEUE_VISITAS, JSON.stringify(restantes));
-
-      // Arquiva no histórico local do aparelho
-      const historicoRaw = await AsyncStorage.getItem(STORAGE_KEYS.HISTORICO_VISITAS);
-      const historico = historicoRaw ? JSON.parse(historicoRaw) : [];
-      const historicoAtualizado = [...sincronizadas, ...historico].slice(0, 500); // Mantém até 500 no histórico
-      await AsyncStorage.setItem(STORAGE_KEYS.HISTORICO_VISITAS, JSON.stringify(historicoAtualizado));
-
-      return { restantes: restantes.length, arquivadas: sincronizadas.length };
-    } catch (error) {
-      console.error('[OfflineStorage] Erro ao confirmar sincronização:', error);
-      throw error;
-    }
+      const index = fila.findIndex((item) => item.id === visitaId);
+      if (index < 0) {
+        await FileSystem.deleteAsync(evidence.uri, { idempotent: true });
+        throw new Error(`Visita ${visitaId} não encontrada na fila local.`);
+      }
+      fila[index].evidencias = [...(fila[index].evidencias || []), evidence];
+      await AsyncStorage.setItem(STORAGE_KEYS.QUEUE_VISITAS, JSON.stringify(fila));
+      return evidence;
+    });
   },
 
-  /**
-   * Armazena assembleias de voto em cache para consulta cartográfica offline
-   */
+  async confirmarSincronizacao(idsConfirmados) {
+    const confirmed = new Set(idsConfirmados);
+    return serializeQueue(async () => {
+      const fila = await this.obterFilaVisitas();
+      const sincronizadas = fila.filter((visit) => confirmed.has(visit.id));
+      const restantes = fila.filter((visit) => !confirmed.has(visit.id));
+      const historico = parseStoredList(
+        await AsyncStorage.getItem(STORAGE_KEYS.HISTORICO_VISITAS),
+        STORAGE_KEYS.HISTORICO_VISITAS
+      );
+      const arquivadas = sincronizadas.map((visit) => ({ ...visit, sincronizado: true }));
+
+      await AsyncStorage.setItem(STORAGE_KEYS.QUEUE_VISITAS, JSON.stringify(restantes));
+      await AsyncStorage.setItem(
+        STORAGE_KEYS.HISTORICO_VISITAS,
+        JSON.stringify([...arquivadas, ...historico].slice(0, 500))
+      );
+
+      for (const visit of sincronizadas) {
+        for (const evidence of visit.evidencias || []) {
+          await FileSystem.deleteAsync(evidence.uri, { idempotent: true });
+        }
+      }
+      return { restantes: restantes.length, arquivadas: sincronizadas.length };
+    });
+  },
+
   async cachearAssembleias(assembleias) {
-    try {
-      await AsyncStorage.setItem(STORAGE_KEYS.ASSEMBLEIAS_CACHE, JSON.stringify(assembleias));
-    } catch (error) {
-      console.error('[OfflineStorage] Erro ao cachear assembleias:', error);
-    }
+    if (!Array.isArray(assembleias)) throw new TypeError('assembleias deve ser uma lista.');
+    await AsyncStorage.setItem(STORAGE_KEYS.ASSEMBLEIAS_CACHE, JSON.stringify(assembleias));
   },
 
   async obterAssembleiasEmCache() {
-    try {
-      const raw = await AsyncStorage.getItem(STORAGE_KEYS.ASSEMBLEIAS_CACHE);
-      return raw ? JSON.parse(raw) : [];
-    } catch (error) {
-      return [];
-    }
+    return parseStoredList(
+      await AsyncStorage.getItem(STORAGE_KEYS.ASSEMBLEIAS_CACHE),
+      STORAGE_KEYS.ASSEMBLEIAS_CACHE
+    );
   },
 
-  /**
-   * Contagem de pendências para a barra superior (Badge Offline)
-   */
   async contarPendencias() {
-    const fila = await this.obterFilaVisitas();
-    return fila.length;
+    return (await this.obterFilaVisitas()).length;
   },
 };

@@ -1,6 +1,8 @@
 import os
 import io
 import json
+import html
+import textwrap
 import streamlit as st
 import pandas as pd
 import folium
@@ -46,6 +48,11 @@ def margem_erro_amostral(n: int, universo: int = 1_000_000) -> Optional[float]:
     universo = max(universo, n + 1)
     fpcf = (universo - n) / (universo - 1)
     return round(z * ((p * (1 - p) / n) * max(0.0, fpcf)) ** 0.5 * 100, 1)
+
+
+def render_html(fragment: str) -> None:
+    """Injeta HTML sem indentação, para o Markdown do Streamlit não tratar como bloco de código."""
+    st.markdown(textwrap.dedent(fragment).strip(), unsafe_allow_html=True)
 
 
 api = ApiClient()
@@ -226,6 +233,13 @@ st.markdown("""
         line-height: 32px;
     }
 
+    .header-clock {
+        font-size: 10px;
+        color: #64748B;
+        margin-top: 6px;
+        font-family: "JetBrains Mono", ui-monospace, monospace;
+    }
+
     @media (max-width: 1100px) {
         .kpi-container { grid-template-columns: repeat(2, 1fr); }
     }
@@ -282,39 +296,30 @@ peso_jovens = st.sidebar.slider("Densidade de Jovens (18-35 anos):", 1, 5, 2)
 api_online, health_data = api.verificar_saude()
 modo_ativo = "DEMO" if (modo_demo_forcado or not api_online) else "ONLINE"
 
-status_html = f"""
-<span class="status-badge-online">
-    <span class="live-dot" style="background:#10B981;"></span>
-    API ONLINE ({health_data.get('postgis', 'PostGIS 3.4')})
-</span>
-""" if modo_ativo == "ONLINE" else """
-<span class="status-badge-demo">
-    <span class="live-dot" style="background:#F97316;"></span>
-    MODO DEMONSTRAÇÃO (DADOS AUDITADOS)
-</span>
-"""
+postgis_rotulo = html.escape(str(health_data.get("postgis") or "PostGIS"))
+if len(postgis_rotulo) > 48:
+    postgis_rotulo = "PostGIS ligado"
+agora_label = html.escape(datetime.now().strftime("%d/%m/%Y • %H:%M"))
 
-st.markdown(f"""
+status_html = (
+    f'<span class="status-badge-online"><span class="live-dot" style="background:#10B981;"></span> API ONLINE ({postgis_rotulo})</span>'
+    if modo_ativo == "ONLINE"
+    else '<span class="status-badge-demo"><span class="live-dot" style="background:#F97316;"></span> MODO DEMONSTRAÇÃO (DADOS AUDITADOS)</span>'
+)
+
+render_html(f"""
 <div class="command-header-card">
-    <div>
-        <div style="font-size:11px; font-weight:800; color:#38BDF8; letter-spacing:1.2px; text-transform:uppercase; margin-bottom:4px;">
-            🇦🇴 REPÚBLICA DE ANGOLA • PLEITO PRESIDENCIAL E LEGISLATIVO 2027
-        </div>
-        <h2 style="margin:0; font-size:24px; font-weight:800; color:#F8FAFC;">
-            SALA DE GUERRA & WAR ROOM DE MARKETING POLÍTICO
-        </h2>
-        <div style="font-size:12px; color:#94A3B8; margin-top:4px;">
-            Inteligência Territorial • Demografia da Juventude • Discursos com IA • Monitoramento do Dia D
-        </div>
-    </div>
-    <div style="text-align:right;">
-        {status_html}
-        <div style="font-size:10px; color:#64748B; margin-top:6px; font-family:'JetBrains Mono';">
-            DATA: {datetime.now().strftime('%d/%m/%Y • %H:%M')}
-        </div>
-    </div>
+<div>
+<div style="font-size:11px; font-weight:800; color:#38BDF8; letter-spacing:1.2px; text-transform:uppercase; margin-bottom:4px;">🇦🇴 REPÚBLICA DE ANGOLA • PLEITO PRESIDENCIAL E LEGISLATIVO 2027</div>
+<h2 style="margin:0; font-size:24px; font-weight:800; color:#F8FAFC;">SALA DE GUERRA &amp; WAR ROOM DE MARKETING POLÍTICO</h2>
+<div style="font-size:12px; color:#94A3B8; margin-top:4px;">Inteligência Territorial • Demografia da Juventude • Discursos com IA • Monitoramento do Dia D</div>
 </div>
-""", unsafe_allow_html=True)
+<div style="text-align:right;">
+{status_html}
+<div class="header-clock">DATA: {agora_label}</div>
+</div>
+</div>
+""")
 
 # ==============================================================================
 # 4. CARGA DOS DADOS TERRITORIAIS OFICIAIS
@@ -395,42 +400,30 @@ else:
     abst_media = float(df_territorio["abstencao_perc"].mean() or 0.0)
     jovens_media = float(df_territorio["juventude_perc"].mean() or 0.0)
 
-st.markdown(f"""
+render_html(f"""
 <div class="kpi-container">
-    <div class="kpi-card-glass">
-        <div class="kpi-title">Eleitorado Registado</div>
-        <div class="kpi-value">{fmt_int_ao(total_eleitores_nac)}</div>
-        <div class="kpi-sub">
-            <span>Base Eleitoral CNE</span>
-            <span class="provenance-pill">OFICIAL CNE</span>
-        </div>
-    </div>
-    <div class="kpi-card-glass">
-        <div class="kpi-title">População Abrangida</div>
-        <div class="kpi-value">{fmt_int_ao(total_pop_nac)}</div>
-        <div class="kpi-sub">
-            <span>Projeções Demográficas</span>
-            <span class="provenance-pill">OFICIAL INE</span>
-        </div>
-    </div>
-    <div class="kpi-card-glass">
-        <div class="kpi-title">Densidade Jovem (18-35)</div>
-        <div class="kpi-value">{jovens_media:.1f}%</div>
-        <div class="kpi-sub">
-            <span>Média ponderada pelo eleitorado</span>
-            <span class="provenance-pill">OFICIAL INE</span>
-        </div>
-    </div>
-    <div class="kpi-card-glass">
-        <div class="kpi-title">Abstenção Histórica</div>
-        <div class="kpi-value">{abst_media:.1f}%</div>
-        <div class="kpi-sub">
-            <span>Média ponderada 2022</span>
-            <span class="provenance-pill">OFICIAL CNE 2022</span>
-        </div>
-    </div>
+<div class="kpi-card-glass">
+<div class="kpi-title">Eleitorado Registado</div>
+<div class="kpi-value">{fmt_int_ao(total_eleitores_nac)}</div>
+<div class="kpi-sub"><span>Base Eleitoral CNE</span><span class="provenance-pill">OFICIAL CNE</span></div>
 </div>
-""", unsafe_allow_html=True)
+<div class="kpi-card-glass">
+<div class="kpi-title">População Abrangida</div>
+<div class="kpi-value">{fmt_int_ao(total_pop_nac)}</div>
+<div class="kpi-sub"><span>Projeções Demográficas</span><span class="provenance-pill">OFICIAL INE</span></div>
+</div>
+<div class="kpi-card-glass">
+<div class="kpi-title">Densidade Jovem (18-35)</div>
+<div class="kpi-value">{jovens_media:.1f}%</div>
+<div class="kpi-sub"><span>Média ponderada pelo eleitorado</span><span class="provenance-pill">OFICIAL INE</span></div>
+</div>
+<div class="kpi-card-glass">
+<div class="kpi-title">Abstenção Histórica</div>
+<div class="kpi-value">{abst_media:.1f}%</div>
+<div class="kpi-sub"><span>Média ponderada 2022</span><span class="provenance-pill">OFICIAL CNE 2022</span></div>
+</div>
+</div>
+""")
 
 # ==============================================================================
 # 5. ABAS ESTRATÉGICAS DA SALA DE GUERRA

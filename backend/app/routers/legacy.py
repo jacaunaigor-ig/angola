@@ -1,0 +1,796 @@
+import hashlib
+import json
+import logging
+import re
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Annotated
+from uuid import UUID, uuid4
+
+from anthropic import Anthropic
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
+from fastapi.responses import JSONResponse
+from psycopg import Error
+
+from ..schemas import ZoningRequest
+from ..security import require_roles
+
+router = APIRouter(prefix="/api", tags=["legacy-compatible"])
+logger = logging.getLogger("angola.api")
+ROOT = Path(__file__).resolve().parents[3]
+RAW = ROOT / "data" / "raw"
+ROLE_REVIEW = require_roles("ADMIN", "ANALISTA")
+ROLE_FIELD = require_roles("ADMIN", "COORDENADOR", "BRIGADISTA")
+
+
+def _zone(votes_party: int, votes_opposition: int, valid: int, bastion: float = 15, opposition: float = -15):
+    party_pct = round(votes_party / valid * 100, 2) if valid else 0.0
+    opposition_pct = round(votes_opposition / valid * 100, 2) if valid else 0.0
+    margin = round(party_pct - opposition_pct, 2)
+    zone = "BASTIAO" if margin >= bastion and valid else "OPOSICAO" if margin <= opposition and valid else "CAMPO_BATALHA"
+    return {
+        "zonamento": zone,
+        "margem_perc": margin,
+        "votos_partido_perc": party_pct,
+        "votos_oposicao_perc": opposition_pct,
+        "formula_aplicada": f"Margem = {party_pct}% - {opposition_pct}% = {margin} p.p.",
+        "parametros_utilizados": {"limiar_bastiao_margem": bastion, "limiar_oposicao_margem": opposition},
+    }
+
+
+def _read_json(path: Path, default=None):
+    if not path.is_file():
+        return default
+    with path.open(encoding="utf-8") as source:
+        return json.load(source)
+
+
+@router.get("/locais-proximos")
+def nearby_polling_places(
+    request: Request,
+    longitude: float = Query(ge=-180, le=180),
+    latitude: float = Query(ge=-90, le=90),
+    raio_metros: float = Query(default=2000, ge=100, le=50000),
+    limite: int = Query(default=50, ge=1, le=200),
+    zonamento: str | None = None,
+    formato: str | None = None,
+):
+    query = """
+        SELECT id, codigo_cne, nome, provincia, municipio, comuna_distrito,
+               bairro_aldeia, total_mesas, total_eleitores_aptos, zonamento_historico,
+               round(ST_Distance(localizacao,
+                   ST_SetSRID(ST_MakePoint(%s, %s), 4326)::geography)::numeric, 1) AS distancia_metros,
+               ST_X(localizacao::geometry) AS longitude,
+               ST_Y(localizacao::geometry) AS latitude
+        FROM locais_voto
+        WHERE ST_DWithin(localizacao,
+              ST_SetSRID(ST_MakePoint(%s, %s), 4326)::geography, %s)
+    """
+    params: list = [longitude, latitude, longitude, latitude, raio_metros]
+    if zonamento:
+        valid_zones = {"BASTIAO", "CAMPO_BATALHA", "OPOSICAO"}
+        if zonamento.upper() not in valid_zones:
+            raise HTTPException(status_code=422, detail="Valor de zonamento inválido.")
+        query += " AND zonamento_historico = %s"
+        params.append(zonamento.upper())
+    query += " ORDER BY distancia_metros LIMIT %s"
+    params.append(limite)
+    with request.app.state.db_pool.connection() as connection:
+        rows = connection.execute(query, params).fetchall()
+    if formato == "geojson":
+        return {
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "geometry": {"type": "Point", "coordinates": [row["longitude"], row["latitude"]]},
+                    "properties": {
+                        "id": str(row["id"]),
+                        "nome": row["nome"],
+                        "codigo_cne": row["codigo_cne"],
+                        "provincia": row["provincia"],
+                        "municipio": row["municipio"],
+                        "total_eleitores": row["total_eleitores_aptos"],
+                        "zonamento": row["zonamento_historico"],
+                        "distancia_metros": float(row["distancia_metros"]),
+                    },
+                }
+                for row in rows
+            ],
+        }
+    return {
+        "sucesso": True,
+        "parametros_busca": {
+            "origem": {"longitude": longitude, "latitude": latitude},
+            "raio_metros": raio_metros,
+            "total_encontrados": len(rows),
+        },
+        "locais": rows,
+    }
+
+
+@router.get("/locais-voto/{place_id}")
+def get_polling_place(place_id: UUID, request: Request):
+    with request.app.state.db_pool.connection() as connection:
+        row = connection.execute(
+            """
+            SELECT id, codigo_cne, nome, provincia, municipio, comuna_distrito,
+                   bairro_aldeia, total_mesas, total_eleitores_aptos,
+                   zonamento_historico, ST_X(localizacao::geometry) AS longitude,
+                   ST_Y(localizacao::geometry) AS latitude, criado_em
+            FROM locais_voto WHERE id = %s
+            """,
+            (place_id,),
+        ).fetchone()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Assembleia de voto não encontrada.")
+    return {"sucesso": True, "local": row}
+
+
+@router.get("/municipios/{municipio}/resumo")
+def municipality_summary(
+    municipio: str,
+    request: Request,
+    user: Annotated[dict, Depends(ROLE_FIELD)],
+    campanha_id: UUID | None = None,
+):
+    if campanha_id and str(campanha_id) != user["campaign_id"]:
+        raise HTTPException(status_code=403, detail="A campanha não corresponde ao token autenticado.")
+    campaign_id = UUID(user["campaign_id"])
+    with request.app.state.db_pool.connection() as connection:
+        place_stats = connection.execute(
+            """
+            SELECT count(*) AS total_assembleias,
+                   coalesce(sum(total_eleitores_aptos), 0) AS total_eleitores,
+                   count(*) FILTER (WHERE zonamento_historico = 'BASTIAO') AS bastioes,
+                   count(*) FILTER (WHERE zonamento_historico = 'CAMPO_BATALHA') AS campos_batalha,
+                   count(*) FILTER (WHERE zonamento_historico = 'OPOSICAO') AS oposicao
+            FROM locais_voto WHERE lower(municipio) = lower(%s)
+            """,
+            (municipio,),
+        ).fetchone()
+        campaign_filter = " AND vt.campanha_id = %s"
+        visit_params = (municipio, campaign_id)
+        visits = connection.execute(
+            f"""
+            SELECT count(*) AS total_visitas,
+                count(*) FILTER (WHERE sentimento = 'POSITIVO') AS positivo,
+                count(*) FILTER (WHERE sentimento = 'NEUTRO') AS neutro,
+                count(*) FILTER (WHERE sentimento = 'NEGATIVO') AS negativo,
+                count(*) FILTER (WHERE eleitor_jovem) AS jovens
+            FROM visitas_terreno vt JOIN locais_voto lv
+              ON ST_DWithin(vt.localizacao, lv.localizacao, 3000)
+            WHERE lower(lv.municipio) = lower(%s){campaign_filter}
+            """,
+            visit_params,
+        ).fetchone()
+        concerns = connection.execute(
+            f"""
+            SELECT concern AS dor, count(*) AS frequencia
+            FROM visitas_terreno vt
+            JOIN locais_voto lv ON ST_DWithin(vt.localizacao, lv.localizacao, 3000)
+            CROSS JOIN LATERAL unnest(vt.dores_prioritarias) AS concern
+            WHERE lower(lv.municipio) = lower(%s){campaign_filter}
+            GROUP BY concern ORDER BY frequencia DESC LIMIT 5
+            """,
+            visit_params,
+        ).fetchall()
+
+    n = visits["total_visitas"]
+    positive_pct = round(visits["positivo"] * 100 / n) if n else 0
+    negative_pct = round(visits["negativo"] * 100 / n) if n else 0
+    if positive_pct >= 55:
+        risk = {"cor": "🟢", "status": "BASTIAO", "rotulo": "Zona Segura / Bastião"}
+    elif negative_pct >= 45:
+        risk = {"cor": "🔴", "status": "OPOSICAO", "rotulo": "Zona Crítica / Oposição"}
+    else:
+        risk = {"cor": "🟡", "status": "CAMPO_BATALHA", "rotulo": "Zona em Disputa"}
+    return {
+        "sucesso": True,
+        "municipio": municipio,
+        "indicador_risco": risk,
+        "amostragem_estatistica": {"n_amostra": n, "nivel_confianca": "95%", "representatividade": "AMOSTRA_EXPLORATORIA" if n < 30 else "INDICATIVA"},
+        "estrutura_eleitoral": {
+            "total_assembleias": place_stats["total_assembleias"],
+            "total_eleitores_aptos": place_stats["total_eleitores"],
+            "zonamento_base": {
+                "bastioes": place_stats["bastioes"],
+                "campos_batalha": place_stats["campos_batalha"],
+                "oposicao": place_stats["oposicao"],
+            },
+        },
+        "inteligencia_campo": {
+            "total_visitas": n,
+            "amostra_info": f"n = {n}" + (" (indicativa)" if n < 30 else ""),
+            "sentimento": {
+                "positivo": {"total": visits["positivo"], "perc": positive_pct},
+                "neutro": {"total": visits["neutro"], "perc": round(visits["neutro"] * 100 / n) if n else 0},
+                "negativo": {"total": visits["negativo"], "perc": negative_pct},
+            },
+            "demografia_jovem": {
+                "total_18_35": visits["jovens"],
+                "perc_juventude": round(visits["jovens"] * 100 / n) if n else 0,
+            },
+            "principais_dores": concerns,
+        },
+    }
+
+
+@router.get("/war-room/resumo-nacional")
+def national_summary(
+    request: Request,
+    user: Annotated[dict, Depends(ROLE_REVIEW)],
+    campanha_id: UUID | None = None,
+):
+    if campanha_id and str(campanha_id) != user["campaign_id"]:
+        raise HTTPException(status_code=403, detail="A campanha não corresponde ao token autenticado.")
+    campaign_id = UUID(user["campaign_id"])
+    campaign_clause = " WHERE campanha_id = %s"
+    params = (campaign_id,)
+    with request.app.state.db_pool.connection() as connection:
+        totals = connection.execute(
+            f"""
+            SELECT count(*) AS total_visitas,
+                count(*) FILTER (WHERE sentimento = 'POSITIVO') AS positivas,
+                count(*) FILTER (WHERE sentimento = 'NEUTRO') AS neutras,
+                count(*) FILTER (WHERE sentimento = 'NEGATIVO') AS negativas,
+                count(*) FILTER (WHERE eleitor_jovem) AS jovens,
+                count(DISTINCT ativista_id) AS ativistas_ativos,
+                min(registado_em) AS primeira_visita, max(registado_em) AS ultima_visita
+            FROM visitas_terreno{campaign_clause}
+            """,
+            params,
+        ).fetchone()
+        concerns = connection.execute(
+            f"""
+            SELECT concern AS dor, count(*) AS frequencia
+            FROM visitas_terreno vt
+            CROSS JOIN LATERAL unnest(vt.dores_prioritarias) AS concern
+            {campaign_clause}
+            GROUP BY concern ORDER BY frequencia DESC LIMIT 6
+            """,
+            params,
+        ).fetchall()
+        provinces = connection.execute(
+            """
+            SELECT provincia, count(*) AS total_assembleias,
+                   coalesce(sum(total_eleitores_aptos), 0) AS eleitores_provincia
+            FROM locais_voto GROUP BY provincia ORDER BY eleitores_provincia DESC
+            """
+        ).fetchall()
+    n = totals["total_visitas"]
+    def percentage(field: str) -> int:
+        return round(totals[field] * 100 / n) if n else 0
+    return {
+        "sucesso": True,
+        "gerado_em": datetime.now(UTC).isoformat(),
+        "painel_nacional": {
+            "total_visitas": n,
+            "ativistas_em_campo": totals["ativistas_ativos"],
+            "indice_aceitacao": percentage("positivas"),
+            "indice_rejeicao": percentage("negativas"),
+            "indice_indecisos": percentage("neutras"),
+            "peso_juventude": percentage("jovens"),
+            "primeira_visita": totals["primeira_visita"],
+            "ultima_visita": totals["ultima_visita"],
+        },
+        "ranking_nacional_dores": concerns,
+        "distribuicao_provincias": provinces,
+    }
+
+
+@router.post("/zonamento/simular")
+def simulate_zoning(body: ZoningRequest):
+    if body.limiar_oposicao >= body.limiar_bastiao:
+        raise HTTPException(status_code=422, detail="O limiar de oposição deve ser menor que o limiar de bastião.")
+    return {
+        "sucesso": True,
+        "resultado": _zone(
+            body.votos_partido, body.votos_oposicao, body.total_validos,
+            body.limiar_bastiao, body.limiar_oposicao,
+        ),
+        "regra_padrao": {
+            "codigo": "MARGEM_BIDIRECIONAL_CNE_V1",
+            "limiar_bastiao_margem": 15.0,
+            "limiar_oposicao_margem": -15.0,
+        },
+    }
+
+
+@router.get("/territorio/relatorio-qualidade")
+def territory_quality_report():
+    return {
+        "sucesso": True,
+        "relatorio": _read_json(ROOT / "data" / "relatorio_qualidade_carga.json", {
+            "status": "PENDENTE_EXECUCAO",
+            "mensagem": "O pipeline ETL ainda não foi executado neste ambiente.",
+        }),
+    }
+
+
+@router.get("/territorio/versoes")
+def territory_versions():
+    versions = _read_json(RAW / "versoes_malha.json")
+    if versions:
+        return {"sucesso": True, "versoes": versions, "proveniencia": "OFICIAL"}
+    return {
+        "sucesso": True,
+        "proveniencia": "OFICIAL",
+        "versoes": [
+            {"codigo": "DPA_2016_18P", "nome": "DPA Lei 18/16 (18 Províncias)", "ano_vigencia": 2016, "total_provincias": 18, "total_municipios": 164},
+            {"codigo": "DPA_2024_21P", "nome": "Nova DPA 2024 (21 Províncias)", "ano_vigencia": 2024, "total_provincias": 21, "total_municipios": 325},
+        ],
+    }
+
+
+@router.get("/territorio/correspondencia")
+def territory_correspondence():
+    data = _read_json(RAW / "de_para_dpa_2016_2024.json")
+    if data is None:
+        raise HTTPException(status_code=404, detail="Tabela de correspondência não encontrada.")
+    return {"sucesso": True, "de_para": data}
+
+
+@router.get("/territorio/unidades")
+def territory_units(
+    request: Request,
+    versao: str = "DPA_2016_18P",
+    formato: str = "json",
+):
+    if versao not in {"DPA_2016_18P", "DPA_2024_21P"}:
+        raise HTTPException(status_code=404, detail=f"Versão {versao} não encontrada.")
+    if formato not in {"json", "geojson"}:
+        raise HTTPException(status_code=422, detail="formato deve ser json ou geojson.")
+    source = RAW / ("malha_angola_dpa2024.geojson" if "2024" in versao else "malha_angola_dpa2016.geojson")
+    geojson = _read_json(source)
+    if not geojson or not isinstance(geojson.get("features"), list):
+        raise HTTPException(status_code=503, detail="Arquivo territorial indisponível ou inválido.")
+    cne = _read_json(RAW / "resultados_eleitorais_cne_2022.json", {}).get("provincias", [])
+    ine = _read_json(RAW / "populacao_projecoes_ine.json", {}).get("provincias", [])
+    cne_by_code = {item.get("codigo_cne"): item for item in cne}
+    ine_by_code = {item.get("codigo_ine"): item for item in ine}
+    features = []
+    for feature in geojson["features"]:
+        props = feature.get("properties", {})
+        cne_data = cne_by_code.get(props.get("codigo_dpa"), {})
+        ine_data = ine_by_code.get(props.get("codigo_dpa"), {})
+        stats = _zone(
+            cne_data.get("votos_partido_a", 0),
+            cne_data.get("votos_partido_b", 0),
+            cne_data.get("votos_validos", 0),
+        )
+        feature_props = {
+            **props,
+            "populacao_total": ine_data.get("populacao_total"),
+            "populacao_18_mais": ine_data.get("populacao_18_mais"),
+            "juventude_perc": ine_data.get("jovens_perc_eleitorado"),
+            "eleitores_cne": cne_data.get("eleitores_registados"),
+            "abstencao_perc": cne_data.get("abstencao_perc"),
+            "margem_apurada_perc": stats["margem_perc"],
+            "zonamento": stats["zonamento"],
+            "formula_explicativa": stats["formula_aplicada"],
+            "proveniencia_dados": "OFICIAL",
+        }
+        features.append({**feature, "properties": feature_props})
+    if formato == "geojson":
+        return {
+            "type": "FeatureCollection",
+            "name": f"malha_{versao}",
+            "proveniencia": "OFICIAL",
+            "features": features,
+        }
+    return {
+        "sucesso": True,
+        "versao": versao,
+        "total": len(features),
+        "unidades": [feature["properties"] for feature in features],
+    }
+
+
+@router.get("/dia-d/apuramento-paralelo")
+def election_count(
+    request: Request,
+    user: Annotated[dict, Depends(ROLE_REVIEW)],
+    campanha_id: UUID | None = None,
+):
+    if campanha_id and str(campanha_id) != user["campaign_id"]:
+        raise HTTPException(status_code=403, detail="A campanha não corresponde ao token autenticado.")
+    campaign_id = UUID(user["campaign_id"])
+    campaign_clause = " WHERE campanha_id = %s"
+    params = (campaign_id,)
+    with request.app.state.db_pool.connection() as connection:
+        totals = connection.execute(
+            f"""
+            SELECT count(*) AS total_atas_recebidas,
+                count(DISTINCT local_voto_id) AS assembleias_apuradas,
+                coalesce(sum(votos_favoraveis), 0) AS total_favoraveis,
+                coalesce(sum(votos_oponentes), 0) AS total_oponentes,
+                coalesce(sum(votos_nulos), 0) AS total_nulos,
+                coalesce(sum(votos_brancos), 0) AS total_brancos,
+                coalesce(sum(total_votantes), 0) AS total_votantes_computados,
+                count(*) FILTER (WHERE status = 'SUSPEITA') AS total_atas_alerta_revisao
+            FROM atas_apuramento{campaign_clause}
+            """,
+            params,
+        ).fetchone()
+        universe = connection.execute(
+            "SELECT coalesce(sum(total_mesas), 0) AS total_mesas, coalesce(sum(total_eleitores_aptos), 0) AS eleitores FROM locais_voto"
+        ).fetchone()
+        suspicious = connection.execute(
+            """
+            SELECT aa.id, aa.mesa_numero, aa.distancia_assembleia_metros, aa.status,
+                   aa.foto_hash_sha256, aa.dados_hash_sha256, aa.registado_em,
+                   lv.nome AS assembleia_nome, lv.codigo_cne, lv.municipio, lv.provincia
+            FROM atas_apuramento aa JOIN locais_voto lv ON aa.local_voto_id = lv.id
+            WHERE aa.campanha_id = %s AND aa.status = 'SUSPEITA'
+            ORDER BY aa.distancia_assembleia_metros DESC LIMIT 20
+            """,
+            (campaign_id,),
+        ).fetchall()
+    count = totals["total_atas_recebidas"]
+    expected = universe["total_mesas"]
+    coverage = min(100.0, round(count * 1000 / max(expected, 1)) / 10)
+    uncertainty = "ALTA_INCERTEZA" if coverage < 30 else "INCERTEZA_MODERADA" if coverage < 75 else "BAIXA_INCERTEZA"
+    valid = totals["total_favoraveis"] + totals["total_oponentes"]
+    return {
+        "sucesso": True,
+        "horario_apuracao": datetime.now(UTC).isoformat(),
+        "cobertura_apuracao": {
+            "mesas_recebidas": count,
+            "mesas_esperadas": expected,
+            "cobertura_perc": coverage,
+            "total_votantes_computados": totals["total_votantes_computados"],
+            "grau_incerteza": uncertainty,
+            "status_apuracao": "CONSOLIDAÇÃO_AVANÇADA" if coverage >= 75 else "EM_ANDAMENTO",
+            "aviso_metodologico": f"Cobertura de {coverage}%; valores não são projeção oficial.",
+        },
+        "contagem_votos_validos": {
+            "nosso_partido": {"votos": totals["total_favoraveis"], "percentual": round(totals["total_favoraveis"] * 1000 / valid) / 10 if valid else 0},
+            "oposicao": {"votos": totals["total_oponentes"], "percentual": round(totals["total_oponentes"] * 1000 / valid) / 10 if valid else 0},
+            "nulos": {"votos": totals["total_nulos"]},
+            "brancos": {"votos": totals["total_brancos"]},
+            "total_validos": valid,
+        },
+        "auditoria_integridade": {
+            "total_atas_alerta_revisao": totals["total_atas_alerta_revisao"],
+            "atas_para_revisao_humana": suspicious,
+        },
+    }
+
+
+@router.post("/dia-d/submeter-ata")
+def submit_election_record(
+    request: Request,
+    user: Annotated[dict, Depends(ROLE_FIELD)],
+    body: dict = Body(...),
+):
+    required = {"id", "local_voto_id", "foto_hash_sha256", "localizacao_envio"}
+    if not required.issubset(body):
+        raise HTTPException(status_code=422, detail=f"Campos obrigatórios: {', '.join(sorted(required))}.")
+    try:
+        ata_id = UUID(str(body["id"]))
+        place_id = UUID(str(body["local_voto_id"]))
+        campaign_id = UUID(str(body.get("campanha_id", user["campaign_id"])))
+        activist_id = UUID(str(body.get("delegado_id") or user.get("ativista_id") or ""))
+        latitude = float(body["localizacao_envio"]["latitude"])
+        longitude = float(body["localizacao_envio"]["longitude"])
+        if not re.fullmatch(r"[0-9a-fA-F]{64}", str(body["foto_hash_sha256"])):
+            raise ValueError("foto_hash_sha256 deve ser SHA-256 hexadecimal.")
+    except (ValueError, TypeError, KeyError) as exc:
+        raise HTTPException(status_code=422, detail=f"Dados da ata inválidos: {exc}") from exc
+    if str(campaign_id) != user["campaign_id"]:
+        raise HTTPException(status_code=403, detail="A campanha não corresponde ao token autenticado.")
+    if user["perfil"] != "ADMIN" and (
+        not user.get("ativista_id") or str(activist_id) != user["ativista_id"]
+    ):
+        raise HTTPException(status_code=403, detail="O utilizador não está associado ao delegado informado.")
+    registered = body.get("registado_em") or datetime.now(UTC).isoformat()
+    data_hash = hashlib.sha256(
+        "|".join(str(body.get(k, "")) for k in (
+            "local_voto_id", "mesa_numero", "votos_favoraveis", "votos_oponentes",
+            "votos_nulos", "votos_brancos", "total_votantes", "registado_em",
+        )).encode()
+    ).hexdigest()
+    with request.app.state.db_pool.connection() as connection:
+        assigned_activist = connection.execute(
+            """
+            SELECT id FROM ativistas
+            WHERE id = %s AND campanha_id = %s AND ativo = TRUE
+              AND (local_voto_atribuido_id IS NULL OR local_voto_atribuido_id = %s)
+            """,
+            (activist_id, campaign_id, place_id),
+        ).fetchone()
+        if not assigned_activist:
+            raise HTTPException(status_code=403, detail="Delegado ou assembleia não atribuídos à campanha.")
+        try:
+            row = connection.execute(
+                """
+                INSERT INTO atas_apuramento (
+                    id, campanha_id, local_voto_id, mesa_numero, delegado_id,
+                    votos_favoraveis, votos_oponentes, votos_nulos, votos_brancos,
+                    total_votantes, foto_ata_url, foto_hash_sha256, dados_hash_sha256,
+                    localizacao_envio, registado_em, sincronizado_em
+                ) VALUES (
+                    %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                    ST_SetSRID(ST_MakePoint(%s, %s), 4326)::geography, %s, clock_timestamp()
+                )
+                ON CONFLICT (id) DO NOTHING
+                RETURNING id, status, distancia_assembleia_metros
+                """,
+                (
+                    ata_id, campaign_id, place_id, int(body.get("mesa_numero", 1)),
+                    activist_id, int(body.get("votos_favoraveis", 0)),
+                    int(body.get("votos_oponentes", 0)), int(body.get("votos_nulos", 0)),
+                    int(body.get("votos_brancos", 0)), int(body.get("total_votantes", 0)),
+                    body.get("foto_ata_url", ""), body["foto_hash_sha256"], data_hash,
+                    longitude, latitude, registered,
+                ),
+            ).fetchone()
+        except Error as exc:
+            if getattr(exc, "sqlstate", None) == "23505":
+                raise HTTPException(status_code=409, detail="Já existe uma ata para esta mesa.") from exc
+            raise
+    if row is None:
+        raise HTTPException(status_code=409, detail="A ata já foi recebida; não pode ser reescrita.")
+    return {
+        "sucesso": True,
+        "mensagem": "Ata de apuramento registrada com sucesso.",
+        "ata": {
+            "id": str(row["id"]),
+            "status": row["status"],
+            "distancia_assembleia_metros": row["distancia_assembleia_metros"],
+            "alerta_revisao_humana": row["status"] == "SUSPEITA",
+        },
+    }
+
+
+@router.post("/dia-d/casos-juridicos", status_code=201)
+def create_legal_case(
+    request: Request,
+    user: Annotated[dict, Depends(ROLE_REVIEW)],
+    body: dict = Body(...),
+):
+    for field in ("titulo", "descricao_fato", "tipo_irregularidade"):
+        if not body.get(field):
+            raise HTTPException(status_code=422, detail=f"Campo obrigatório: {field}.")
+    campaign = body.get("campanha_id", user["campaign_id"])
+    if str(campaign) != user["campaign_id"]:
+        raise HTTPException(status_code=403, detail="A campanha não corresponde ao token autenticado.")
+    with request.app.state.db_pool.connection() as connection:
+        row = connection.execute(
+            """
+            INSERT INTO casos_juridicos (
+                campanha_id, ata_id, local_voto_id, titulo, descricao_fato,
+                tipo_irregularidade, prioridade, advogado_responsavel, anexos_urls
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING *
+            """,
+            (
+                campaign, body.get("ata_id"), body.get("local_voto_id"),
+                body["titulo"], body["descricao_fato"], body["tipo_irregularidade"],
+                body.get("prioridade", "ALTA"), body.get("advogado_responsavel"),
+                body.get("anexos_urls", []),
+            ),
+        ).fetchone()
+    return {
+        "sucesso": True,
+        "mensagem": "Caso jurídico formal protocolado.",
+        "caso": row,
+        "protocolo": f"CASO-2027-{str(row['id'])[:8].upper()}",
+    }
+
+
+@router.get("/dia-d/casos-juridicos")
+def list_legal_cases(
+    request: Request,
+    campanha_id: UUID,
+    user: Annotated[dict, Depends(ROLE_REVIEW)],
+):
+    if str(campanha_id) != user["campaign_id"]:
+        raise HTTPException(status_code=403, detail="A campanha não corresponde ao token autenticado.")
+    with request.app.state.db_pool.connection() as connection:
+        rows = connection.execute(
+            """
+            SELECT cj.*, lv.nome AS assembleia_nome, lv.codigo_cne
+            FROM casos_juridicos cj
+            LEFT JOIN locais_voto lv ON cj.local_voto_id = lv.id
+            WHERE cj.campanha_id = %s ORDER BY cj.criado_em DESC
+            """,
+            (campanha_id,),
+        ).fetchall()
+    return {"sucesso": True, "total": len(rows), "casos": rows}
+
+
+def _speech_draft(municipio: str, zone: str, concerns: list[str], settings) -> dict:
+    if settings.anthropic_api_key:
+        response = Anthropic(api_key=settings.anthropic_api_key).messages.create(
+            model=settings.ai_model,
+            max_tokens=1200,
+            system=(
+                "Escreva apenas rascunho para revisão humana. Não invente estatísticas, não ataque pessoas "
+                "e prefixe cada compromisso futuro por [PROMESSA — REVISAR]. Retorne JSON com hook_abertura, "
+                "tom_adotado, compromissos_propostas (dor_associada, texto_proposta), bloco_juventude e armadilhas_a_evitar."
+            ),
+            messages=[{
+                "role": "user",
+                "content": f"Município: {municipio}; classificação histórica: {zone}; dores agregadas: {', '.join(concerns) or 'sem dados de campo'}.",
+            }],
+        )
+        text = "".join(block.text for block in response.content if getattr(block, "type", "") == "text")
+        draft = json.loads(text)
+    else:
+        draft = {
+            "hook_abertura": f"Comunidade de {municipio}, este é um rascunho para revisão do comité.",
+            "tom_adotado": "Escuta e foco programático",
+            "compromissos_propostas": [
+                {"dor_associada": concern, "texto_proposta": f"[PROMESSA — REVISAR] Avaliar opções para {concern} com a comunidade."}
+                for concern in concerns[:3]
+            ],
+            "bloco_juventude": "Validar com dados oficiais antes de publicação.",
+            "armadilhas_a_evitar": ["Não afirmar resultados ou estatísticas sem fonte."],
+        }
+    for item in draft.get("compromissos_propostas", []):
+        if not item.get("texto_proposta", "").startswith("[PROMESSA — REVISAR]"):
+            item["texto_proposta"] = f"[PROMESSA — REVISAR] {item.get('texto_proposta', '')}".strip()
+    return draft
+
+
+@router.post("/discursos/gerar", status_code=201)
+def generate_speech(
+    request: Request,
+    user: Annotated[dict, Depends(ROLE_REVIEW)],
+    body: dict = Body(...),
+):
+    municipality = str(body.get("municipio", "")).strip()
+    if not municipality:
+        raise HTTPException(status_code=422, detail="municipio é obrigatório.")
+    campaign = body.get("campanha_id", user["campaign_id"])
+    if str(campaign) != user["campaign_id"]:
+        raise HTTPException(status_code=403, detail="A campanha não corresponde ao token autenticado.")
+    with request.app.state.db_pool.connection() as connection:
+        territory = connection.execute(
+            """
+            SELECT municipio, provincia,
+                   coalesce(sum(total_eleitores_aptos), 0) AS eleitores,
+                   mode() WITHIN GROUP (ORDER BY zonamento_historico) AS zona
+            FROM locais_voto WHERE lower(municipio) = lower(%s)
+            GROUP BY municipio, provincia
+            """,
+            (municipality,),
+        ).fetchone()
+        if not territory:
+            raise HTTPException(status_code=404, detail="Município não encontrado nos dados territoriais.")
+        concerns = connection.execute(
+            """
+            SELECT concern AS dor FROM visitas_terreno vt
+            JOIN locais_voto lv ON ST_DWithin(vt.localizacao, lv.localizacao, 4000)
+            CROSS JOIN LATERAL unnest(vt.dores_prioritarias) AS concern
+            WHERE lower(lv.municipio) = lower(%s) AND vt.campanha_id = %s
+            GROUP BY concern ORDER BY count(*) DESC LIMIT 3
+            """,
+            (municipality, campaign),
+        ).fetchall()
+        draft = _speech_draft(
+            municipality, territory["zona"] or "CAMPO_BATALHA",
+            [item["dor"] for item in concerns], request.app.state.settings,
+        )
+        row = connection.execute(
+            """
+            INSERT INTO discursos_campanha (
+                campanha_id, unidade_territorial_id, modelo_ia_utilizado,
+                hook_abertura, compromissos_propostas, bloco_juventude,
+                armadilhas_evitar, status_aprovacao
+            ) VALUES (
+                %s, (SELECT id FROM unidades_territoriais WHERE lower(nome) = lower(%s) LIMIT 1),
+                %s, %s, %s, %s, %s, 'RASCUNHO'
+            ) RETURNING id, status_aprovacao, criado_em
+            """,
+            (
+                campaign, municipality,
+                request.app.state.settings.ai_model if request.app.state.settings.anthropic_api_key else "heuristico_auditado_v1",
+                draft["hook_abertura"], json.dumps(draft["compromissos_propostas"]),
+                draft["bloco_juventude"], json.dumps(draft["armadilhas_a_evitar"]),
+            ),
+        ).fetchone()
+    speech = {
+        "id": str(row["id"]),
+        "campanha_id": str(campaign),
+        "municipio": territory["municipio"],
+        "provincia": territory["provincia"],
+        "zonamento": territory["zona"],
+        "modelo_ia": request.app.state.settings.ai_model if request.app.state.settings.anthropic_api_key else "heuristico_auditado_v1",
+        "provedor": "anthropic" if request.app.state.settings.anthropic_api_key else "heuristico",
+        "status_aprovacao": "RASCUNHO",
+        **draft,
+        "criado_em": row["criado_em"],
+    }
+    return {"sucesso": True, "mensagem": "Rascunho enviado para aprovação humana.", "discurso": speech}
+
+
+@router.patch("/discursos/{speech_id}/status")
+def update_speech_status(
+    speech_id: UUID,
+    request: Request,
+    user: Annotated[dict, Depends(ROLE_REVIEW)],
+    body: dict = Body(...),
+):
+    status_value = body.get("status")
+    if status_value not in {"RASCUNHO", "EM_REVISAO", "APROVADO", "REJEITADO"}:
+        raise HTTPException(status_code=422, detail="Status de aprovação inválido.")
+    reviewer = str(body.get("responsavel_revisao", "")).strip()
+    if not reviewer:
+        raise HTTPException(status_code=422, detail="responsavel_revisao é obrigatório para auditoria.")
+    with request.app.state.db_pool.connection() as connection:
+        row = connection.execute(
+            """
+            UPDATE discursos_campanha
+            SET status_aprovacao = %s, responsavel_revisao = %s,
+                comentarios_revisao = %s,
+                aprovado_em = CASE WHEN %s = 'APROVADO' THEN clock_timestamp() ELSE NULL END,
+                atualizado_em = clock_timestamp()
+            WHERE id = %s AND campanha_id = %s RETURNING *
+            """,
+            (
+                status_value, reviewer, body.get("comentarios_revisao"),
+                status_value, speech_id, user["campaign_id"],
+            ),
+        ).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Discurso não encontrado.")
+    return {"sucesso": True, "mensagem": f"Discurso atualizado para {status_value}.", "discurso": row}
+
+
+@router.get("/discursos/historico/{municipio}")
+def speech_history(municipio: str, request: Request, user: Annotated[dict, Depends(ROLE_REVIEW)]):
+    with request.app.state.db_pool.connection() as connection:
+        rows = connection.execute(
+            """
+            SELECT dc.*, ut.nome AS territorio_nome
+            FROM discursos_campanha dc JOIN unidades_territoriais ut
+              ON dc.unidade_territorial_id = ut.id
+            WHERE lower(ut.nome) = lower(%s) AND dc.campanha_id = %s
+            ORDER BY dc.criado_em DESC
+            """,
+            (municipio, user["campaign_id"]),
+        ).fetchall()
+    return {"sucesso": True, "municipio": municipio, "total": len(rows), "historico": rows}
+
+
+@router.get("/discurso-territorializado/{municipio}")
+def territorial_speech(municipio: str, request: Request, user: Annotated[dict, Depends(ROLE_REVIEW)]):
+    with request.app.state.db_pool.connection() as connection:
+        territory = connection.execute(
+            """
+            SELECT lv.municipio, lv.provincia,
+                   coalesce(sum(lv.total_eleitores_aptos), 0) AS eleitores,
+                   mode() WITHIN GROUP (ORDER BY lv.zonamento_historico) AS zona
+            FROM locais_voto lv WHERE lower(lv.municipio) = lower(%s)
+            GROUP BY lv.municipio, lv.provincia
+            """,
+            (municipio,),
+        ).fetchone()
+    if not territory:
+        raise HTTPException(status_code=404, detail="Município não encontrado.")
+    draft = _speech_draft(municipio, territory["zona"] or "CAMPO_BATALHA", [], request.app.state.settings)
+    return {
+        "sucesso": True,
+        "municipio": municipio,
+        "status_aprovacao": "RASCUNHO",
+        "modelo_ia_utilizado": request.app.state.settings.ai_model if request.app.state.settings.anthropic_api_key else "heuristico_auditado_v1",
+        "dados_eleitorais": {
+            "total_eleitores": territory["eleitores"],
+            "zonamento_predominante": territory["zona"],
+        },
+        "estrategia_discurso": {
+            "status": "RASCUNHO",
+            "tom": {"classificacao": draft["tom_adotado"], "postura": draft["tom_adotado"]},
+            "abertura_hook": draft["hook_abertura"],
+            "compromissos_prioritarios": [
+                {"dor_identificada": item["dor_associada"], "proposta_chave": item["texto_proposta"], "frase_de_impacto": item["texto_proposta"]}
+                for item in draft["compromissos_propostas"]
+            ],
+            "modulo_juventude": {"mensagem_central": draft["bloco_juventude"], "apelo_final": draft["bloco_juventude"]},
+            "armadilhas_a_evitar": draft["armadilhas_a_evitar"],
+            "gerado_em": datetime.now(UTC).isoformat(),
+        },
+    }

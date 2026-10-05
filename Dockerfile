@@ -19,6 +19,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copiar ficheiros da aplicação
 COPY app.py .
+COPY pages/ ./pages/
 COPY angola_populacional/ ./angola_populacional/
 
 # Configurações do Streamlit para Produção

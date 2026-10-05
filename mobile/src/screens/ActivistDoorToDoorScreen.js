@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { THEME } from '../theme/theme';
 import { offlineStorage, generateUUID } from '../services/offlineStorage';
-import { apiService, ATIVISTA_PADRAO_ID, CAMPANHA_PADRAO_ID } from '../services/api';
+import { apiService } from '../services/api';
 
 const DORES_OPCOES = [
   { id: 'AGUA', label: '💧 Falta de Água' },
@@ -85,10 +85,14 @@ export default function ActivistDoorToDoorScreen() {
 
     setSalvando(true);
     try {
+      const identity = await offlineStorage.obterIdentidade();
+      if (!identity?.ativista_id || !identity?.campanha_id) {
+        throw new Error('Inicie sessão com uma conta de mobilizador para registar visitas.');
+      }
       const novaVisita = {
         id: generateUUID(),
-        campanha_id: CAMPANHA_PADRAO_ID,
-        ativista_id: ATIVISTA_PADRAO_ID,
+        campanha_id: identity.campanha_id,
+        ativista_id: identity.ativista_id,
         localizacao: {
           latitude: coordenadas.latitude,
           longitude: coordenadas.longitude,
@@ -118,7 +122,7 @@ export default function ActivistDoorToDoorScreen() {
       capturarLocalizacaoNativa();
     } catch (err) {
       console.error('Erro ao gravar visita:', err);
-      alert('Falha ao gravar no armazenamento local do telemóvel.');
+      alert(err.message || 'Falha ao gravar no armazenamento local do telemóvel.');
     } finally {
       setSalvando(false);
     }

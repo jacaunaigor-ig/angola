@@ -9,12 +9,14 @@ import json
 import requests
 from typing import Dict, Any, Optional, Tuple
 
-API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:3001/api")
+API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000/api")
 TIMEOUT_SECONDS = 3.5
 
 class ApiClient:
     def __init__(self, base_url: str = API_BASE_URL):
         self.base_url = base_url.rstrip("/")
+        token = os.getenv("API_AUTH_TOKEN", "").strip()
+        self.headers = {"Authorization": f"Bearer {token}"} if token else {}
 
     def verificar_saude(self) -> Tuple[bool, Dict[str, Any]]:
         """
@@ -100,7 +102,7 @@ class ApiClient:
         """Obtém os totais de terreno do War Room."""
         try:
             params = f"?campanha_id={campanha_id}" if campanha_id else ""
-            resp = requests.get(f"{self.base_url}/war-room/resumo-nacional{params}", timeout=TIMEOUT_SECONDS)
+            resp = requests.get(f"{self.base_url}/war-room/resumo-nacional{params}", headers=self.headers, timeout=TIMEOUT_SECONDS)
             if resp.status_code == 200:
                 data = resp.json()
                 return True, data, "OFICIAL (API)"
@@ -113,7 +115,7 @@ class ApiClient:
         """Obtém a consolidação do apuramento paralelo do Dia D."""
         try:
             params = f"?campanha_id={campanha_id}" if campanha_id else ""
-            resp = requests.get(f"{self.base_url}/dia-d/apuramento-paralelo{params}", timeout=TIMEOUT_SECONDS)
+            resp = requests.get(f"{self.base_url}/dia-d/apuramento-paralelo{params}", headers=self.headers, timeout=TIMEOUT_SECONDS)
             if resp.status_code == 200:
                 data = resp.json()
                 return True, data, "OFICIAL (API)"
@@ -126,7 +128,7 @@ class ApiClient:
         """Obtém o discurso tático e promessas para um município."""
         try:
             params = f"?campanha_id={campanha_id}" if campanha_id else ""
-            resp = requests.get(f"{self.base_url}/discurso-territorializado/{municipio}{params}", timeout=TIMEOUT_SECONDS)
+            resp = requests.get(f"{self.base_url}/discurso-territorializado/{municipio}{params}", headers=self.headers, timeout=TIMEOUT_SECONDS)
             if resp.status_code == 200:
                 data = resp.json()
                 return True, data, "ESTIMADO / MODELADO (API)"
@@ -144,7 +146,7 @@ class ApiClient:
                 "nome_oposicao": nome_oposicao,
                 "diretrizes_cliente": diretrizes
             }
-            resp = requests.post(f"{self.base_url}/discursos/gerar", json=payload, timeout=8.0)
+            resp = requests.post(f"{self.base_url}/discursos/gerar", json=payload, headers=self.headers, timeout=8.0)
             if resp.status_code in [200, 201]:
                 return True, resp.json().get("discurso", {})
         except Exception as e:
@@ -159,7 +161,7 @@ class ApiClient:
                 "responsavel_revisao": responsavel,
                 "comentarios_revisao": comentarios
             }
-            resp = requests.patch(f"{self.base_url}/discursos/{discurso_id}/status", json=payload, timeout=TIMEOUT_SECONDS)
+            resp = requests.patch(f"{self.base_url}/discursos/{discurso_id}/status", json=payload, headers=self.headers, timeout=TIMEOUT_SECONDS)
             if resp.status_code == 200:
                 return True, "Status atualizado com sucesso."
             return False, resp.json().get("detalhes", "Erro ao atualizar status.")

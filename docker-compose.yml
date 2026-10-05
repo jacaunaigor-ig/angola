@@ -7,7 +7,7 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-angola_geomarketing}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres2027secure}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD no .env}
     ports:
       - "${PGPORT:-5432}:5432"
     volumes:
@@ -16,15 +16,18 @@ services:
       - ./database/01_schema_postgis.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
       - ./database/02_seed_angola_data.sql:/docker-entrypoint-initdb.d/02_seed.sql:ro
       - ./database/03_seed_municipios_angola.sql:/docker-entrypoint-initdb.d/03_municipios.sql:ro
+      - ./database/04_carga_territorial_oficial.sql:/docker-entrypoint-initdb.d/04_carga_territorial.sql:ro
+      - ./database/05_migration_fastapi_evidence.sql:/docker-entrypoint-initdb.d/05_evidencias.sql:ro
+      - ./database/06_migration_fastapi_users.sql:/docker-entrypoint-initdb.d/06_usuarios.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d angola_geomarketing"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
       - rede_eleitoral
 
-  # 2. Backend RESTful API em Node.js (Offline-First Sync & PostGIS)
+  # 2. Backend RESTful API em Python/FastAPI (Offline-First Sync & PostGIS)
   backend:
     build:
       context: ./backend
@@ -32,13 +35,17 @@ services:
     container_name: angola_backend_api
     restart: unless-stopped
     environment:
-      NODE_ENV: production
-      PORT: 3001
-      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-postgres2027secure}@postgis:5432/${POSTGRES_DB:-angola_geomarketing}
-      PG_MAX_POOL: 25
-      PG_IDLE_TIMEOUT_MS: 30000
+      APP_ENV: production
+      API_PORT: 8000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgis:5432/${POSTGRES_DB:-angola_geomarketing}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Defina JWT_SECRET_KEY no .env}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:8501,http://localhost:3000}
+      RATE_LIMIT_ENABLED: ${RATE_LIMIT_ENABLED:-true}
+      RATE_LIMIT_PER_MINUTE: ${RATE_LIMIT_PER_MINUTE:-120}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
     ports:
-      - "3001:3001"
+      - "8000:8000"
     depends_on:
       postgis:
         condition: service_healthy
@@ -56,6 +63,7 @@ services:
       STREAMLIT_SERVER_PORT: 8501
       STREAMLIT_SERVER_ADDRESS: 0.0.0.0
       STREAMLIT_SERVER_HEADLESS: "true"
+      API_BASE_URL: http://backend:8000/api
     ports:
       - "8501:8501"
     depends_on:
