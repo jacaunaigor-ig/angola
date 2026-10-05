@@ -4,11 +4,11 @@ import logging
 import re
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Optional
 from uuid import UUID, uuid4
 
 from anthropic import Anthropic
-from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Body, Depends, Header, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 from psycopg import Error
 
@@ -150,7 +150,9 @@ def municipality_summary(
                    coalesce(sum(total_eleitores_aptos), 0) AS total_eleitores,
                    count(*) FILTER (WHERE zonamento_historico = 'BASTIAO') AS bastioes,
                    count(*) FILTER (WHERE zonamento_historico = 'CAMPO_BATALHA') AS campos_batalha,
-                   count(*) FILTER (WHERE zonamento_historico = 'OPOSICAO') AS oposicao
+                   count(*) FILTER (WHERE zonamento_historico = 'OPOSICAO') AS oposicao,
+                   round(ST_X(ST_Centroid(ST_Collect(localizacao::geometry)))::numeric, 4) AS centro_lon,
+                   round(ST_Y(ST_Centroid(ST_Collect(localizacao::geometry)))::numeric, 4) AS centro_lat
             FROM locais_voto WHERE lower(municipio) = lower(%s)
             """,
             (municipio,),
@@ -194,6 +196,10 @@ def municipality_summary(
     return {
         "sucesso": True,
         "municipio": municipio,
+        "coordenadas": {
+            "longitude": float(place_stats["centro_lon"]) if place_stats and place_stats["centro_lon"] is not None else None,
+            "latitude": float(place_stats["centro_lat"]) if place_stats and place_stats["centro_lat"] is not None else None,
+        },
         "indicador_risco": risk,
         "amostragem_estatistica": {"n_amostra": n, "nivel_confianca": "95%", "representatividade": "AMOSTRA_EXPLORATORIA" if n < 30 else "INDICATIVA"},
         "estrutura_eleitoral": {
@@ -329,6 +335,42 @@ def territory_versions():
     }
 
 
+def _pct(eleicao: dict, sigla: str) -> Optional[float]:
+    for partido in eleicao.get("partidos") or []:
+        if partido.get("sigla") == sigla:
+            return partido.get("percentagem_validos")
+    return None
+
+
+@router.get("/eleicoes/serie-historica")
+def historical_election_series():
+    """Totais nacionais oficiais 2012, 2017 e 2022. Sem resultados municipais inventados."""
+    serie = _read_json(RAW / "serie_historica_eleicoes_cne.json")
+    if not serie or not serie.get("eleicoes"):
+        raise HTTPException(status_code=503, detail="Série histórica eleitoral indisponível.")
+
+    eleicoes = serie["eleicoes"]
+    tendencia = []
+    for anterior, seguinte in zip(eleicoes, eleicoes[1:]):
+        delta = {"de": anterior["ano"], "para": seguinte["ano"], "unidade": "pontos_percentuais"}
+        for sigla in ("MPLA", "UNITA"):
+            a, b = _pct(anterior, sigla), _pct(seguinte, sigla)
+            if a is not None and b is not None:
+                delta[sigla] = round(b - a, 3)
+        abst_a, abst_b = anterior.get("abstencao_perc"), seguinte.get("abstencao_perc")
+        if abst_a is not None and abst_b is not None:
+            delta["abstencao"] = round(abst_b - abst_a, 2)
+        tendencia.append(delta)
+
+    return {
+        "sucesso": True,
+        "proveniencia": serie.get("metadados", {}).get("proveniencia", "OFICIAL"),
+        "nivel_completo": "NACIONAL",
+        "serie": serie,
+        "tendencia_pp": tendencia,
+    }
+
+
 @router.get("/territorio/correspondencia")
 def territory_correspondence():
     data = _read_json(RAW / "de_para_dpa_2016_2024.json")
@@ -342,11 +384,22 @@ def territory_units(
     request: Request,
     versao: str = "DPA_2016_18P",
     formato: str = "json",
+    plano: Optional[str] = Query(default=None),
+    territorio: Optional[str] = Query(default=None),
+    x_plano_campanha: Optional[str] = Header(default=None),
 ):
     if versao not in {"DPA_2016_18P", "DPA_2024_21P"}:
         raise HTTPException(status_code=404, detail=f"Versão {versao} não encontrada.")
     if formato not in {"json", "geojson"}:
         raise HTTPException(status_code=422, detail="formato deve ser json ou geojson.")
+
+    from .plans import exigir_funcionalidade, resolver_plano_request
+    from war_room.planos_comerciais import nomes_no_ambito, unidade_no_ambito
+
+    plano_codigo = resolver_plano_request(x_plano_campanha, plano)
+    if "2016" in versao and plano_codigo == "MUNICIPAL":
+        exigir_funcionalidade(plano_codigo, "malha_dupla_dpa")
+
     source = RAW / ("malha_angola_dpa2024.geojson" if "2024" in versao else "malha_angola_dpa2016.geojson")
     geojson = _read_json(source)
     if not geojson or not isinstance(geojson.get("features"), list):
@@ -378,6 +431,11 @@ def territory_units(
             "proveniencia_dados": "OFICIAL",
         }
         features.append({**feature, "properties": feature_props})
+
+    ambito = nomes_no_ambito(plano_codigo, territorio)
+    if not ambito.get("irrestrito"):
+        features = [f for f in features if unidade_no_ambito(f.get("properties") or {}, ambito)]
+
     if formato == "geojson":
         return {
             "type": "FeatureCollection",
@@ -398,7 +456,14 @@ def election_count(
     request: Request,
     user: Annotated[dict, Depends(ROLE_REVIEW)],
     campanha_id: UUID | None = None,
+    x_plano_campanha: Optional[str] = Header(default=None),
+    plano: Optional[str] = Query(default=None),
 ):
+    from .plans import exigir_funcionalidade, resolver_plano_request
+
+    plano_codigo = resolver_plano_request(x_plano_campanha, plano)
+    exigir_funcionalidade(plano_codigo, "dia_d")
+
     if campanha_id and str(campanha_id) != user["campaign_id"]:
         raise HTTPException(status_code=403, detail="A campanha não corresponde ao token autenticado.")
     campaign_id = UUID(user["campaign_id"])
@@ -469,7 +534,14 @@ def submit_election_record(
     payload: AtaSubmissionRequest,
     request: Request,
     user: Annotated[dict, Depends(ROLE_FIELD)],
+    x_plano_campanha: Optional[str] = Header(default=None),
+    plano: Optional[str] = Query(default=None),
 ):
+    from .plans import exigir_funcionalidade, resolver_plano_request
+
+    plano_codigo = resolver_plano_request(x_plano_campanha, plano)
+    exigir_funcionalidade(plano_codigo, "dia_d")
+
     ata_id = payload.id
     place_id = payload.local_voto_id
     campaign_id = payload.campanha_id or UUID(user["campaign_id"])
@@ -555,7 +627,14 @@ def create_legal_case(
     payload: LegalCaseCreateRequest,
     request: Request,
     user: Annotated[dict, Depends(ROLE_REVIEW)],
+    x_plano_campanha: Optional[str] = Header(default=None),
+    plano: Optional[str] = Query(default=None),
 ):
+    from .plans import exigir_funcionalidade, resolver_plano_request
+
+    plano_codigo = resolver_plano_request(x_plano_campanha, plano)
+    exigir_funcionalidade(plano_codigo, "casos_juridicos")
+
     campaign = payload.campanha_id or UUID(user["campaign_id"])
     if str(campaign) != user["campaign_id"]:
         raise HTTPException(status_code=403, detail="A campanha não corresponde ao token autenticado.")

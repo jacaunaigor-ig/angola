@@ -208,10 +208,10 @@ def matriz_comparativa() -> List[Dict[str, Any]]:
     linhas = []
     campos = [
         ("Âmbito", lambda p: "1 município" if p["ambito"] == "MUNICIPIO" else "1 província" if p["ambito"] == "PROVINCIA" else "21 províncias"),
-        ("Contas War Room", lambda p: p["limites"]["contas_war_room"]),
-        ("Brigadistas", lambda p: p["limites"]["brigadistas"]),
+        ("Contas War Room", lambda p: str(p["limites"]["contas_war_room"])),
+        ("Brigadistas", lambda p: str(p["limites"]["brigadistas"])),
         ("Visitas / mês", lambda p: f"{p['limites']['visitas_mes']:,}".replace(",", ".")),
-        ("Discursos IA / mês", lambda p: p["limites"]["discursos_ia_mes"]),
+        ("Discursos IA / mês", lambda p: str(p["limites"]["discursos_ia_mes"])),
         ("Porta-a-porta offline", lambda p: "Incluído"),
         ("Dia D / atas", lambda p: "Incluído" if p["funcionalidades"]["dia_d"] else "Upgrade Provincial"),
         ("Casos jurídicos", lambda p: "Incluído" if p["funcionalidades"]["casos_juridicos"] else "Upgrade Provincial"),
@@ -223,6 +223,6 @@ def matriz_comparativa() -> List[Dict[str, Any]]:
     for rotulo, fn in campos:
         linha = {"Capacidade": rotulo}
         for codigo, plano in PLANOS.items():
-            linha[plano["nome"]] = fn(plano)
+            linha[plano["nome"]] = str(fn(plano))
         linhas.append(linha)
     return linhas

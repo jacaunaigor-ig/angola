@@ -1,0 +1,98 @@
+{
+  "metadados": {
+    "titulo": "Série histórica nacional das eleições gerais de Angola",
+    "proveniencia": "OFICIAL",
+    "nivel_completo": "NACIONAL",
+    "nota": "Totais nacionais publicados pela CNE (ou reproduzidos por órgãos que citam a acta). Não há, neste ficheiro, resultados por município nem por círculo provincial completos de 2012 e 2017. O ficheiro resultados_eleitorais_cne_2022.json cobre as 18 províncias de 2022 e não contém chave de municípios.",
+    "partido_a_no_zonamento_2022": "MPLA",
+    "partido_b_no_zonamento_2022": "UNITA",
+    "aviso_zonamento": "A margem provincial de 2022 ancora o zonamento actual. A série 2012–2017 explica a trajectória nacional; não substitui acta municipal."
+  },
+  "eleicoes": [
+    {
+      "ano": 2012,
+      "data_eleicao": "2012-08-31",
+      "tipo": "Eleições gerais",
+      "proveniencia": "OFICIAL",
+      "fonte": "CNE, resultados finais provisórios com 100% das mesas, reproduzidos pela VOA Português (7 Set 2012) e pelo resumo IPU.",
+      "url_fonte": "https://www.voaportugues.com/a/1503960.html",
+      "eleitores_inscritos": 9757671,
+      "votantes": 6124669,
+      "abstencao_perc": 37.24,
+      "votos_brancos_e_nulos": 368665,
+      "votos_validos": 5756004,
+      "partidos": [
+        {"sigla": "MPLA", "votos": 4135503, "percentagem_validos": 71.84, "deputados": 175},
+        {"sigla": "UNITA", "votos": 1074565, "percentagem_validos": 18.66, "deputados": 32},
+        {"sigla": "CASA-CE", "votos": 345589, "percentagem_validos": 6.0, "deputados": 8},
+        {"sigla": "PRS", "votos": 98233, "percentagem_validos": 1.7, "deputados": 3},
+        {"sigla": "FNLA", "votos": 65163, "percentagem_validos": 1.13, "deputados": 2}
+      ]
+    },
+    {
+      "ano": 2017,
+      "data_eleicao": "2017-08-23",
+      "tipo": "Eleições gerais",
+      "proveniencia": "OFICIAL",
+      "fonte": "Acta de resultados definitivos da CNE, 6 Set 2017 (quadro nacional reproduzido na cobertura da proclamação).",
+      "url_fonte": "https://www.rfi.fr/pt/angola/20170906-angola-cne-proclama-joao-lourenco-presidente-da-republica",
+      "eleitores_inscritos": 9317294,
+      "votantes": 7093002,
+      "abstencao_perc": 23.87,
+      "votos_brancos": 172639,
+      "votos_nulos": 102486,
+      "votos_validos": 6817877,
+      "partidos": [
+        {"sigla": "MPLA", "votos": 4164157, "percentagem_validos": 61.077, "deputados": 150},
+        {"sigla": "UNITA", "votos": 1818903, "percentagem_validos": 26.678, "deputados": 51},
+        {"sigla": "CASA-CE", "votos": 643961, "percentagem_validos": 9.445, "deputados": 16},
+        {"sigla": "PRS", "votos": 92222, "percentagem_validos": 1.353, "deputados": 2},
+        {"sigla": "FNLA", "votos": 63658, "percentagem_validos": 0.934, "deputados": 1},
+        {"sigla": "APN", "votos": 34976, "percentagem_validos": 0.513, "deputados": 0}
+      ]
+    },
+    {
+      "ano": 2022,
+      "data_eleicao": "2022-08-24",
+      "tipo": "Eleições gerais",
+      "proveniencia": "OFICIAL",
+      "fonte": "CNE, resultados definitivos proclamados em 29 Ago 2022. Portal de difusão e nota ANGOP.",
+      "url_fonte": "https://resultados2022eleicoesgerais.cne.ao/",
+      "eleitores_inscritos": 14399391,
+      "votantes": 6454109,
+      "abstencao_perc": 55.18,
+      "participacao_perc": 44.82,
+      "votos_brancos": 107746,
+      "votos_nulos": 74259,
+      "votos_validos": 6272104,
+      "partidos": [
+        {"sigla": "MPLA", "votos": 3209429, "percentagem_validos": 51.17, "deputados": 124},
+        {"sigla": "UNITA", "votos": 2756786, "percentagem_validos": 43.95, "deputados": 90},
+        {"sigla": "PRS", "votos": 71351, "percentagem_validos": 1.14, "deputados": 2},
+        {"sigla": "FNLA", "votos": 66337, "percentagem_validos": 1.06, "deputados": 2},
+        {"sigla": "PHA", "votos": 63749, "percentagem_validos": 1.02, "deputados": 2},
+        {"sigla": "CASA-CE", "votos": 47446, "percentagem_validos": 0.76, "deputados": 0}
+      ]
+    }
+  ],
+  "recortes_provinciais_2017_provisorios": {
+    "proveniencia": "PROVISORIO",
+    "nota": "Números lidos quando a CNE tinha 97,82% das mesas (9.114.386 votos). Não são a acta provincial definitiva. Servem só para mostrar onde a disputa já era visível em 2017. Não entram no zonamento.",
+    "fonte": "DW, actualização provisória da CNE, 25 Ago 2017",
+    "url_fonte": "https://www.dw.com/pt-002/cne-atualiza-resultados-mpla-vence-elei%C3%A7%C3%B5es-em-angola-com-617/a-40238976",
+    "provincias": [
+      {"nome": "Cunene", "mpla_perc": 89.12, "mpla_votos": 153897, "unita_perc": 5.41, "casa_ce_perc": 3.78},
+      {"nome": "Cabinda", "mpla_perc": 39.75, "unita_perc": 28.18, "casa_ce_perc": 29.33},
+      {"nome": "Bié", "mpla_perc": 57.42, "unita_perc": 38.27},
+      {"nome": "Luanda", "mpla_perc": 48.2, "mpla_votos": 1016655, "unita_perc": 35.5, "unita_votos": 748839},
+      {"nome": "Lunda Sul", "mpla_perc": 45.96, "mpla_votos": 57640, "unita_perc": 41.07, "unita_votos": 51506}
+    ]
+  },
+  "lacunas": [
+    "Resultados por município e por mesa de 2012, 2017 e 2022 não estão neste repositório.",
+    "Série provincial completa e definitiva existe aqui apenas para 2022 (18 províncias, DPA 2016).",
+    "Círculos provinciais de 2017 estão só em recortes provisórios de cinco províncias.",
+    "DPA 2024 (21 províncias) não tem série eleitoral própria: 2012–2022 foram disputadas na malha de 18.",
+    "Mapas de infraestrutura (estradas, rede, água) não estão ligados ao zonamento."
+  ]
+}

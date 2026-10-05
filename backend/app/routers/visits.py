@@ -3,7 +3,7 @@ import hashlib
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile
+from fastapi import APIRouter, Body, Depends, File, Header, HTTPException, Query, Request, UploadFile
 from psycopg.types.json import Jsonb
 
 from ..schemas import VisitsSyncRequest
@@ -257,6 +257,47 @@ def upload_visit_evidence(
                 ),
             )
     return {"sucesso": True, "id": evidence_id, "duplicada": False, "sha256": checksum}
+
+
+@router.post("/visitas/invalidar-lote")
+def invalidate_visit_batch(
+    request: Request,
+    body: dict = Body(...),
+    x_plano_campanha: str | None = Header(default=None),
+    plano: str | None = Query(default=None),
+):
+    from .plans import exigir_funcionalidade, resolver_plano_request
+
+    plano_codigo = resolver_plano_request(x_plano_campanha, plano or body.get("plano"))
+    exigir_funcionalidade(plano_codigo, "invalidar_lote")
+
+    uuids = body.get("uuids")
+    if not isinstance(uuids, list) or not uuids:
+        raise HTTPException(status_code=400, detail="Informe o array 'uuids' do lote a invalidar.")
+
+    motivo = str(body.get("motivo") or "LOTE_INVALIDADO_COORDENACAO")
+    responsavel = str(body.get("responsavel") or "coordenacao_war_room")
+
+    with request.app.state.db_pool.connection() as connection:
+        with connection.transaction():
+            rows = connection.execute(
+                """
+                UPDATE visitas_terreno
+                SET marcado_revisao_humana = TRUE,
+                    motivo_revisao = %s
+                WHERE id = ANY(%s::uuid[])
+                RETURNING id
+                """,
+                (motivo, [str(u) for u in uuids]),
+            ).fetchall()
+
+    return {
+        "success": True,
+        "sucesso": True,
+        "message": "Lote invalidado pela coordenação. Registos preservados para auditoria.",
+        "total_invalidados": len(rows),
+        "uuids": [str(r["id"]) for r in rows],
+    }
 
 
 @router.get("/admin/ping")

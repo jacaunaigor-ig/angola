@@ -62,7 +62,8 @@ projeto_angola/
 ├── scripts/
 │   ├── etl_territorial.js               # Pipeline ETL com auditoria de qualidade
 │   └── integrar_cartografia.js          # Conversão cartográfica
-├── app.py                               # War Room Executivo Web (Streamlit Dark Mode)
+├── web/                                 # War Room React (cliente da API)
+├── app.py                               # Protótipo Streamlit da sala de guerra
 ├── api_client.py                        # Cliente HTTP da API para o War Room
 ├── docker-compose.yml                   # Orquestração de microsserviços
 ├── render.yaml                          # Blueprint de deploy em nuvem
@@ -103,12 +104,20 @@ python backend/create_user.py --campanha-id <UUID> --ativista-id <UUID> --nome "
 ```
 Para a conta do War Room, configure um JWT válido em `API_AUTH_TOKEN`; o token respeita a expiração definida por `JWT_ACCESS_TOKEN_EXPIRE_MINUTES`.
 
-### 4. Iniciar a Sala de Guerra (Streamlit Dark Mode)
+### 4. Sala de guerra (React + API)
+O cliente operacional está em `web/` e consome a API em `/api` (proxy do Vite em desenvolvimento, nginx no contentor).
+
 ```bash
-pip install -r requirements.txt
-streamlit run app.py
+cd web
+npm install
+npm run dev
 ```
-Acesse no navegador: [http://localhost:8501](http://localhost:8501)
+
+Abra [http://localhost:5173](http://localhost:5173) com a API em [http://localhost:8000](http://localhost:8000). No Compose, o serviço `web` publica o build em [http://localhost:3000](http://localhost:3000).
+
+Cartografia, série 2012–2022 e catálogo de planos não exigem sessão. Discursos e Dia D usam `POST /api/auth/token`.
+
+O Streamlit (`streamlit run app.py`, porta 8501) permanece como protótipo.
 
 ### 5. Simulador Mobile Interativo
 Abra com duplo clique no navegador: `mobile/preview.html`

@@ -79,7 +79,15 @@ async def request_logging_middleware(request: Request, call_next):
         settings = request.app.state.settings
         if settings.rate_limit_enabled:
             now = time.monotonic()
-            ip = request.client.host if request.client else "unknown"
+            forwarded = request.headers.get("x-forwarded-for")
+            if forwarded:
+                ip = forwarded.split(",")[0].strip()
+            elif request.headers.get("cf-connecting-ip"):
+                ip = request.headers.get("cf-connecting-ip").strip()
+            elif request.client:
+                ip = request.client.host
+            else:
+                ip = "unknown"
             windows = request.app.state.rate_limit_windows
             window_started, count = windows.get(ip, (now, 0))
             if now - window_started >= 60:

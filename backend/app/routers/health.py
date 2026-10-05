@@ -12,8 +12,11 @@ def liveness():
 
 @router.get("/health/ready")
 def readiness(request: Request):
+    pool = request.app.state.db_pool
+    if pool is None:
+        return JSONResponse(status_code=503, content={"status": "NOT_READY", "database": "DISCONNECTED"})
     try:
-        with request.app.state.db_pool.connection() as connection:
+        with pool.connection() as connection:
             row = connection.execute(
                 "SELECT 1 AS alive, PostGIS_Full_Version() AS postgis"
             ).fetchone()

@@ -132,7 +132,14 @@ st.markdown("""
         backdrop-filter: blur(16px);
         display: flex;
         justify-content: space-between;
-        align-items: center;
+        align-items: flex-start;
+        gap: 24px;
+        flex-wrap: wrap;
+    }
+
+    .command-header-card > div:first-child {
+        flex: 1 1 320px;
+        min-width: 240px;
     }
 
     .status-badge-online {
@@ -277,10 +284,61 @@ st.markdown("""
     }
 
     .header-clock {
-        font-size: 10px;
+        font-size: 11px;
         color: #64748B;
-        margin-top: 6px;
+        margin-top: 8px;
         font-family: "JetBrains Mono", ui-monospace, monospace;
+    }
+
+    .eyebrow {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: #7DD3FC;
+        margin-bottom: 6px;
+    }
+
+    .command-header-card h2 {
+        margin: 0;
+        font-size: 28px;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+        color: #F8FAFC;
+    }
+
+    .header-sub {
+        margin-top: 6px;
+        font-size: 13px;
+        color: #94A3B8;
+    }
+
+    .header-meta {
+        text-align: right;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 8px;
+    }
+
+    .sku-chip {
+        display: inline-block;
+        border: 1px solid;
+        border-radius: 999px;
+        padding: 4px 12px;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        white-space: nowrap;
+    }
+
+    [data-testid="stHeader"] { background: transparent; }
+    [data-testid="stToolbar"] { right: 0.5rem; }
+    .stTabs [data-baseweb="tab-list"] { gap: 6px; }
+    .stTabs [data-baseweb="tab"] {
+        border-radius: 10px;
+        padding: 8px 14px;
+        background: rgba(18, 27, 47, 0.6);
     }
 
     @media (max-width: 1100px) {
@@ -380,43 +438,23 @@ status_html = (
     else '<span class="status-badge-demo"><span class="live-dot" style="background:#F97316;"></span> MODO DEMONSTRAÇÃO (DADOS AUDITADOS)</span>'
 )
 
+ambito = html.escape(territorio_contrato or "Nacional · 21 províncias")
+sku_cor = html.escape(str(plano_ativo.get("cor") or "#38BDF8"))
 render_html(f"""
 <div class="command-header-card">
-<div>
-<div style="font-size:11px; font-weight:800; color:#38BDF8; letter-spacing:1.2px; text-transform:uppercase; margin-bottom:4px;">🇦🇴 REPÚBLICA DE ANGOLA • PLEITO PRESIDENCIAL E LEGISLATIVO 2027</div>
-<h2 style="margin:0; font-size:24px; font-weight:800; color:#F8FAFC;">SALA DE GUERRA &amp; WAR ROOM DE MARKETING POLÍTICO</h2>
-<div style="font-size:12px; color:#94A3B8; margin-top:4px;">Inteligência Territorial • Demografia da Juventude • Discursos com IA • Monitoramento do Dia D</div>
     <div>
-        <div style="font-size:11px; font-weight:800; color:#38BDF8; letter-spacing:1.2px; text-transform:uppercase; margin-bottom:4px;">
-            🇦🇴 REPÚBLICA DE ANGOLA • PLEITO PRESIDENCIAL E LEGISLATIVO 2027
-        </div>
-        <h2 style="margin:0; font-size:24px; font-weight:800; color:#F8FAFC;">
-            SALA DE GUERRA & WAR ROOM DE MARKETING POLÍTICO
-        </h2>
-        <div style="font-size:12px; color:#94A3B8; margin-top:4px;">
-            {plano_ativo["nome"]} • Âmbito: {territorio_contrato or "Nacional (21 províncias)"} • {plano_ativo["tagline"]}
-        </div>
+        <div class="eyebrow">República de Angola · Pleito 2027</div>
+        <h2>Sala de comando eleitoral</h2>
+        <div class="header-sub">{html.escape(plano_ativo["nome"])} · Âmbito: {ambito}</div>
     </div>
-    <div style="text-align:right;">
+    <div class="header-meta">
         {status_html}
-        <div style="margin-top:8px; font-size:11px; font-weight:800; color:{plano_ativo["cor"]}; letter-spacing:0.6px;">
-            SKU {plano_codigo} · {formatar_aoa(plano_ativo["preco_tabela_aoa"])}
-        </div>
-        <div style="font-size:10px; color:#64748B; margin-top:6px; font-family:'JetBrains Mono';">
-            DATA: {datetime.now().strftime('%d/%m/%Y • %H:%M')}
-        </div>
+        <div class="sku-chip" style="color:{sku_cor}; border-color:{sku_cor};">SKU {html.escape(plano_codigo)} · {html.escape(formatar_aoa(plano_ativo["preco_tabela_aoa"]))}</div>
+        <div class="header-clock">{agora_label}</div>
     </div>
-</div>
-<div style="text-align:right;">
-{status_html}
-<div class="header-clock">DATA: {agora_label}</div>
-</div>
 </div>
 """)
 
-# ==============================================================================
-# 4. CARGA DOS DADOS TERRITORIAIS OFICIAIS
-# ==============================================================================
 # ==============================================================================
 # 4. CARGA DOS DADOS TERRITORIAIS OFICIAIS
 # ==============================================================================
@@ -497,30 +535,26 @@ else:
     abst_media = float(df_territorio["abstencao_perc"].mean() or 0.0)
     jovens_media = float(df_territorio["juventude_perc"].mean() or 0.0)
 
-render_html(f"""
-<div class="kpi-container">
-<div class="kpi-card-glass">
-<div class="kpi-title">Eleitorado Registado</div>
-<div class="kpi-value">{fmt_int_ao(total_eleitores_nac)}</div>
-<div class="kpi-sub"><span>Base Eleitoral CNE</span><span class="provenance-pill">OFICIAL CNE</span></div>
-</div>
-<div class="kpi-card-glass">
-<div class="kpi-title">População Abrangida</div>
-<div class="kpi-value">{fmt_int_ao(total_pop_nac)}</div>
-<div class="kpi-sub"><span>Projeções Demográficas</span><span class="provenance-pill">OFICIAL INE</span></div>
-</div>
-<div class="kpi-card-glass">
-<div class="kpi-title">Densidade Jovem (18-35)</div>
-<div class="kpi-value">{jovens_media:.1f}%</div>
-<div class="kpi-sub"><span>Média ponderada pelo eleitorado</span><span class="provenance-pill">OFICIAL INE</span></div>
-</div>
-<div class="kpi-card-glass">
-<div class="kpi-title">Abstenção Histórica</div>
-<div class="kpi-value">{abst_media:.1f}%</div>
-<div class="kpi-sub"><span>Média ponderada 2022</span><span class="provenance-pill">OFICIAL CNE 2022</span></div>
-</div>
-</div>
-""")
+n_bastioes = int((df_territorio["zonamento_dinamico"] == "BASTIAO").sum())
+n_disputa = int((df_territorio["zonamento_dinamico"] == "CAMPO_BATALHA").sum())
+n_oposicao = int((df_territorio["zonamento_dinamico"] == "OPOSICAO").sum())
+territorio_prioritario = df_territorio.iloc[0]
+nome_prioritario = str(territorio_prioritario.get("nome") or "—")
+
+st.markdown(
+    f"**Leitura de comando.** No âmbito contratado há **{n_bastioes}** bastiões, "
+    f"**{n_disputa}** territórios em disputa e **{n_oposicao}** de oposição. "
+    f"A abstenção ponderada de **{abst_media:.1f}%** é o reservatório ainda não mobilizado. "
+    f"Prioridade imediata: **{nome_prioritario}** "
+    f"(score {territorio_prioritario['Score_Prioridade']})."
+)
+
+with st.container(horizontal=True):
+    st.metric("Eleitorado registado", fmt_int_ao(total_eleitores_nac), "CNE · oficial", border=True)
+    st.metric("População abrangida", fmt_int_ao(total_pop_nac), "INE · oficial", border=True)
+    st.metric("Jovens 18–35", f"{jovens_media:.1f}%", "média ponderada", border=True)
+    st.metric("Abstenção 2022", f"{abst_media:.1f}%", "média ponderada", border=True)
+    st.metric("Em disputa", str(n_disputa), f"{n_bastioes} bastiões · {n_oposicao} oposição", border=True)
 
 # ==============================================================================
 # 5. ABAS ESTRATÉGICAS DA SALA DE GUERRA
@@ -542,30 +576,24 @@ with aba_comercial:
         "Três SKUs para o ciclo **2027**. O War Room, o telemóvel e a API passam a operar "
         "apenas no território e nas funcionalidades do contrato. Preços em **AOA**, de tabela — a proposta formal prevalece."
     )
-    cols_sku = st.columns(3)
-    for col, codigo in zip(cols_sku, ["MUNICIPAL", "PROVINCIAL", "NACIONAL"]):
-        p = PLANOS[codigo]
-        activo = codigo == plano_codigo
-        with col:
-            st.markdown(
-                f"""
-                <div style="background:#121B2F;border:1px solid {p['cor'] if activo else 'rgba(255,255,255,0.08)'};border-radius:16px;padding:16px;min-height:280px;">
-                    <div style="color:{p['cor']};font-size:11px;font-weight:800;letter-spacing:1px;">SKU {p['codigo']}</div>
-                    <h3 style="margin:6px 0 8px 0;color:#F8FAFC;">{p['nome']}</h3>
-                    <div style="color:#94A3B8;font-size:13px;min-height:56px;">{p['tagline']}</div>
-                    <div style="font-size:22px;font-weight:800;color:#F8FAFC;margin:12px 0 4px 0;">{formatar_aoa(p['preco_tabela_aoa'])}</div>
-                    <div style="color:#64748B;font-size:11px;">ciclo eleitoral 2027 • tabela</div>
-                    <ul style="color:#CBD5E1;font-size:12px;padding-left:16px;margin-top:12px;">
-                        <li>{p['limites']['brigadistas']} brigadistas</li>
-                        <li>{p['limites']['contas_war_room']} contas War Room</li>
-                        <li>{'Dia D incluído' if p['funcionalidades']['dia_d'] else 'Dia D: upgrade Provincial'}</li>
-                    </ul>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
+    with st.container(horizontal=True):
+        for codigo in ["MUNICIPAL", "PROVINCIAL", "NACIONAL"]:
+            p = PLANOS[codigo]
+            with st.container(border=True):
+                st.caption(f"SKU {p['codigo']}")
+                st.subheader(p["nome"])
+                st.write(p["tagline"])
+                st.markdown(f"**{formatar_aoa(p['preco_tabela_aoa'])}**")
+                st.caption("Tabela do ciclo 2027")
+                st.markdown(
+                    f"- {p['limites']['brigadistas']} brigadistas\n"
+                    f"- {p['limites']['contas_war_room']} contas War Room\n"
+                    f"- {'Dia D incluído' if p['funcionalidades']['dia_d'] else 'Dia D no upgrade Provincial'}"
+                )
+                if codigo == plano_codigo:
+                    st.badge("Contrato activo", color="green")
     st.markdown("### Comparativo de capacidades")
-    st.dataframe(pd.DataFrame(matriz_comparativa()), use_container_width=True, hide_index=True)
+    st.dataframe(pd.DataFrame(matriz_comparativa()), width="stretch", hide_index=True)
 
     st.markdown("### Pedir proposta formal")
     orc = calcular_orcamento(plano_codigo, territorio_contrato, plano_ativo["limites"]["brigadistas"])
@@ -578,7 +606,7 @@ with aba_comercial:
         tel = st.text_input("Telefone")
         mail = st.text_input("E-mail institucional")
     notas_prop = st.text_area("Notas para a proposta (municípios extra, Dia D, HQ)", height=70)
-    if st.button("📨 Gerar protocolo de proposta", use_container_width=True):
+    if st.button("📨 Gerar protocolo de proposta", width="stretch"):
         ok_prop, detalhe_prop = api.pedir_proposta({
             "organizacao": org,
             "contacto": contacto,
@@ -602,24 +630,68 @@ with aba_mapa:
     st.subheader("🗺️ Cartografia Tática e Camadas Coropléticas de Angola")
     st.markdown(f"**Malha Ativa:** `{versao_selecionada}` • **Fonte:** `{proveniencia_unidades}` • **SRID:** 4326")
 
+    serie_path = os.path.join(os.path.dirname(__file__), "data", "raw", "serie_historica_eleicoes_cne.json")
+    with st.expander("Série histórica nacional — eleições de 2012, 2017 e 2022", expanded=True):
+        if not os.path.isfile(serie_path):
+            st.warning("Ficheiro da série histórica não encontrado em data/raw.")
+        else:
+            with open(serie_path, encoding="utf-8") as serie_file:
+                serie = json.load(serie_file)
+            linhas_serie = []
+            for eleicao in serie.get("eleicoes", []):
+                partidos = {p["sigla"]: p for p in eleicao.get("partidos", [])}
+                linhas_serie.append({
+                    "Ano": eleicao["ano"],
+                    "Inscritos": eleicao.get("eleitores_inscritos"),
+                    "Votantes": eleicao.get("votantes"),
+                    "Abstenção %": eleicao.get("abstencao_perc"),
+                    "MPLA %": (partidos.get("MPLA") or {}).get("percentagem_validos"),
+                    "UNITA %": (partidos.get("UNITA") or {}).get("percentagem_validos"),
+                    "Deputados MPLA": (partidos.get("MPLA") or {}).get("deputados"),
+                    "Deputados UNITA": (partidos.get("UNITA") or {}).get("deputados"),
+                    "Proveniência": eleicao.get("proveniencia"),
+                })
+            df_serie = pd.DataFrame(linhas_serie)
+            fig_serie = go.Figure()
+            fig_serie.add_trace(go.Scatter(x=df_serie["Ano"], y=df_serie["MPLA %"], name="MPLA % válidos", mode="lines+markers"))
+            fig_serie.add_trace(go.Scatter(x=df_serie["Ano"], y=df_serie["UNITA %"], name="UNITA % válidos", mode="lines+markers"))
+            fig_serie.add_trace(go.Scatter(x=df_serie["Ano"], y=df_serie["Abstenção %"], name="Abstenção % inscritos", mode="lines+markers", line={"dash": "dot"}))
+            fig_serie.update_layout(
+                template="plotly_dark",
+                plot_bgcolor="rgba(0,0,0,0)",
+                paper_bgcolor="rgba(0,0,0,0)",
+                height=320,
+                margin={"l": 16, "r": 16, "t": 24, "b": 16},
+                yaxis_title="Percentagem",
+                xaxis={"dtick": 5},
+                legend={"orientation": "h", "y": -0.2},
+            )
+            st.plotly_chart(fig_serie, width="stretch")
+            st.dataframe(df_serie, width="stretch", hide_index=True)
+            st.caption(
+                "Nacional e oficial. O mapa abaixo continua só com a margem provincial de 2022. "
+                "Município e círculo de 2012/2017 não foram preenchidos. "
+                + " ".join(serie.get("lacunas") or [])
+            )
+
     col_camada, col_export = st.columns([3, 1])
     with col_camada:
-        camada_visual = st.radio(
-            "Selecione a Camada Coroplética:",
+        camada_visual = st.segmented_control(
+            "Camada do mapa",
             options=["ZONAMENTO", "ABSTENCAO", "JUVENTUDE", "ELEITORES"],
+            default="ZONAMENTO",
             format_func=lambda x: {
-                "ZONAMENTO": "Zonamento Político (🟢 Bastião / 🟡 Campo de Batalha / 🔴 Oposição)",
-                "ABSTENCAO": "Taxa de Abstenção Histórica (%)",
-                "JUVENTUDE": "Densidade de Jovens de 18 a 35 anos (%)",
-                "ELEITORES": "Volume Total de Eleitores Registrados"
+                "ZONAMENTO": "Zonamento",
+                "ABSTENCAO": "Abstenção",
+                "JUVENTUDE": "Juventude",
+                "ELEITORES": "Eleitores",
             }[x],
-            horizontal=True
-        )
+        ) or "ZONAMENTO"
 
     with col_export:
         st.markdown("<div style='height:16px;'></div>", unsafe_allow_html=True)
         csv_bytes = df_territorio.to_csv(index=False).encode('utf-8')
-        st.download_button("📥 Exportar CSV", data=csv_bytes, file_name=f"matriz_{versao_selecionada}.csv", mime="text/csv", use_container_width=True)
+        st.download_button("📥 Exportar CSV", data=csv_bytes, file_name=f"matriz_{versao_selecionada}.csv", mime="text/csv", width="stretch")
 
     # Renderização do Mapa Folium com OpenStreetMap Oficial
     mapa = folium.Map(
@@ -699,7 +771,10 @@ with aba_mapa:
 # ------------------------------------------------------------------------------
 with aba_prioridade:
     st.subheader("🎯 Matriz de Priorização Territorial & Alocação de Recursos")
-    st.markdown("O algoritmo calcula o Score de Prioridade (0-100) ponderando competitividade de votos, abstenção e juventude.")
+    st.markdown(
+        "O score (0–100) pondera disputa (margem apertada), volume de eleitores, abstenção e juventude. "
+        "Ainda não multiplica potencial de voto × competitividade × custo de alcance: não há camada de infraestrutura nem custo logístico por território."
+    )
 
     # Gráfico de Barras Plotly dos Territórios Prioritários
     top_10 = df_territorio.head(10)
@@ -721,7 +796,7 @@ with aba_prioridade:
         yaxis=dict(autorange="reversed"),
         font=dict(family="Plus Jakarta Sans")
     )
-    st.plotly_chart(fig_prioridade, use_container_width=True)
+    st.plotly_chart(fig_prioridade, width="stretch")
 
     # Tabela Completa Formatada
     cols_display = ["nome", "rotulo_zonamento", "Score_Prioridade", "margem_apurada_perc", "eleitores_cne", "abstencao_perc", "juventude_perc"]
@@ -734,7 +809,7 @@ with aba_prioridade:
         "abstencao_perc": "Abstenção Histórica (%)",
         "juventude_perc": "Jovens 18-35 (%)"
     })
-    st.dataframe(df_prioridade_display, use_container_width=True)
+    st.dataframe(df_prioridade_display, width="stretch")
 
 # ------------------------------------------------------------------------------
 # ABA 3: DISCURSOS COM IA & FLUXO DE APROVAÇÃO HUMANA
@@ -765,7 +840,7 @@ with aba_discurso:
     # Botão de Geração com IA (Anthropic / Claude)
     col_gerar1, col_gerar2 = st.columns([1, 2])
     with col_gerar1:
-        if st.button("⚡ Gerar Rascunho com IA (Claude)", use_container_width=True):
+        if st.button("⚡ Gerar Rascunho com IA (Claude)", width="stretch"):
             sucesso_ia, novo_disc = api.gerar_discurso_ia(
                 municipio=territorio_discurso,
                 nome_partido=nome_nosso_partido,
@@ -834,7 +909,7 @@ with aba_discurso:
         comentarios_input = st.text_area("Comentários / Ressalvas de Revisão:", value=estado_atual["comentarios"] or "", height=70, key="txt_comentarios")
     with col_rev2:
         st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("🔍 Enviar para Revisão", use_container_width=True):
+        if st.button("🔍 Enviar para Revisão", width="stretch"):
             st.session_state[chave_estado]["status"] = "EM_REVISAO"
             st.session_state[chave_estado]["revisor"] = revisor_input
             st.session_state[chave_estado]["comentarios"] = comentarios_input
@@ -842,7 +917,7 @@ with aba_discurso:
             fetch_discurso_territorializado.clear()
             st.rerun()
 
-        if st.button("✅ Aprovar Discurso Oficial", use_container_width=True):
+        if st.button("✅ Aprovar Discurso Oficial", width="stretch"):
             st.session_state[chave_estado]["status"] = "APROVADO"
             st.session_state[chave_estado]["revisor"] = revisor_input
             st.session_state[chave_estado]["comentarios"] = comentarios_input
@@ -852,7 +927,7 @@ with aba_discurso:
             st.success("Discurso aprovado oficialmente e registrado na trilha de auditoria!")
             st.rerun()
 
-        if st.button("❌ Rejeitar Rascunho", use_container_width=True):
+        if st.button("❌ Rejeitar Rascunho", width="stretch"):
             st.session_state[chave_estado]["status"] = "REJEITADO"
             st.session_state[chave_estado]["revisor"] = revisor_input
             st.session_state[chave_estado]["comentarios"] = comentarios_input
@@ -898,7 +973,7 @@ with aba_simulador:
         yaxis_title="Total de Votos Válidos",
         font=dict(family="Plus Jakarta Sans")
     )
-    st.plotly_chart(fig_cenarios, use_container_width=True)
+    st.plotly_chart(fig_cenarios, width="stretch")
 
 # ------------------------------------------------------------------------------
 # ABA 5: TELEMETRIA DE TERRENO & DORES
@@ -953,7 +1028,7 @@ with aba_terreno:
                 }
             )
             fig_donut.update_layout(template="plotly_dark", plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
-            st.plotly_chart(fig_donut, use_container_width=True)
+            st.plotly_chart(fig_donut, width="stretch")
 
         with col_chart2:
             st.markdown("### 🚨 Principais Dores Comunitárias")
@@ -972,7 +1047,7 @@ with aba_terreno:
                     color_continuous_scale="Viridis"
                 )
                 fig_dores.update_layout(template="plotly_dark", plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
-                st.plotly_chart(fig_dores, use_container_width=True)
+                st.plotly_chart(fig_dores, width="stretch")
             else:
                 st.warning("Sem dores comunitárias registadas neste lote.")
 
@@ -1018,7 +1093,7 @@ with aba_terreno:
                     "…" if len(alerta.get("uuids") or []) > 4 else ""
                 ),
             })
-        st.dataframe(pd.DataFrame(linhas_alerta), use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame(linhas_alerta), width="stretch", hide_index=True)
 
         opcoes_lote = [
             f"{idx + 1}. {a.get('tipo')} — {a.get('ativista_nome') or a.get('ativista_id')} ({a.get('quantidade') or 1} registos)"
@@ -1031,7 +1106,7 @@ with aba_terreno:
 
         if not plano_ativo["funcionalidades"]["invalidar_lote"]:
             st.info("A invalidação de lote é capacidade do Plano Provincial e do Nacional / HQ.")
-        elif st.button("🚫 Invalidar lote suspeito com um clique", use_container_width=True):
+        elif st.button("🚫 Invalidar lote suspeito com um clique", width="stretch"):
             ok_inv, detalhe_inv = api.invalidar_lote_visitas(
                 uuids_lote,
                 motivo=f"ANOMALIA_{alerta_sel.get('tipo')}",
@@ -1051,7 +1126,7 @@ with aba_terreno:
 
         if st.session_state.lotes_invalidados:
             st.markdown("#### Histórico de invalidações desta sessão")
-            st.dataframe(pd.DataFrame(st.session_state.lotes_invalidados), use_container_width=True, hide_index=True)
+            st.dataframe(pd.DataFrame(st.session_state.lotes_invalidados), width="stretch", hide_index=True)
 
 # ------------------------------------------------------------------------------
 # ABA 6: SALA DO DIA D & APURAMENTO PARALELO
@@ -1156,7 +1231,7 @@ with aba_diad:
                 st.markdown(f"- ⚠️ **Mesa {ata.get('mesa_numero', '—')} ({nome_ass}):** desvio de {dist}m.")
         else:
             st.success("Nenhum alerta de geofence neste momento.")
-        if st.button("⚖️ Protocolar Caso no Comitê Jurídico (OAA)", use_container_width=True):
+        if st.button("⚖️ Protocolar Caso no Comitê Jurídico (OAA)", width="stretch"):
             ok_caso, detalhe = api.criar_caso_juridico(
                 titulo="Alerta de geofence para revisão humana",
                 descricao_fato="Pedido de protocolação a partir do War Room. Distâncias acima de 300 m exigem averiguação técnica, sem presunção de fraude.",

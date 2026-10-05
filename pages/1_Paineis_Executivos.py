@@ -106,9 +106,9 @@ with intention:
     territory_data = filtered.groupby("territory", as_index=False).agg(
         intencao=("intention", "mean"), indecisos=("undecided", "mean")
     )
-    a, b = st.columns(2)
-    a.metric("Intenção média (indicativa)", f"{filtered['intention'].mean():.1f}%")
-    b.metric("Indecisos médios", f"{filtered['undecided'].mean():.1f}%")
+    with st.container(horizontal=True):
+        st.metric("Intenção média (indicativa)", f"{filtered['intention'].mean():.1f}%", border=True)
+        st.metric("Indecisos médios", f"{filtered['undecided'].mean():.1f}%", border=True)
     left, right = st.columns(2)
     with left:
         st.plotly_chart(
@@ -127,7 +127,10 @@ with intention:
             ),
             width="stretch",
         )
-    st.caption("Sem amostra, metodologia e fonte auditadas, estes percentuais não são estimativas eleitorais.")
+    st.info(
+        "ℹ️ **Rigor Metodológico (Princípio de Honestidade dos Dados):** Percentuais de intenção sem amostragem probabilística auditada (n ≥ 400), "
+        "intervalo de confiança de 95% e margem de erro formal (ex.: ±4.9 p.p.) são estritamente indicativos de simulação interna e não constituem sondagem perante a CNE."
+    )
 
 with paid:
     st.subheader("Tráfego pago — desempenho")
