@@ -8,9 +8,10 @@ import {
   TextInput,
   Alert,
 } from 'react-native';
+import * as Location from 'expo-location';
 import { THEME } from '../theme/theme';
 import { offlineStorage, generateUUID } from '../services/offlineStorage';
-import { apiService, ATIVISTA_PADRAO_ID, CAMPANHA_PADRAO_ID } from '../services/api';
+import { apiService } from '../services/api';
 
 const DORES_OPCOES = [
   { id: 'AGUA', label: '💧 Falta de Água' },
@@ -49,23 +50,48 @@ export default function ActivistDoorToDoorScreen() {
     setPendencias(total);
   };
 
-  const capturarLocalizacaoNativa = () => {
-    // Simula / captura GPS com oscilação realista de campo
+  const capturarLocalizacaoNativa = async () => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status === 'granted') {
+        const pos = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+        if (pos && pos.coords) {
+          // Perturbação deliberada para privacidade segundo a Lei n.º 22/11 (~100m)
+          const offsetLat = (Math.random() - 0.5) * 0.0018;
+          const offsetLon = (Math.random() - 0.5) * 0.0018;
+          setCoordenadas({
+            latitude: Number((pos.coords.latitude + offsetLat).toFixed(6)),
+            longitude: Number((pos.coords.longitude + offsetLon).toFixed(6)),
+            precisao: pos.coords.accuracy ? Math.round(pos.coords.accuracy) : 5.0,
+          });
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn('[GPS] Erro ao obter localização nativa expo-location:', err.message);
+    }
+
+    // Fallback gracioso para ambiente web ou sem permissão
     if (typeof navigator !== 'undefined' && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
+          const offsetLat = (Math.random() - 0.5) * 0.0018;
+          const offsetLon = (Math.random() - 0.5) * 0.0018;
           setCoordenadas({
-            latitude: pos.coords.latitude,
-            longitude: pos.coords.longitude,
+            latitude: Number((pos.coords.latitude + offsetLat).toFixed(6)),
+            longitude: Number((pos.coords.longitude + offsetLon).toFixed(6)),
             precisao: pos.coords.accuracy ? Math.round(pos.coords.accuracy) : 4.5,
           });
         },
         () => {
-          // Fallback para coordenadas de Luanda (Talatona / Camama)
           setCoordenadas({ latitude: -8.9165, longitude: 13.2664, precisao: 4.2 });
         },
-        { enableHighAccuracy: true, timeout: 5000 }
+        { enableHighAccuracy: false, timeout: 5000 }
       );
+    } else {
+      setCoordenadas({ latitude: -8.9165, longitude: 13.2664, precisao: 4.2 });
     }
   };
 
@@ -85,6 +111,14 @@ export default function ActivistDoorToDoorScreen() {
 
     setSalvando(true);
     try {
+      const identity = await offlineStorage.obterIdentidade();
+      if (!identity?.ativista_id || !identity?.campanha_id) {
+        throw new Error('Inicie sessão com uma conta de mobilizador para registar visitas.');
+      }
+      const novaVisita = {
+        id: generateUUID(),
+        campanha_id: identity.campanha_id,
+        ativista_id: identity.ativista_id,
       const uuidVisita = generateUUID();
       const novaVisita = {
         uuid: uuidVisita,
@@ -121,7 +155,7 @@ export default function ActivistDoorToDoorScreen() {
       capturarLocalizacaoNativa();
     } catch (err) {
       console.error('Erro ao gravar visita:', err);
-      alert('Falha ao gravar no armazenamento local do telemóvel.');
+      alert(err.message || 'Falha ao gravar no armazenamento local do telemóvel.');
     } finally {
       setSalvando(false);
     }

@@ -25,28 +25,12 @@
 ```text
 projeto_angola/
 ├── .github/workflows/ci.yml             # Pipeline de CI (Lint + Testes + Compilação + Audit)
-├── backend/                              # API RESTful em Node.js e Express
-│   ├── migrations/                      # 6 Migrations versionadas (node-pg-migrate)
-│   ├── src/
-│   │   ├── config/db.js                 # Pool PostgreSQL resiliente
-│   │   ├── controllers/
-│   │   │   ├── visitasController.js     # Sincronização offline-first com controle de qualidade
-│   │   │   ├── locaisVotoController.js  # Consultas espaciais PostGIS (ST_DWithin em metros)
-│   │   │   ├── dashboardController.js   # Resumo tático com estatística amostral (n e margem)
-│   │   │   ├── discursosController.js   # Discursos com IA (Anthropic) e fluxo de aprovação
-│   │   │   ├── territorioController.js  # Malha versionada DPA 2016/2024 e De-Para
-│   │   │   └── warRoomController.js     # War Room, apuramento Dia D e casos jurídicos
-│   │   ├── middleware/
-│   │   │   ├── auth.js                  # Autenticação JWT, perfis RBAC e Rate Limiting
-│   │   │   ├── validator.js             # Validação estrita de esquemas e limites
-│   │   │   └── errorHandler.js          # Tratamento centralizado de erros
-│   │   ├── services/
-│   │   │   ├── aiSpeechService.js       # Integração com Anthropic Claude (System Prompt auditado)
-│   │   │   ├── zonamentoService.js      # Motor matemático transparente de zonamento
-│   │   │   └── estatisticaService.js    # Cálculo formal de margem de erro com FPCF (n e e)
-│   │   ├── utils/logger.js              # Logs estruturados em JSON com sanitização de segredos
-│   │   └── server.js                    # Inicialização com rate limiter e observabilidade
-│   └── tests/api_requests.http          # Coleção de testes REST
+├── backend/                              # API RESTful em Python e FastAPI
+│   ├── app/                             # Rotas, configurações, autenticação e observabilidade
+│   ├── tests/                           # Contratos e integração real PostgreSQL/PostGIS
+│   ├── requirements.txt                 # Dependências do backend
+│   ├── boot.py                          # Valida PostGIS e inicia Uvicorn
+│   └── create_user.py                   # Provisionamento seguro de contas da API
 ├── data/
 │   ├── raw/                             # Dados brutos oficiais com proveniência auditada
 │   │   ├── README.md                    # Dicionário de dados brutos
@@ -60,7 +44,10 @@ projeto_angola/
 │   ├── 01_schema_postgis.sql            # Esquema base e funções espaciais
 │   ├── 02_seed_angola_data.sql          # Dados de teste Luanda, Huambo e Lobito
 │   ├── 03_seed_municipios_angola.sql    # Matriz oficial CNE
-│   └── 04_carga_territorial_oficial.sql # Carga gerada pelo ETL com DPA 2016/2024
+│   ├── 04_carga_territorial_oficial.sql # Carga gerada pelo ETL com DPA 2016/2024
+│   ├── 05_migration_fastapi_evidence.sql # Persistência de evidências de campo
+│   ├── 06_migration_fastapi_users.sql   # Contas e associação a mobilizadores
+│   └── 07_migration_rls_multi_tenancy.sql # Isolamento multi-tenancy e Row-Level Security (RLS)
 ├── docs/                                # Documentação Técnica e de Negócio
 │   ├── auditoria.md                     # Relatório de auditoria técnica (Passo 0)
 │   ├── legal.md                         # Marco legal eleitoral e conformidade com a CNE
@@ -68,8 +55,10 @@ projeto_angola/
 │   └── demo_guide.md                    # Roteiro de demonstração comercial e vendas B2B
 ├── mobile/                              # Aplicação Móvel & Simulador
 │   ├── App.js                           # App React Native / Expo
-│   ├── preview.html                     # Simulador Mobile interativo
+│   ├── index.js                         # Entrada Expo
+│   ├── preview.html                    # Simulador Mobile interativo
 │   └── src/screens/                     # 3 Ecrãs: Mapa, Porta-a-Porta e Dia D
+├── pages/1_Paineis_Executivos.py        # Quatro painéis executivos Streamlit
 ├── scripts/
 │   ├── etl_territorial.js               # Pipeline ETL com auditoria de qualidade
 │   └── integrar_cartografia.js          # Conversão cartográfica
@@ -78,16 +67,20 @@ projeto_angola/
 ├── docker-compose.yml                   # Orquestração de microsserviços
 ├── render.yaml                          # Blueprint de deploy em nuvem
 ├── requirements.txt                     # Dependências Python
-└── tests/test_fluxo_completo.js         # Suíte com 61 testes automatizados (100% OK)
+└── tests/test_fluxo_completo.js         # Suíte de validação do fluxo funcional
 ```
 
 ---
 
 ## 🚀 Como Executar
 
-### 1. Suíte de Testes Automatizada (61 Testes de Integração)
+### 1. Suíte de Testes Automatizada
 ```bash
 node tests/test_fluxo_completo.js
+```
+Os testes FastAPI de integração necessitam de PostgreSQL/PostGIS real, configurado em `TEST_DATABASE_URL` para um banco isolado terminado em `_test`:
+```bash
+python -m pytest backend/tests -q
 ```
 
 ### 2. Executar o Pipeline ETL Territorial
@@ -95,13 +88,20 @@ node tests/test_fluxo_completo.js
 node scripts/etl_territorial.js
 ```
 
-### 3. Iniciar o Backend API (Node.js + Express)
+### 3. Iniciar o Backend API (Python + FastAPI)
 ```bash
-cd backend
-npm install
-npm run migrate:up   # Aplica as 6 migrations versionadas
-npm run dev          # Inicia servidor na porta 3001
+python -m pip install -r backend/requirements.txt
+copy .env.example .env
+python boot.py        # Valida ambiente e PostGIS, depois inicia a API na porta 8000
 ```
+Em bases existentes, aplique as migrations SQL `05`, `06` e `07` antes de iniciar a API. Em novas bases, o Docker Compose executa os scripts SQL por ordem no primeiro arranque.
+Para uma base nova fora do Compose, execute os scripts `01` a `07` de `database/` em ordem, usando `psql` com `ON_ERROR_STOP=1`, antes do primeiro deploy.
+
+Crie uma conta ligada a um mobilizador já cadastrado na campanha (não passe a senha como argumento):
+```bash
+python backend/create_user.py --campanha-id <UUID> --ativista-id <UUID> --nome "Mobilizador" --email mobilizador@example.org --perfil BRIGADISTA
+```
+Para a conta do War Room, configure um JWT válido em `API_AUTH_TOKEN`; o token respeita a expiração definida por `JWT_ACCESS_TOKEN_EXPIRE_MINUTES`.
 
 ### 4. Iniciar a Sala de Guerra (Streamlit Dark Mode)
 ```bash
@@ -112,6 +112,10 @@ Acesse no navegador: [http://localhost:8501](http://localhost:8501)
 
 ### 5. Simulador Mobile Interativo
 Abra com duplo clique no navegador: `mobile/preview.html`
+Para executar o aplicativo Expo, instale as dependências com `npm ci` dentro de `mobile/` e use `npx expo start`.
+
+### 6. Painéis executivos
+A página `Painéis Executivos` apresenta abas para redes sociais, intenção de voto, tráfego pago e finanças. Os valores estão marcados como simulados; conecte fontes auditadas antes de uso operacional.
 
 ---
 

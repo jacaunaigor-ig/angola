@@ -10,6 +10,22 @@ jobs:
   test-and-validate:
     name: Testes Automatizados e Auditoria de Qualidade
     runs-on: ubuntu-latest
+    services:
+      postgis:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_DB: angola_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: test-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d angola_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      TEST_DATABASE_URL: postgresql://postgres:test-password@localhost:5432/angola_test
 
     steps:
       - name: Checkout do Repositório
@@ -20,7 +36,9 @@ jobs:
         with:
           node-version: '20.x'
           cache: 'npm'
-          cache-dependency-path: backend/package-lock.json
+          cache-dependency-path: |
+            backend/package-lock.json
+            mobile/package-lock.json
 
       - name: Configurar Python 3.11
         uses: actions/setup-python@v5
@@ -28,14 +46,22 @@ jobs:
           python-version: '3.11'
           cache: 'pip'
 
+      - name: Instalar Dependências Mobile
+        run: npm ci
+        working-directory: mobile
+
+      - name: Validar Bundle Expo Android
+        run: npx expo export --platform android
+        working-directory: mobile
+
       - name: Instalar Dependências do Backend
         run: |
           cd backend
-          npm ci
+          python -m pip install -r requirements.txt
 
       - name: Instalar Dependências do Python
         run: |
-          pip install -r requirements.txt
+          python -m pip install -r requirements.txt
 
       - name: Executar Pipeline ETL de Dados Territoriais
         run: |
@@ -50,9 +76,13 @@ jobs:
 
       - name: Validar Sintaxe e Compilação dos Arquivos Python
         run: |
-          python -m py_compile app.py api_client.py war_room/anomalias_campo.py war_room/planos_comerciais.py
+          python -m py_compile app.py api_client.py boot.py backend/boot.py backend/create_user.py
+          python -c "import pathlib, py_compile; [py_compile.compile(str(path), doraise=True) for base in ('backend/app', 'backend/tests', 'pages') for path in pathlib.Path(base).rglob('*.py')]"
 
-      - name: Auditoria de Segurança de Dependências (NPM Audit)
+      - name: Testes de Integração FastAPI + PostgreSQL/PostGIS
         run: |
-          cd backend
-          npm audit --audit-level=high || true
+          python -m pytest backend/tests -q
+
+      - name: Auditoria de Dependências Python
+        run: |
+          python -m pip check

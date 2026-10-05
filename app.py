@@ -1,6 +1,8 @@
 import os
 import io
 import json
+import html
+import textwrap
 import streamlit as st
 import pandas as pd
 import folium
@@ -61,7 +63,42 @@ def margem_erro_amostral(n: int, universo: int = 1_000_000) -> Optional[float]:
     return round(z * ((p * (1 - p) / n) * max(0.0, fpcf)) ** 0.5 * 100, 1)
 
 
-api = ApiClient()
+def render_html(fragment: str) -> None:
+    """Injeta HTML sem indentação, para o Markdown do Streamlit não tratar como bloco de código."""
+    st.markdown(textwrap.dedent(fragment).strip(), unsafe_allow_html=True)
+
+
+@st.cache_resource
+def get_api_client() -> ApiClient:
+    return ApiClient()
+
+
+api = get_api_client()
+
+
+@st.cache_data(ttl=120, show_spinner=False)
+def fetch_unidades_territoriais(versao: str):
+    return api.obter_unidades_territoriais(versao, formato="geojson")
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def fetch_relatorio_qualidade():
+    return api.obter_relatorio_qualidade()
+
+
+@st.cache_data(ttl=30, show_spinner=False)
+def fetch_resumo_nacional(campanha_id: Optional[str] = None):
+    return api.obter_resumo_nacional(campanha_id)
+
+
+@st.cache_data(ttl=15, show_spinner=False)
+def fetch_apuramento_paralelo(campanha_id: Optional[str] = None):
+    return api.obter_apuramento_paralelo(campanha_id)
+
+
+@st.cache_data(ttl=60, show_spinner=False)
+def fetch_discurso_territorializado(municipio: str, campanha_id: Optional[str] = None):
+    return api.obter_discurso_territorializado(municipio, campanha_id)
 
 # ==============================================================================
 # 1. CONFIGURAÇÃO GERAL DA PÁGINA & THEME MODERNO
@@ -239,6 +276,13 @@ st.markdown("""
         line-height: 32px;
     }
 
+    .header-clock {
+        font-size: 10px;
+        color: #64748B;
+        margin-top: 6px;
+        font-family: "JetBrains Mono", ui-monospace, monospace;
+    }
+
     @media (max-width: 1100px) {
         .kpi-container { grid-template-columns: repeat(2, 1fr); }
     }
@@ -325,20 +369,23 @@ peso_jovens = st.sidebar.slider("Densidade de Jovens (18-35 anos):", 1, 5, 2)
 api_online, health_data = api.verificar_saude()
 modo_ativo = "DEMO" if (modo_demo_forcado or not api_online) else "ONLINE"
 
-status_html = f"""
-<span class="status-badge-online">
-    <span class="live-dot" style="background:#10B981;"></span>
-    API ONLINE ({health_data.get('postgis', 'PostGIS 3.4')})
-</span>
-""" if modo_ativo == "ONLINE" else """
-<span class="status-badge-demo">
-    <span class="live-dot" style="background:#F97316;"></span>
-    MODO DEMONSTRAÇÃO (DADOS AUDITADOS)
-</span>
-"""
+postgis_rotulo = html.escape(str(health_data.get("postgis") or "PostGIS"))
+if len(postgis_rotulo) > 48:
+    postgis_rotulo = "PostGIS ligado"
+agora_label = html.escape(datetime.now().strftime("%d/%m/%Y • %H:%M"))
 
-st.markdown(f"""
+status_html = (
+    f'<span class="status-badge-online"><span class="live-dot" style="background:#10B981;"></span> API ONLINE ({postgis_rotulo})</span>'
+    if modo_ativo == "ONLINE"
+    else '<span class="status-badge-demo"><span class="live-dot" style="background:#F97316;"></span> MODO DEMONSTRAÇÃO (DADOS AUDITADOS)</span>'
+)
+
+render_html(f"""
 <div class="command-header-card">
+<div>
+<div style="font-size:11px; font-weight:800; color:#38BDF8; letter-spacing:1.2px; text-transform:uppercase; margin-bottom:4px;">🇦🇴 REPÚBLICA DE ANGOLA • PLEITO PRESIDENCIAL E LEGISLATIVO 2027</div>
+<h2 style="margin:0; font-size:24px; font-weight:800; color:#F8FAFC;">SALA DE GUERRA &amp; WAR ROOM DE MARKETING POLÍTICO</h2>
+<div style="font-size:12px; color:#94A3B8; margin-top:4px;">Inteligência Territorial • Demografia da Juventude • Discursos com IA • Monitoramento do Dia D</div>
     <div>
         <div style="font-size:11px; font-weight:800; color:#38BDF8; letter-spacing:1.2px; text-transform:uppercase; margin-bottom:4px;">
             🇦🇴 REPÚBLICA DE ANGOLA • PLEITO PRESIDENCIAL E LEGISLATIVO 2027
@@ -360,12 +407,20 @@ st.markdown(f"""
         </div>
     </div>
 </div>
-""", unsafe_allow_html=True)
+<div style="text-align:right;">
+{status_html}
+<div class="header-clock">DATA: {agora_label}</div>
+</div>
+</div>
+""")
 
 # ==============================================================================
 # 4. CARGA DOS DADOS TERRITORIAIS OFICIAIS
 # ==============================================================================
-sucesso_api_unidades, geo_dados, proveniencia_unidades = api.obter_unidades_territoriais(versao_selecionada, formato="geojson")
+# ==============================================================================
+# 4. CARGA DOS DADOS TERRITORIAIS OFICIAIS
+# ==============================================================================
+sucesso_api_unidades, geo_dados, proveniencia_unidades = fetch_unidades_territoriais(versao_selecionada)
 geo_dados = filtrar_geojson(geo_dados, plano_codigo, territorio_contrato)
 
 if not geo_dados or "features" not in geo_dados or not geo_dados.get("features"):
@@ -442,42 +497,30 @@ else:
     abst_media = float(df_territorio["abstencao_perc"].mean() or 0.0)
     jovens_media = float(df_territorio["juventude_perc"].mean() or 0.0)
 
-st.markdown(f"""
+render_html(f"""
 <div class="kpi-container">
-    <div class="kpi-card-glass">
-        <div class="kpi-title">Eleitorado Registado</div>
-        <div class="kpi-value">{fmt_int_ao(total_eleitores_nac)}</div>
-        <div class="kpi-sub">
-            <span>Base Eleitoral CNE</span>
-            <span class="provenance-pill">OFICIAL CNE</span>
-        </div>
-    </div>
-    <div class="kpi-card-glass">
-        <div class="kpi-title">População Abrangida</div>
-        <div class="kpi-value">{fmt_int_ao(total_pop_nac)}</div>
-        <div class="kpi-sub">
-            <span>Projeções Demográficas</span>
-            <span class="provenance-pill">OFICIAL INE</span>
-        </div>
-    </div>
-    <div class="kpi-card-glass">
-        <div class="kpi-title">Densidade Jovem (18-35)</div>
-        <div class="kpi-value">{jovens_media:.1f}%</div>
-        <div class="kpi-sub">
-            <span>Média ponderada pelo eleitorado</span>
-            <span class="provenance-pill">OFICIAL INE</span>
-        </div>
-    </div>
-    <div class="kpi-card-glass">
-        <div class="kpi-title">Abstenção Histórica</div>
-        <div class="kpi-value">{abst_media:.1f}%</div>
-        <div class="kpi-sub">
-            <span>Média ponderada 2022</span>
-            <span class="provenance-pill">OFICIAL CNE 2022</span>
-        </div>
-    </div>
+<div class="kpi-card-glass">
+<div class="kpi-title">Eleitorado Registado</div>
+<div class="kpi-value">{fmt_int_ao(total_eleitores_nac)}</div>
+<div class="kpi-sub"><span>Base Eleitoral CNE</span><span class="provenance-pill">OFICIAL CNE</span></div>
 </div>
-""", unsafe_allow_html=True)
+<div class="kpi-card-glass">
+<div class="kpi-title">População Abrangida</div>
+<div class="kpi-value">{fmt_int_ao(total_pop_nac)}</div>
+<div class="kpi-sub"><span>Projeções Demográficas</span><span class="provenance-pill">OFICIAL INE</span></div>
+</div>
+<div class="kpi-card-glass">
+<div class="kpi-title">Densidade Jovem (18-35)</div>
+<div class="kpi-value">{jovens_media:.1f}%</div>
+<div class="kpi-sub"><span>Média ponderada pelo eleitorado</span><span class="provenance-pill">OFICIAL INE</span></div>
+</div>
+<div class="kpi-card-glass">
+<div class="kpi-title">Abstenção Histórica</div>
+<div class="kpi-value">{abst_media:.1f}%</div>
+<div class="kpi-sub"><span>Média ponderada 2022</span><span class="provenance-pill">OFICIAL CNE 2022</span></div>
+</div>
+</div>
+""")
 
 # ==============================================================================
 # 5. ABAS ESTRATÉGICAS DA SALA DE GUERRA
@@ -729,6 +772,7 @@ with aba_discurso:
                 nome_oposicao=nome_oposicao,
                 diretrizes=diretrizes_comite
             )
+            fetch_discurso_territorializado.clear()
             st.session_state[chave_estado]["status"] = "RASCUNHO"
             st.session_state[chave_estado]["revisor"] = None
             if sucesso_ia:
@@ -752,7 +796,7 @@ with aba_discurso:
     </div>
     """, unsafe_allow_html=True)
 
-    sucesso_disc, disc_api, prov_disc = api.obter_discurso_territorializado(territorio_discurso)
+    sucesso_disc, disc_api, prov_disc = fetch_discurso_territorializado(territorio_discurso)
     estrategia = disc_api.get("estrategia_discurso", {})
     hook_texto = estrategia.get("abertura_hook", f"Povo trabalhador de {territorio_discurso}! Estamos aqui com honestidade para assumir compromissos com o futuro da nossa gente!")
 
@@ -795,6 +839,7 @@ with aba_discurso:
             st.session_state[chave_estado]["revisor"] = revisor_input
             st.session_state[chave_estado]["comentarios"] = comentarios_input
             api.atualizar_status_discurso(f"disc-{territorio_discurso}", "EM_REVISAO", revisor_input, comentarios_input)
+            fetch_discurso_territorializado.clear()
             st.rerun()
 
         if st.button("✅ Aprovar Discurso Oficial", use_container_width=True):
@@ -803,6 +848,7 @@ with aba_discurso:
             st.session_state[chave_estado]["comentarios"] = comentarios_input
             st.session_state[chave_estado]["data_aprovacao"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             api.atualizar_status_discurso(f"disc-{territorio_discurso}", "APROVADO", revisor_input, comentarios_input)
+            fetch_discurso_territorializado.clear()
             st.success("Discurso aprovado oficialmente e registrado na trilha de auditoria!")
             st.rerun()
 
@@ -811,6 +857,7 @@ with aba_discurso:
             st.session_state[chave_estado]["revisor"] = revisor_input
             st.session_state[chave_estado]["comentarios"] = comentarios_input
             api.atualizar_status_discurso(f"disc-{territorio_discurso}", "REJEITADO", revisor_input, comentarios_input)
+            fetch_discurso_territorializado.clear()
             st.warning("Rascunho rejeitado e devolvido para a equipe.")
             st.rerun()
 
@@ -860,7 +907,7 @@ with aba_terreno:
     st.subheader("🚶 Telemetria de Terreno & Estatística Amostral")
     st.markdown(r"Princípio: **Nunca exibir percentuais sem tamanho amostral ($n$) e margem de erro ($\pm e\%$)**.")
 
-    ok_resumo, resumo_terreno, prov_terreno = api.obter_resumo_nacional()
+    ok_resumo, resumo_terreno, prov_terreno = fetch_resumo_nacional()
     painel = resumo_terreno.get("painel_nacional") or {}
     ranking_dores = resumo_terreno.get("ranking_nacional_dores") or []
     n_amostra = int(painel.get("total_visitas") or 0)
@@ -1023,7 +1070,7 @@ with aba_diad:
     if not plano_ativo["funcionalidades"]["dia_d"]:
         ok_apur, apur, prov_apur = False, {}, "BLOQUEADO_PLANO"
     else:
-        ok_apur, apur, prov_apur = api.obter_apuramento_paralelo()
+        ok_apur, apur, prov_apur = fetch_apuramento_paralelo()
     if not plano_ativo["funcionalidades"]["dia_d"]:
         cobertura = {}
         votos = {}
@@ -1127,7 +1174,7 @@ with aba_auditoria:
     st.subheader("🛡️ Auditoria de Qualidade dos Dados & Segurança Multi-Tenancy")
     st.markdown("Relatório emitido pelo pipeline ETL e status de isolamento de dados por campanha (Row Level Security).")
 
-    relatorio_etl = api.obter_relatorio_qualidade()
+    relatorio_etl = fetch_relatorio_qualidade()
     audit_met = relatorio_etl.get("auditoria_qualidade", {})
 
     qa1, qa2, qa3, qa4 = st.columns(4)
