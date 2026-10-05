@@ -55,6 +55,32 @@ def test_fastapi_contract_registers_health_auth_and_legacy_routes():
     assert "/api/dia-d/casos-juridicos" in schema["paths"]
     assert "/api/discursos/gerar" in schema["paths"]
     assert "/api/discursos/{speech_id}/status" in schema["paths"]
+    assert "/api/planos" in schema["paths"]
+    assert "/api/propostas" in schema["paths"]
+    assert "/api/visitas/invalidar-lote" in schema["paths"]
+
+
+def test_commercial_plans_entitlements_guard():
+    from app.routers.plans import exigir_funcionalidade
+
+    # NACIONAL tem tudo
+    exigir_funcionalidade("NACIONAL", "dia_d")
+    exigir_funcionalidade("NACIONAL", "casos_juridicos")
+    exigir_funcionalidade("NACIONAL", "invalidar_lote")
+
+    # PROVINCIAL tem dia_d e casos_juridicos
+    exigir_funcionalidade("PROVINCIAL", "dia_d")
+    exigir_funcionalidade("PROVINCIAL", "casos_juridicos")
+
+    # MUNICIPAL nao tem dia_d nem casos_juridicos -> deve levantar 402
+    from fastapi import HTTPException
+    with pytest.raises(HTTPException) as exc:
+        exigir_funcionalidade("MUNICIPAL", "dia_d")
+    assert exc.value.status_code == 402
+
+    with pytest.raises(HTTPException) as exc:
+        exigir_funcionalidade("MUNICIPAL", "casos_juridicos")
+    assert exc.value.status_code == 402
 
 
 def test_schema_validations_and_sanitization():

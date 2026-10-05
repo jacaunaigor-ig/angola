@@ -15,6 +15,18 @@ import { apiService } from '../services/api';
 
 const { height } = Dimensions.get('window');
 
+const COORDENADAS_MUNICIPIOS = {
+  talatona: { longitude: 13.2667, latitude: -8.9167 },
+  viana: { longitude: 13.3667, latitude: -8.9100 },
+  cacuaco: { longitude: 13.3500, latitude: -8.7833 },
+  luanda: { longitude: 13.2343, latitude: -8.8368 },
+  huambo: { longitude: 15.7392, latitude: -12.7761 },
+  lubango: { longitude: 13.4925, latitude: -14.9172 },
+  benguela: { longitude: 13.4055, latitude: -12.5763 },
+  lobito: { longitude: 13.5438, latitude: -12.3644 },
+  cabinda: { longitude: 12.2000, latitude: -5.5500 },
+};
+
 export default function TacticalMapScreen({ navigation, onNavigateToDoorToDoor }) {
   const [municipioBusca, setMunicipioBusca] = useState('Talatona');
   const [dadosTaticos, setDadosTaticos] = useState(null);
@@ -45,8 +57,12 @@ export default function TacticalMapScreen({ navigation, onNavigateToDoorToDoor }
       const dados = await apiService.obterResumoMunicipio(municipio);
       setDadosTaticos(dados);
 
-      // Carrega assembleias fictícias/locais para a camada de mapa
-      const locais = await apiService.buscarLocaisProximos(13.2667, -8.9167, 4000);
+      const munKey = String(municipio || '').trim().toLowerCase();
+      const coords = dados?.coordenadas?.longitude && dados?.coordenadas?.latitude
+        ? dados.coordenadas
+        : (COORDENADAS_MUNICIPIOS[munKey] || COORDENADAS_MUNICIPIOS.talatona);
+
+      const locais = await apiService.buscarLocaisProximos(coords.longitude, coords.latitude, 6000);
       setAssembleias(locais);
     } catch (err) {
       console.warn('Erro ao carregar dados:', err);

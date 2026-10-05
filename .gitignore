@@ -38,7 +38,8 @@ venv/
 ENV/
 
 # Streamlit
-.streamlit/
+.streamlit/*
+!.streamlit/config.toml
 
 # Subpastas temporárias ou clones
 angola/
