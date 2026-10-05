@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { api } from "../api.js";
+import { IconeCheck, IconeFechar } from "../components/Icones.jsx";
 import { Aviso, Cartao, Selo } from "../components/ui.jsx";
 
 export default function Discursos({ plano, sessao }) {
@@ -14,10 +15,18 @@ export default function Discursos({ plano, sessao }) {
     onChange: (e) => setLogin({ ...login, [nome]: e.target.value }),
   });
 
+  function preencherExemplo() {
+    setLogin({
+      campanha_id: "a0000000-0000-0000-0000-000000000001",
+      email: "analista@campanha.ao",
+      senha: "senha-segura-2027",
+    });
+  }
+
   function tratarErro(exc) {
     if (exc.status === 401) {
       sessao.sair();
-      setErro("A sessão terminou ou não existe. Entre de novo.");
+      setErro("A sessão terminou ou as credenciais são inválidas.");
     } else {
       setErro(exc.message);
     }
@@ -48,7 +57,7 @@ export default function Discursos({ plano, sessao }) {
 
   async function rever(status) {
     if (!discurso?.id) {
-      setAviso("Este rascunho ainda não foi gravado. Grave-o por POST /api/discursos/gerar com a sessão activa antes de o rever.");
+      setAviso("Este rascunho ainda não foi persistido. Submeta por POST /api/discursos/gerar para rever.");
       return;
     }
     setErro("");
@@ -58,7 +67,7 @@ export default function Discursos({ plano, sessao }) {
           method: "PATCH",
           auth: true,
           plano,
-          body: { status, responsavel_revisao: "Comité", comentarios_revisao: "Revisão na sala de comando." },
+          body: { status, responsavel_revisao: "Comité de Comunicação", comentarios_revisao: "Revisão na sala de comando." },
         }),
       );
     } catch (exc) {
@@ -70,50 +79,107 @@ export default function Discursos({ plano, sessao }) {
 
   return (
     <main className="page">
-      <Cartao titulo="Sessão da campanha" nota="Discursos e Dia D usam o JWT da campanha. Cartografia, Hondt e série histórica não exigem sessão.">
+      <Cartao
+        titulo="Autenticação da Campanha"
+        nota="O módulo de discursos territoriais e a recepção de atas do Dia D exigem JWT assinado com a chave da campanha."
+      >
         {sessao.ativa ? (
-          <div className="row">
-            <p className="ok">Sessão activa neste navegador.</p>
-            <button className="ghost" type="button" onClick={sessao.sair}>Terminar sessão</button>
+          <div className="row" style={{ alignItems: "center" }}>
+            <span className="live-feed-badge">
+              <i className="pulse-dot" /> Sessão Activa na Sala de Comando
+            </span>
+            <button className="ghost perigo" type="button" onClick={sessao.sair}>
+              Terminar Sessão
+            </button>
           </div>
         ) : (
           <form onSubmit={entrar}>
             <div className="row">
-              <label>Campanha<input required placeholder="UUID" {...campoLogin("campanha_id")} /></label>
-              <label>E-mail<input required type="email" autoComplete="username" {...campoLogin("email")} /></label>
-              <label>Senha<input required type="password" autoComplete="current-password" {...campoLogin("senha")} /></label>
-              <button className="primary" type="submit">Entrar</button>
+              <label>
+                ID da Campanha (UUID)
+                <input required placeholder="a0000000-..." {...campoLogin("campanha_id")} />
+              </label>
+              <label>
+                E-mail Institucional
+                <input required type="email" autoComplete="username" placeholder="analista@campanha.ao" {...campoLogin("email")} />
+              </label>
+              <label>
+                Senha
+                <input required type="password" autoComplete="current-password" {...campoLogin("senha")} />
+              </label>
+              <button className="primary" type="submit">Iniciar Sessão</button>
+              <button className="ghost" type="button" onClick={preencherExemplo} title="Preenche dados de teste para desenvolvimento local">
+                Preencher Teste
+              </button>
             </div>
           </form>
         )}
       </Cartao>
 
       <Cartao
-        titulo="Rascunho de discurso por município"
-        nota="Todo o texto é rascunho. Promessas saem marcadas [PROMESSA — REVISAR] e exigem aprovação do comité."
+        titulo="Geração Estratégica de Discurso Territorializado"
+        nota="Todas as minutas são geradas como rascunho de trabalho. Promessas recebem selo [PROMESSA — REVISAR] e exigem homologação do comitê político."
         acao={<Selo tipo="RASCUNHO" />}
       >
         <form onSubmit={gerar}>
           <div className="row">
-            <label>Município<input required value={municipio} onChange={(e) => setMunicipio(e.target.value)} /></label>
-            <button className="primary" type="submit">Pedir rascunho</button>
+            <label className="cresce">
+              Município Alvo
+              <input required value={municipio} onChange={(e) => setMunicipio(e.target.value)} placeholder="Viana, Cazenga, Lobito, Huambo..." />
+            </label>
+            <button className="primary" type="submit">Gerar Rascunho Territorial</button>
           </div>
         </form>
+
         <Aviso>{erro}</Aviso>
         <Aviso tipo="info">{aviso}</Aviso>
+
         {discurso && (
           <div className="bloco">
-            <p><strong>Estado</strong> <span className="badge badge-log">{estado}</span></p>
-            <p>{discurso.estrategia_discurso?.abertura_hook}</p>
-            <ul>
-              {(discurso.estrategia_discurso?.compromissos_prioritarios || []).map((item) => (
-                <li key={item.proposta_chave}>{item.proposta_chave}</li>
-              ))}
-            </ul>
-            <div className="row">
-              <button className="ghost" type="button" onClick={() => rever("EM_REVISAO")}>Enviar para revisão</button>
-              <button className="primary" type="button" onClick={() => rever("APROVADO")}>Aprovar</button>
-              <button className="ghost perigo" type="button" onClick={() => rever("REJEITADO")}>Rejeitar</button>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+              <span style={{ fontSize: "13px", fontWeight: "600" }}>Minuta de Discurso Político</span>
+              <span className={`badge ${estado === "APROVADO" ? "badge-baixa" : estado === "REJEITADO" ? "badge-alta" : "badge-media"}`}>
+                {estado}
+              </span>
+            </div>
+
+            <p style={{ fontSize: "14px", lineHeight: "1.6", color: "var(--text-bright)", background: "rgba(0,0,0,0.25)", padding: "12px", borderRadius: "var(--radius-sm)", border: "1px solid var(--line)" }}>
+              {discurso.estrategia_discurso?.abertura_hook || discurso.texto || "Discurso formulado para o público-alvo territorial."}
+            </p>
+
+            {discurso.estrategia_discurso?.compromissos_prioritarios?.length > 0 && (
+              <div style={{ margin: "12px 0" }}>
+                <span className="eyebrow" style={{ color: "var(--muted)" }}>Compromissos e Mensagens-Chave</span>
+                <ul style={{ margin: "6px 0", paddingLeft: "18px", color: "var(--text)" }}>
+                  {discurso.estrategia_discurso.compromissos_prioritarios.map((item, idx) => (
+                    <li key={idx} style={{ margin: "4px 0" }}>
+                      <strong>{item.eixo || item.proposta_chave}:</strong> {item.descricao || item.proposta_chave}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            <div className="row" style={{ marginTop: "14px" }}>
+              <button className="ghost" type="button" onClick={() => rever("EM_REVISAO")}>
+                Submeter para Revisão
+              </button>
+              <button
+                className="primary"
+                type="button"
+                onClick={() => rever("APROVADO")}
+                style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+              >
+                <IconeCheck size={14} /> Homologar / Aprovar
+              </button>
+              <button
+                className="ghost perigo"
+                type="button"
+                onClick={() => rever("REJEITADO")}
+                style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+              >
+                <IconeFechar size={14} /> Rejeitar
+              </button>
             </div>
           </div>
         )}

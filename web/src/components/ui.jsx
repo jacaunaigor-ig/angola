@@ -1,3 +1,6 @@
+import React from "react";
+import { IconeFechar } from "./Icones.jsx";
+
 const SELOS = {
   OFICIAL: "Publicado por órgão oficial (CNE, INE).",
   ESTIMADO: "Derivado por projecção ou agregação documentada.",
@@ -50,7 +53,7 @@ export function Aviso({ children, tipo = "erro", onFechar }) {
       <span>{children}</span>
       {onFechar && (
         <button type="button" className="aviso-fechar" onClick={onFechar} aria-label="Fechar aviso">
-          ×
+          <IconeFechar size={14} />
         </button>
       )}
     </div>

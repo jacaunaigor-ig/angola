@@ -67,31 +67,33 @@ export default function App() {
         setLoginAberto(true);
       });
 
+    sqliteOutbox.inicializar().catch((e) => console.warn('[SQLite] Erro ao inicializar outbox:', e));
+    outboxSync.iniciar();
+
     registerBackgroundSync().catch((error) => {
       console.warn('[BackgroundSync] Tarefa não registada:', error.message);
     });
+
     refreshAndSync(true);
+
     const networkSubscription = Network.addNetworkStateListener((state) => {
       if (state.isConnected && state.isInternetReachable !== false) refreshAndSync(true);
     });
     const appStateSubscription = AppState.addEventListener('change', (state) => {
       if (state === 'active') refreshAndSync(true);
     });
-    const interval = setInterval(() => refreshAndSync(false), 30000);
-    return () => {
-      clearInterval(interval);
-      networkSubscription.remove();
-      appStateSubscription.remove();
-    sqliteOutbox.inicializar().catch(() => {});
-    outboxSync.iniciar();
 
-    const interval = setInterval(async () => {
+    const intervalSync = setInterval(() => refreshAndSync(false), 30000);
+    const intervalBadge = setInterval(async () => {
       const total = await offlineStorage.contarPendencias();
       setPendencias(total);
     }, 3000);
 
     return () => {
-      clearInterval(interval);
+      clearInterval(intervalSync);
+      clearInterval(intervalBadge);
+      networkSubscription.remove();
+      appStateSubscription.remove();
       outboxSync.parar();
     };
   }, []);
