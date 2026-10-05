@@ -1,0 +1,57 @@
+{
+  "expo": {
+    "name": "GPS Eleitoral Angola 2027",
+    "slug": "gps-eleitoral-angola-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#080D1A"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "ao.campanha2027.mobile",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "O aplicativo necessita de geolocalização para validação de geofence das assembleias de voto e registo com perturbação de privacidade.",
+        "NSCameraUsageDescription": "Necessário para fotografar a Ata de Apuramento oficial da mesa de voto no Dia D."
+      }
+    },
+    "android": {
+      "package": "ao.campanha2027.mobile",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "backgroundColor": "#080D1A"
+      },
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "CAMERA",
+        "INTERNET",
+        "ACCESS_NETWORK_STATE"
+      ]
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Validação de proximidade da assembleia de voto."
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Captura e hash da Ata de Apuramento no Dia D."
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "gps-eleitoral-angola-2027"
+      }
+    }
+  }
+}

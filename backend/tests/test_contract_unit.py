@@ -61,6 +61,7 @@ def test_fastapi_contract_registers_health_auth_and_legacy_routes():
     assert "/api/eleicoes/serie-historica" in schema["paths"]
     assert "/api/eleicoes/hondt-provincias" in schema["paths"]
     assert "/api/eleicoes/hondt-simulador" in schema["paths"]
+    assert "/api/evidencias/presigned-upload" in schema["paths"]
 
 
 def test_commercial_plans_entitlements_guard():
@@ -150,3 +151,73 @@ def test_custo_logistico_and_priority_index():
 
     assert prio_luanda["score_prioridade"] > prio_cuando["score_prioridade"]
     assert "Potencial" in prio_luanda["formula_aplicada"]
+
+
+def test_ed25519_custody_chain_and_signature():
+    from uuid import uuid4
+    from app.schemas import AtaSubmissionRequest
+    from war_room.assinatura_eleitoral import (
+        gerar_par_chaves_ed25519,
+        assinar_mensagem_ed25519,
+        verificar_assinatura_ed25519,
+        montar_digest_canonico_ata,
+    )
+
+    priv_hex, pub_hex = gerar_par_chaves_ed25519()
+    assert len(priv_hex) == 64
+    assert len(pub_hex) == 64
+
+    local_voto_id = "e0000000-0000-0000-0000-000000000001"
+    foto_hash = "a" * 64
+    timestamp = "2026-10-05T18:00:00Z"
+    digest = montar_digest_canonico_ata(
+        local_voto_id=local_voto_id,
+        mesa_numero=1,
+        votos_favoraveis=184,
+        votos_oponentes=142,
+        votos_nulos=6,
+        votos_brancos=2,
+        total_votantes=334,
+        foto_hash_sha256=foto_hash,
+        registado_em=timestamp,
+        longitude=13.2667,
+        latitude=-8.9167,
+    )
+    sig_hex = assinar_mensagem_ed25519(priv_hex, digest)
+    assert len(sig_hex) == 128
+
+    # Assinatura válida
+    assert verificar_assinatura_ed25519(pub_hex, sig_hex, digest) is True
+
+    # Adulteração de dados é detectada
+    digest_adulterado = digest + b"_corrompido"
+    assert verificar_assinatura_ed25519(pub_hex, sig_hex, digest_adulterado) is False
+
+    # Validação do Schema Pydantic com campos Ed25519
+    ata_req = AtaSubmissionRequest(
+        id=uuid4(),
+        local_voto_id=uuid4(),
+        mesa_numero=1,
+        votos_favoraveis=184,
+        votos_oponentes=142,
+        votos_nulos=6,
+        votos_brancos=2,
+        total_votantes=334,
+        foto_hash_sha256=foto_hash,
+        localizacao_envio={"longitude": 13.2667, "latitude": -8.9167},
+        assinatura_digital_ed25519=sig_hex,
+        chave_publica_delegado_ed25519=pub_hex,
+    )
+    assert ata_req.assinatura_digital_ed25519 == sig_hex
+    assert ata_req.chave_publica_delegado_ed25519 == pub_hex
+
+    # Assinatura com tamanho incorreto falha no validador regex
+    with pytest.raises(Exception):
+        AtaSubmissionRequest(
+            id=uuid4(),
+            local_voto_id=uuid4(),
+            foto_hash_sha256=foto_hash,
+            localizacao_envio={"longitude": 13.2667, "latitude": -8.9167},
+            assinatura_digital_ed25519="assinatura_invalida_curta",
+            chave_publica_delegado_ed25519=pub_hex,
+        )

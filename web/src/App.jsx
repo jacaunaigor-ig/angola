@@ -240,12 +240,6 @@ export default function App() {
         <div>
           <p className="eyebrow">REPÚBLICA DE ANGOLA · PLEITO 2027</p>
           <h1>Sala de comando</h1>
-          <p className="sub">War Room Eleitoral B2B • Método de Hondt • Custo Logístico de Alcance • React + FastAPI</p>
-        </div>
-        <div className="chips">
-          <span className="chip">Plano {plano}</span>
-          <span className="chip">{tokenOn ? "Sessão activa" : "Sem sessão"}</span>
-          <span className="chip">API /api</span>
         </div>
       </header>
       {erro && <div className="banner">Aviso da API: {erro}</div>}
@@ -268,7 +262,6 @@ export default function App() {
 
           <section className="card">
             <h2>Série nacional 2012–2022</h2>
-            <p className="muted">Azul MPLA, laranja UNITA, tracejado abstenção. Nível nacional oficial CNE. O mapa usa a margem provincial de 2022.</p>
             <GraficoSerie pontos={pontos} />
             <table>
               <thead>

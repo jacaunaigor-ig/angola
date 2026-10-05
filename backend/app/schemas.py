@@ -74,6 +74,8 @@ class AtaSubmissionRequest(BaseModel):
     foto_hash_sha256: str = Field(pattern=r"^[0-9a-fA-F]{64}$")
     localizacao_envio: LocationPoint
     registado_em: datetime | None = None
+    assinatura_digital_ed25519: str | None = Field(default=None, pattern=r"^[0-9a-fA-F]{128}$")
+    chave_publica_delegado_ed25519: str | None = Field(default=None, pattern=r"^[0-9a-fA-F]{64}$")
     model_config = ConfigDict(extra="ignore")
 
 
@@ -116,4 +118,15 @@ class HondtSimulationRequest(BaseModel):
     assentos: int = Field(default=5, ge=1, le=220)
     variacao_a_perc: float = Field(default=0.0, ge=-100.0, le=500.0)
     variacao_b_perc: float = Field(default=0.0, ge=-100.0, le=500.0)
+    model_config = ConfigDict(extra="ignore")
+
+
+class PresignedUploadRequest(BaseModel):
+    tipo: Literal["ATA_APURAMENTO", "EVIDENCIA_VISITA"]
+    nome_arquivo: str = Field(min_length=3, max_length=150)
+    mime_type: Literal["image/jpeg", "image/png", "image/webp"]
+    tamanho_bytes: int = Field(gt=0, le=5 * 1024 * 1024)
+    sha256_esperado: str = Field(pattern=r"^[0-9a-fA-F]{64}$")
+    campanha_id: UUID | None = None
+    referencia_id: UUID | None = None
     model_config = ConfigDict(extra="ignore")
