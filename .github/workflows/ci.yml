@@ -70,6 +70,9 @@ jobs:
       - name: Executar Suíte de Testes de Integração e Segurança
         run: |
           node tests/test_fluxo_completo.js
+          node tests/test_outbox_e_idempotencia.js
+          node tests/test_planos_comerciais.js
+          python -m unittest tests/test_anomalias_campo.py tests/test_planos_comerciais.py
 
       - name: Validar Sintaxe e Compilação dos Arquivos Python
         run: |

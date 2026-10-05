@@ -17,6 +17,15 @@ class ApiClient:
         self.base_url = base_url.rstrip("/")
         token = os.getenv("API_AUTH_TOKEN", "").strip()
         self.headers = {"Authorization": f"Bearer {token}"} if token else {}
+        self.plano = "NACIONAL"
+        self.territorio = None
+
+    def definir_contrato(self, plano: str, territorio: Optional[str] = None) -> None:
+        self.plano = (plano or "NACIONAL").upper()
+        self.territorio = territorio
+
+    def _headers(self) -> Dict[str, str]:
+        return {"X-Plano-Campanha": self.plano, "Content-Type": "application/json"}
 
     def verificar_saude(self) -> Tuple[bool, Dict[str, Any]]:
         """
@@ -80,8 +89,11 @@ class ApiClient:
         Retorna: (sucesso_api, dados, proveniencia)
         """
         try:
-            url = f"{self.base_url}/territorio/unidades?versao={versao}&formato={formato}"
-            resp = requests.get(url, timeout=TIMEOUT_SECONDS)
+            params = {"versao": versao, "formato": formato, "plano": self.plano}
+            if self.territorio:
+                params["territorio"] = self.territorio
+            url = f"{self.base_url}/territorio/unidades"
+            resp = requests.get(url, params=params, headers=self._headers(), timeout=TIMEOUT_SECONDS)
             if resp.status_code == 200:
                 return True, resp.json(), "OFICIAL (API)"
         except Exception:
@@ -116,6 +128,11 @@ class ApiClient:
         try:
             params = f"?campanha_id={campanha_id}" if campanha_id else ""
             resp = requests.get(f"{self.base_url}/dia-d/apuramento-paralelo{params}", headers=self.headers, timeout=TIMEOUT_SECONDS)
+            resp = requests.get(
+                f"{self.base_url}/dia-d/apuramento-paralelo{params}",
+                headers=self._headers(),
+                timeout=TIMEOUT_SECONDS,
+            )
             if resp.status_code == 200:
                 data = resp.json()
                 return True, data, "OFICIAL (API)"
@@ -201,6 +218,39 @@ class ApiClient:
             "formula_aplicada": f"Margem ({margem}%) calculada por ({votos_partido} - {votos_oposicao}) / {total_validos} * 100."
         }
 
+    def listar_visitas(self, campanha_id: str, limite: int = 800) -> Tuple[bool, list]:
+        """Lista visitas de campo para auditoria de anomalias no War Room."""
+        try:
+            resp = requests.get(
+                f"{self.base_url}/visitas",
+                params={"campanha_id": campanha_id, "limite": limite, "incluir_invalidadas": "true"},
+                timeout=TIMEOUT_SECONDS,
+            )
+            if resp.status_code == 200:
+                return True, (resp.json() or {}).get("visitas") or []
+        except Exception:
+            pass
+        return False, []
+
+    def invalidar_lote_visitas(self, uuids: list, motivo: str, responsavel: str = "coordenacao_war_room") -> Tuple[bool, str]:
+        """Invalida um lote suspeito com um clique (sem apagar a trilha)."""
+        try:
+            resp = requests.post(
+                f"{self.base_url}/visitas/invalidar-lote",
+                json={"uuids": uuids, "motivo": motivo, "responsavel": responsavel},
+                headers=self._headers(),
+                timeout=TIMEOUT_SECONDS,
+            )
+            data = resp.json() if resp.content else {}
+            if resp.status_code == 200:
+                total = data.get("total_invalidados", len(uuids))
+                return True, f"Lote invalidado ({total} registos). Trilha de auditoria preservada."
+            if resp.status_code == 402:
+                return False, data.get("upgrade") or "Invalidação de lote disponível a partir do Plano Provincial."
+            return False, data.get("detalhes") or data.get("erro") or "A API recusou a invalidação."
+        except Exception as e:
+            return False, f"API indisponível. Lote não foi invalidado: {e}"
+
     def criar_caso_juridico(self, titulo: str, descricao_fato: str, tipo_irregularidade: str) -> Tuple[bool, str]:
         """Protocola um caso jurídico. Falha de forma honesta se a API não responder."""
         try:
@@ -212,12 +262,32 @@ class ApiClient:
                     "tipo_irregularidade": tipo_irregularidade,
                     "prioridade": "ALTA",
                 },
+                headers=self._headers(),
                 timeout=TIMEOUT_SECONDS,
             )
             if resp.status_code in (200, 201):
                 data = resp.json()
                 protocolo = data.get("protocolo") or (data.get("caso") or {}).get("protocolo")
                 return True, f"Caso protocolado. Protocolo: {protocolo or 'gerado pelo servidor'}."
+            if resp.status_code == 402:
+                return False, "Casos jurídicos disponíveis a partir do Plano Provincial."
             return False, (resp.json() or {}).get("detalhes") or "A API recusou o protocolamento."
         except Exception as e:
             return False, f"API indisponível. Caso não foi protocolado: {e}"
+
+    def catalogo_planos(self) -> Dict[str, Any]:
+        try:
+            resp = requests.get(f"{self.base_url}/planos", timeout=TIMEOUT_SECONDS)
+            if resp.status_code == 200:
+                return resp.json()
+        except Exception:
+            pass
+        return {}
+
+    def pedir_proposta(self, payload: Dict[str, Any]) -> Tuple[bool, Dict[str, Any]]:
+        try:
+            resp = requests.post(f"{self.base_url}/propostas", json=payload, timeout=6.0)
+            data = resp.json() if resp.content else {}
+            return resp.status_code in (200, 201), data
+        except Exception as e:
+            return False, {"erro": str(e)}

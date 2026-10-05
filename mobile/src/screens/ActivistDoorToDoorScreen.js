@@ -93,6 +93,13 @@ export default function ActivistDoorToDoorScreen() {
         id: generateUUID(),
         campanha_id: identity.campanha_id,
         ativista_id: identity.ativista_id,
+      const uuidVisita = generateUUID();
+      const novaVisita = {
+        uuid: uuidVisita,
+        id: uuidVisita,
+        campanha_id: CAMPANHA_PADRAO_ID,
+        ativista_id: ATIVISTA_PADRAO_ID,
+        municipio: 'Talatona',
         localizacao: {
           latitude: coordenadas.latitude,
           longitude: coordenadas.longitude,

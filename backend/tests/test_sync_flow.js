@@ -62,6 +62,7 @@ async function executarTestes() {
       campanha_id: 'a0000000-0000-0000-0000-000000000001',
       visitas: [
         {
+          uuid: 'f1111111-1111-4111-8111-111111111101',
           id: 'f1111111-1111-4111-8111-111111111101',
           ativista_id: 'b0000000-0000-0000-0000-000000000001',
           localizacao: { longitude: 13.267, latitude: -8.916 },
@@ -78,7 +79,7 @@ async function executarTestes() {
       {
         host: HOST,
         port: PORT,
-        path: '/api/sincronizar-visitas',
+        path: '/api/visitas',
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       },
@@ -86,12 +87,12 @@ async function executarTestes() {
     );
     console.log('Sincronização 1:', sync1.data.resumo || sync1.data);
 
-    // Reenvio imediato do mesmo lote para testar ON CONFLICT DO NOTHING
+    // Reenvio imediato do mesmo lote para testar ON CONFLICT / HTTP 200 idempotente
     const sync2 = await fazerRequisicao(
       {
         host: HOST,
         port: PORT,
-        path: '/api/sincronizar-visitas',
+        path: '/api/visitas',
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       },

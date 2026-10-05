@@ -20,6 +20,8 @@ import ElectionDayScreen from './src/screens/ElectionDayScreen';
 import { offlineStorage } from './src/services/offlineStorage';
 import { registerBackgroundSync } from './src/services/backgroundSync';
 import { apiService, CAMPANHA_PADRAO_ID } from './src/services/api';
+import { sqliteOutbox } from './src/services/sqliteOutbox';
+import { outboxSync } from './src/services/outboxSync';
 
 export default function App() {
   const [tabAtiva, setTabAtiva] = useState('MAPA'); // 'MAPA' | 'ATIVISTA' | 'DIAD'
@@ -80,6 +82,17 @@ export default function App() {
       clearInterval(interval);
       networkSubscription.remove();
       appStateSubscription.remove();
+    sqliteOutbox.inicializar().catch(() => {});
+    outboxSync.iniciar();
+
+    const interval = setInterval(async () => {
+      const total = await offlineStorage.contarPendencias();
+      setPendencias(total);
+    }, 3000);
+
+    return () => {
+      clearInterval(interval);
+      outboxSync.parar();
     };
   }, []);
 

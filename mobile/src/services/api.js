@@ -1,10 +1,13 @@
 import { offlineStorage } from './offlineStorage';
+import { outboxSync } from './outboxSync';
+import { API_BASE_URL, CAMPANHA_PADRAO_ID, ATIVISTA_PADRAO_ID } from './config';
 
 export const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:8000/api';
 
 // IDs padrão de campanha e ativista para o dispositivo
 export const CAMPANHA_PADRAO_ID = process.env.EXPO_PUBLIC_CAMPAIGN_ID || 'a0000000-0000-0000-0000-000000000001';
 export const ATIVISTA_PADRAO_ID = 'b0000000-0000-0000-0000-000000000001';
+export { API_BASE_URL, CAMPANHA_PADRAO_ID, ATIVISTA_PADRAO_ID };
 
 async function authenticatedHeaders() {
   const token = await offlineStorage.obterToken();
@@ -54,7 +57,6 @@ export const apiService = {
     } catch (error) {
       if (error.status === 401 || error.status === 403) throw error;
       console.warn(`[API] Falha ao obter dados do município ${municipio}, usando dados locais offline:`, error.message);
-      // Fallback offline com estimativas locais de contingência
       return {
         sucesso: true,
         offline: true,
@@ -110,7 +112,8 @@ export const apiService = {
   },
 
   /**
-   * Dispara a sincronização atómica da fila acumulada offline
+   * Dispara a varredura da fila SQLite e envia lotes para POST /api/visitas.
+   * O status local só muda após HTTP 200 com confirmação do backend.
    */
   async sincronizarFilaOffline(campanhaId = CAMPANHA_PADRAO_ID) {
     const fila = await offlineStorage.obterFilaVisitas();
@@ -184,5 +187,6 @@ export const apiService = {
         total_pendentes: fila.length,
       };
     }
+    return outboxSync.varrerESincronizar(campanhaId);
   },
 };
