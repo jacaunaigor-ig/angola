@@ -1,12 +1,14 @@
 from datetime import UTC, datetime, timedelta
 import hashlib
+from pathlib import Path
 from typing import Annotated
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Body, Depends, File, Header, HTTPException, Query, Request, UploadFile
+from fastapi.responses import FileResponse, Response
 from psycopg.types.json import Jsonb
 
-from ..schemas import VisitsSyncRequest
+from ..schemas import PresignedUploadRequest, VisitsSyncRequest
 from ..security import require_roles
 
 router = APIRouter(prefix="/api", tags=["field-operations"])
@@ -303,3 +305,80 @@ def invalidate_visit_batch(
 @router.get("/admin/ping")
 def admin_ping(user: Annotated[dict, Depends(require_roles("ADMIN"))]):
     return {"status": "AUTHORIZED", "perfil": user["perfil"]}
+
+
+STORAGE_ROOT = Path(__file__).resolve().parents[3] / "data" / "storage"
+
+
+@router.post("/evidencias/presigned-upload")
+def request_presigned_upload(
+    payload: PresignedUploadRequest,
+    user: Annotated[dict, Depends(field_user)],
+):
+    """Gera um ticket de upload direto desacoplado do banco de dados (S3/R2 ou local de objetos)."""
+    campaign_id = payload.campanha_id or UUID(user["campaign_id"])
+    if str(campaign_id) != user["campaign_id"]:
+        raise HTTPException(status_code=403, detail="A campanha não corresponde ao token autenticado.")
+
+    subpasta = "atas" if payload.tipo == "ATA_APURAMENTO" else "visitas"
+    file_id = uuid4().hex
+    nome_sanitizado = "".join(c for c in payload.nome_arquivo if c.isalnum() or c in "._-")
+    storage_key = f"{subpasta}/{campaign_id}/{file_id}_{nome_sanitizado}"
+
+    # Retorna o link de upload direto e URL pública de visualização
+    upload_url = f"/api/evidencias/storage/{storage_key}"
+    public_url = f"/api/evidencias/storage/{storage_key}"
+
+    return {
+        "sucesso": True,
+        "tipo": payload.tipo,
+        "storage_key": storage_key,
+        "upload_url": upload_url,
+        "public_url": public_url,
+        "mime_type": payload.mime_type,
+        "sha256_esperado": payload.sha256_esperado,
+        "expira_em_segundos": 900,
+        "instrucao": "Envie o binário da imagem via método PUT diretamente para a upload_url antes de submeter a ata.",
+    }
+
+
+@router.put("/evidencias/storage/{file_key:path}")
+async def upload_binary_storage(
+    file_key: str,
+    request: Request,
+):
+    """Recebe o binário da imagem diretamente e persiste no storage desacoplado."""
+    if ".." in file_key or file_key.startswith("/"):
+        raise HTTPException(status_code=400, detail="Caminho de arquivo inválido.")
+
+    destino = STORAGE_ROOT / file_key
+    destino.parent.mkdir(parents=True, exist_ok=True)
+
+    content = await request.body()
+    if len(content) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="O arquivo excede o limite máximo de 5 MB.")
+
+    digest = hashlib.sha256(content).hexdigest()
+    with open(destino, "wb") as f:
+        f.write(content)
+
+    return {
+        "sucesso": True,
+        "storage_key": file_key,
+        "tamanho_bytes": len(content),
+        "sha256": digest,
+    }
+
+
+@router.get("/evidencias/storage/{file_key:path}")
+def serve_binary_storage(file_key: str):
+    """Serve a evidência ou fotografia armazenada."""
+    if ".." in file_key or file_key.startswith("/"):
+        raise HTTPException(status_code=400, detail="Caminho inválido.")
+
+    destino = STORAGE_ROOT / file_key
+    if not destino.is_file():
+        raise HTTPException(status_code=404, detail="Arquivo de evidência não encontrado.")
+
+    mime = "image/jpeg" if destino.suffix.lower() in {".jpg", ".jpeg"} else "image/png"
+    return FileResponse(destino, media_type=mime)

@@ -30,6 +30,10 @@ from war_room.custo_logistico import (
     calcular_indice_prioridade_completo,
     obter_custo_logistico,
 )
+from war_room.assinatura_eleitoral import (
+    montar_digest_canonico_ata,
+    verificar_assinatura_ed25519,
+)
 
 router = APIRouter(prefix="/api", tags=["legacy-compatible"])
 logger = logging.getLogger("angola.api")
@@ -699,12 +703,33 @@ def submit_election_record(
     ):
         raise HTTPException(status_code=403, detail="O utilizador não está associado ao delegado informado.")
     registered = payload.registado_em.isoformat() if payload.registado_em else datetime.now(UTC).isoformat()
-    data_hash = hashlib.sha256(
-        "|".join(str(k) for k in (
-            place_id, payload.mesa_numero, payload.votos_favoraveis, payload.votos_oponentes,
-            payload.votos_nulos, payload.votos_brancos, payload.total_votantes, registered,
-        )).encode()
-    ).hexdigest()
+    canonical_bytes = montar_digest_canonico_ata(
+        local_voto_id=str(place_id),
+        mesa_numero=payload.mesa_numero,
+        votos_favoraveis=payload.votos_favoraveis,
+        votos_oponentes=payload.votos_oponentes,
+        votos_nulos=payload.votos_nulos,
+        votos_brancos=payload.votos_brancos,
+        total_votantes=payload.total_votantes,
+        foto_hash_sha256=payload.foto_hash_sha256,
+        registado_em=registered,
+        longitude=longitude,
+        latitude=latitude,
+    )
+    data_hash = hashlib.sha256(canonical_bytes).hexdigest()
+
+    assinatura_valida = False
+    if payload.assinatura_digital_ed25519 and payload.chave_publica_delegado_ed25519:
+        if not verificar_assinatura_ed25519(
+            payload.chave_publica_delegado_ed25519,
+            payload.assinatura_digital_ed25519,
+            canonical_bytes,
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail="Assinatura digital Ed25519 inválida para os dados apurados nesta ata.",
+            )
+        assinatura_valida = True
     with request.app.state.db_pool.connection() as connection:
         with connection.transaction():
             connection.execute(
@@ -759,6 +784,8 @@ def submit_election_record(
             "status": row["status"],
             "distancia_assembleia_metros": row["distancia_assembleia_metros"],
             "alerta_revisao_humana": row["status"] == "SUSPEITA",
+            "assinatura_digital_verificada": assinatura_valida,
+            "cadeia_custodia": "ASSINADA_DIGITALMENTE_ED25519" if assinatura_valida else "SHA256_INTEGRIDADE",
         },
     }
 
