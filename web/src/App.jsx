@@ -4,11 +4,12 @@ import MapaTerritorio from "./Mapa.jsx";
 import { classificar, fmtInt, fmtPct, priorizar, rotuloZona, serieParaGrafico } from "./territorio.js";
 
 const ABAS = [
-  ["comando", "Comando & Prioridade"],
-  ["hondt", "Simulador de Hondt (Deputados)"],
-  ["planos", "Planos & Contratação"],
-  ["discurso", "Discursos & Governança"],
-  ["diad", "Dia D & Apuramento"],
+  ["comando", "Comando", "Prioridade territorial"],
+  ["hondt", "Hondt", "Círculos provinciais"],
+  ["planos", "Planos", "Contratação"],
+  ["discurso", "Discursos", "Revisão humana"],
+  ["diad", "Dia D", "Apuramento"],
+  ["eleitor", "Eleitor", "WhatsApp"],
 ];
 
 function GraficoSerie({ pontos }) {
@@ -25,9 +26,9 @@ function GraficoSerie({ pontos }) {
       {[0, 25, 50, 75, 100].map((tick) => (
         <text key={tick} x="4" y={y(tick) + 4} fill="#93a4bd" fontSize="11">{tick}</text>
       ))}
-      <polyline fill="none" stroke="#38bdf8" strokeWidth="2.5" points={linha("mpla")} />
-      <polyline fill="none" stroke="#f97316" strokeWidth="2.5" points={linha("unita")} />
-      <polyline fill="none" stroke="#94a3b8" strokeWidth="2" strokeDasharray="5 4" points={linha("abstencao")} />
+      <polyline fill="none" stroke="#3d8fd1" strokeWidth="2.5" points={linha("mpla")} />
+      <polyline fill="none" stroke="#e08a3c" strokeWidth="2.5" points={linha("unita")} />
+      <polyline fill="none" stroke="#a8b0bb" strokeWidth="2" strokeDasharray="5 4" points={linha("abstencao")} />
       {pontos.map((p, i) => (
         <text key={p.ano} x={x(i)} y={height - 6} textAnchor="middle" fill="#e8eef8" fontSize="12">{p.ano}</text>
       ))}
@@ -44,6 +45,7 @@ export default function App() {
   const [pesos, setPesos] = useState({ disputa: 4, volume: 3, abstencao: 3, jovens: 2 });
   const [unidades, setUnidades] = useState([]);
   const [features, setFeatures] = useState([]);
+  const [contorno, setContorno] = useState(null);
   const [serie, setSerie] = useState(null);
   const [planos, setPlanos] = useState([]);
   const [erro, setErro] = useState("");
@@ -56,6 +58,9 @@ export default function App() {
   const [municipio, setMunicipio] = useState("Luanda");
   const [apuramento, setApuramento] = useState(null);
   const [avisoAuth, setAvisoAuth] = useState("");
+  const [queixas, setQueixas] = useState(null);
+  const [textoEleitor, setTextoEleitor] = useState("MESA Talatona");
+  const [respostaEleitor, setRespostaEleitor] = useState("");
 
   // Estados específicos para Simulação de Hondt
   const [hondtGeral, setHondtGeral] = useState(null);
@@ -70,15 +75,17 @@ export default function App() {
     async function carregar() {
       setErro("");
       try {
-        const [hist, catalogo, hondt] = await Promise.all([
+        const [hist, catalogo, hondt, limite] = await Promise.all([
           api("/api/eleicoes/serie-historica"),
           api("/api/planos"),
           api("/api/eleicoes/hondt-provincias").catch(() => null),
+          api("/api/territorio/contorno-nacional").catch(() => null),
         ]);
         if (cancelado) return;
         setSerie(hist);
         setPlanos(catalogo.planos || []);
         if (hondt) setHondtGeral(hondt);
+        if (limite?.type === "FeatureCollection") setContorno(limite);
 
         try {
           const geo = await api(`/api/territorio/unidades?versao=${versao}&formato=geojson&plano=${plano}`, { plano });
@@ -223,6 +230,31 @@ export default function App() {
     }
   }
 
+  async function carregarQueixas() {
+    setAvisoAuth("");
+    try {
+      const data = await api("/api/whatsapp/queixas");
+      setQueixas(data);
+    } catch (exc) {
+      setAvisoAuth(exc.message);
+    }
+  }
+
+  async function simularEleitor(event) {
+    event.preventDefault();
+    setAvisoAuth("");
+    try {
+      const data = await api("/api/whatsapp/simular", {
+        method: "POST",
+        body: { texto: textoEleitor, de: "244900000111" },
+      });
+      setRespostaEleitor(data.texto || "");
+      await carregarQueixas();
+    } catch (exc) {
+      setAvisoAuth(exc.message);
+    }
+  }
+
   async function carregarDiaD() {
     setAvisoAuth("");
     try {
@@ -234,20 +266,33 @@ export default function App() {
     }
   }
 
+  const abaActual = ABAS.find(([id]) => id === aba) || ABAS[0];
+
   return (
-    <div className="app">
+    <div className="shell">
+      <aside className="rail">
+        <div className="brand">
+          <p className="eyebrow">Angola 2027</p>
+          <strong>Sala de comando</strong>
+        </div>
+        <nav className="tabs">
+          {ABAS.map(([id, nome, nota]) => (
+            <button key={id} className={aba === id ? "active" : ""} onClick={() => setAba(id)}>
+              <span>{nome}</span>
+              <small>{nota}</small>
+            </button>
+          ))}
+        </nav>
+      </aside>
+      <div className="workspace">
       <header className="top">
         <div>
-          <p className="eyebrow">REPÚBLICA DE ANGOLA · PLEITO 2027</p>
-          <h1>Sala de comando</h1>
+          <p className="eyebrow">República de Angola · Pleito 2027</p>
+          <h1>{abaActual[1]}</h1>
         </div>
+        <p className="session">{tokenOn ? "Sessão activa" : "Sem sessão"}</p>
       </header>
       {erro && <div className="banner">Aviso da API: {erro}</div>}
-      <nav className="tabs">
-        {ABAS.map(([id, nome]) => (
-          <button key={id} className={aba === id ? "active" : ""} onClick={() => setAba(id)}>{nome}</button>
-        ))}
-      </nav>
 
       {/* ABA 1: COMANDO & PRIORIZAÇÃO */}
       {aba === "comando" && (
@@ -258,32 +303,6 @@ export default function App() {
             <article className="kpi"><span>Bastiões</span><strong>{contagem.BASTIAO || 0}</strong></article>
             <article className="kpi"><span>Em disputa</span><strong>{contagem.CAMPO_BATALHA || 0}</strong></article>
             <article className="kpi"><span>Oposição</span><strong>{contagem.OPOSICAO || 0}</strong></article>
-          </section>
-
-          <section className="card">
-            <h2>Série nacional 2012–2022</h2>
-            <GraficoSerie pontos={pontos} />
-            <table>
-              <thead>
-                <tr>
-                  <th>Ano</th><th>Inscritos</th><th>Votantes</th><th>Abstenção</th><th>MPLA</th><th>UNITA</th><th>Deputados</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pontos.map((p) => (
-                  <tr key={p.ano}>
-                    <td>{p.ano}</td>
-                    <td>{fmtInt(p.inscritos)}</td>
-                    <td>{fmtInt(p.votantes)}</td>
-                    <td>{fmtPct(p.abstencao)}</td>
-                    <td>{fmtPct(p.mpla)}</td>
-                    <td>{fmtPct(p.unita)}</td>
-                    <td>{p.depMpla} / {p.depUnita}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <p className="muted">{(serie?.serie?.lacunas || []).join(" ")}</p>
           </section>
 
           <section className="row">
@@ -309,9 +328,14 @@ export default function App() {
           </section>
 
           <section className="grid-2">
-            <div className="card">
+            <div className="card map-card">
+              <div className="card-head">
+                <h2>Território</h2>
+                <p className="muted">Contorno geoBoundaries ADM0 · malha DPA por baixo</p>
+              </div>
               <MapaTerritorio
                 features={featuresActivas}
+                contorno={contorno}
                 onSelect={(props) => setSelecionado(props)}
               />
             </div>
@@ -384,6 +408,39 @@ export default function App() {
                 </tbody>
               </table>
             </div>
+          </section>
+
+          <section className="card">
+            <div className="card-head">
+              <h2>Série nacional 2012–2022</h2>
+              <div className="legend">
+                <span><i className="swatch mpla" /> MPLA</span>
+                <span><i className="swatch unita" /> UNITA</span>
+                <span><i className="swatch abs" /> Abstenção</span>
+              </div>
+            </div>
+            <GraficoSerie pontos={pontos} />
+            <table>
+              <thead>
+                <tr>
+                  <th>Ano</th><th>Inscritos</th><th>Votantes</th><th>Abstenção</th><th>MPLA</th><th>UNITA</th><th>Deputados</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pontos.map((p) => (
+                  <tr key={p.ano}>
+                    <td>{p.ano}</td>
+                    <td>{fmtInt(p.inscritos)}</td>
+                    <td>{fmtInt(p.votantes)}</td>
+                    <td>{fmtPct(p.abstencao)}</td>
+                    <td>{fmtPct(p.mpla)}</td>
+                    <td>{fmtPct(p.unita)}</td>
+                    <td>{p.depMpla} / {p.depUnita}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="muted">{(serie?.serie?.lacunas || []).join(" ")}</p>
           </section>
         </main>
       )}
@@ -578,6 +635,37 @@ export default function App() {
           </section>
         </main>
       )}
+
+      {aba === "eleitor" && (
+        <main className="page">
+          <section className="card">
+            <h2>Canal do eleitor</h2>
+            <p className="muted">
+              Consulta pública de assembleia e queixa de bairro. O número chega mascarado.
+              A lista de mesas é o seed simulado do repositório, não o caderno da CNE.
+            </p>
+            <form onSubmit={simularEleitor}>
+              <label>Mensagem
+                <input value={textoEleitor} onChange={(e) => setTextoEleitor(e.target.value)} />
+              </label>
+              <div className="row">
+                <button className="primary" type="submit">Simular mensagem</button>
+                <button className="ghost" type="button" onClick={carregarQueixas}>Actualizar queixas</button>
+              </div>
+            </form>
+            {avisoAuth && <p className="banner">{avisoAuth}</p>}
+            {respostaEleitor && <p>{respostaEleitor}</p>}
+            {queixas && (
+              <ul>
+                {(queixas.agregado || []).map((item) => (
+                  <li key={`${item.municipio}-${item.categoria}`}>{item.municipio} · {item.categoria} · {item.total}</li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </main>
+      )}
+      </div>
     </div>
   );
 }

@@ -62,6 +62,9 @@ def test_fastapi_contract_registers_health_auth_and_legacy_routes():
     assert "/api/eleicoes/hondt-provincias" in schema["paths"]
     assert "/api/eleicoes/hondt-simulador" in schema["paths"]
     assert "/api/evidencias/presigned-upload" in schema["paths"]
+    assert "/api/whatsapp/webhook" in schema["paths"]
+    assert "/api/whatsapp/queixas" in schema["paths"]
+    assert "/api/territorio/contorno-nacional" in schema["paths"]
 
 
 def test_commercial_plans_entitlements_guard():
@@ -221,3 +224,91 @@ def test_ed25519_custody_chain_and_signature():
             assinatura_digital_ed25519="assinatura_invalida_curta",
             chave_publica_delegado_ed25519=pub_hex,
         )
+
+
+def test_canal_eleitor_recusa_caderno_e_agrega_queixa_sem_telefone():
+    from fastapi.testclient import TestClient
+
+    from app.routers import whatsapp as canal
+    from war_room.canal_eleitor import carregar_assembleias_publicas, interpretar_mensagem
+
+    locais = carregar_assembleias_publicas(canal.SEED)
+    assert locais and all(item["proveniencia"] == "SIMULADO" for item in locais)
+
+    recusa = interpretar_mensagem("o meu BI é 009876543LA", locais)
+    assert recusa["intencao"] == "RECUSA_CADERNO"
+    assert "não consulta" in recusa["resposta"]
+
+    mesa = interpretar_mensagem("MESA Talatona", locais)
+    assert mesa["intencao"] == "MESA"
+    assert "SIMULADO" in mesa["resposta"]
+
+    with canal._lock:
+        canal._queixas.clear()
+        canal._vistos.clear()
+
+    settings = Settings(
+        app_env="test",
+        jwt_secret_key="a-long-test-secret-key-that-is-at-least-32-chars",
+        cors_allowed_origins="http://localhost:3000",
+    )
+    client = TestClient(create_app(settings))
+    verify = client.get(
+        "/api/whatsapp/webhook",
+        params={
+            "hub.mode": "subscribe",
+            "hub.verify_token": "dev-eleitor-2027",
+            "hub.challenge": "12345",
+        },
+    )
+    assert verify.status_code == 200
+    assert verify.text == "12345"
+
+    telefone = "244923111222"
+    resposta = client.post(
+        "/api/whatsapp/webhook",
+        json={
+            "entry": [
+                {
+                    "changes": [
+                        {
+                            "value": {
+                                "messages": [
+                                    {
+                                        "from": telefone,
+                                        "id": "wamid.teste-1",
+                                        "text": {"body": "QUEIXA agua Viana falta de agua na torneira"},
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+    )
+    assert resposta.status_code == 200
+    corpo = resposta.json()
+    assert telefone not in resposta.text
+    assert corpo["respostas"][0]["para"] == "***222"
+
+    fila = client.get("/api/whatsapp/queixas")
+    assert fila.status_code == 200
+    assert telefone not in fila.text
+    agregado = fila.json()["agregado"]
+    assert agregado[0]["municipio"] == "Viana"
+    assert agregado[0]["categoria"] == "AGUA"
+
+
+def test_contorno_nacional_e_geoboundaries_adm0():
+    import json
+    from pathlib import Path
+
+    path = Path(__file__).resolve().parents[2] / "data" / "raw" / "geoBoundaries-AGO-ADM0.geojson"
+    dados = json.loads(path.read_text(encoding="utf-8"))
+    assert dados["type"] == "FeatureCollection"
+    props = dados["features"][0]["properties"]
+    assert props["shapeISO"] == "AGO"
+    assert props["shapeType"] == "ADM0"
+    assert props["shapeName"] == "Angola"
+    assert dados["features"][0]["geometry"]["type"] == "MultiPolygon"

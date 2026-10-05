@@ -49,7 +49,14 @@ Em estrita conformidade com o **Princípio de Honestidade dos Dados**, cada arqu
 - **Campos Principais:** `eleitores_registados`, `votantes`, `abstencao_perc`, `votos_partido_a`, `votos_partido_b`, `votos_validos`.
 - **Caveat:** Não há chave `municipios`. O zonamento provincial usa só esta malha de 18.
 
-### 6. `serie_historica_eleicoes_cne.json`
+### 6. `geoBoundaries-AGO-ADM0.geojson`
+- **Descrição:** Limite internacional de Angola, nível administrativo 0, incluindo o enclave de Cabinda. Serve de moldura do mapa. Não é a malha provincial da DPA.
+- **Proveniência:** `OFICIAL` (fronteira de referência aberta; não é a acta cadastral do IGCA)
+- **Fonte:** geoBoundaries, `shapeISO=AGO`, `shapeType=ADM0`. Citação: Runfola et al. (2020), PLoS ONE 15(4): e0231866. Licença CC BY 4.0.
+- **SRID:** 4326.
+- **Uso:** `GET /api/territorio/contorno-nacional` e o contorno da sala de comando.
+
+### 7. `serie_historica_eleicoes_cne.json`
 - **Descrição:** Totais nacionais oficiais de 2012, 2017 e 2022 (inscritos, votantes, abstenção, votos e deputados dos principais partidos) e recortes provinciais provisórios de 2017 em cinco províncias.
 - **Proveniência:** `OFICIAL` no bloco nacional; `PROVISORIO` no bloco `recortes_provinciais_2017_provisorios`.
 - **Fonte:** CNE via VOA (2012), proclamação de 6 Set 2017, portal `resultados2022eleicoesgerais.cne.ao` e ANGOP (2022). DW de 25 Ago 2017 para os recortes ainda com 97,82% das mesas.

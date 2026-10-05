@@ -9,7 +9,7 @@ from uuid import UUID, uuid4
 
 from anthropic import Anthropic
 from fastapi import APIRouter, Body, Depends, Header, HTTPException, Query, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from psycopg import Error
 
 from ..schemas import (
@@ -489,6 +489,15 @@ def territory_correspondence():
     if data is None:
         raise HTTPException(status_code=404, detail="Tabela de correspondência não encontrada.")
     return {"sucesso": True, "de_para": data}
+
+
+@router.get("/territorio/contorno-nacional")
+def national_outline():
+    """Limite internacional de Angola (geoBoundaries ADM0). Não substitui a malha DPA."""
+    source = RAW / "geoBoundaries-AGO-ADM0.geojson"
+    if not source.is_file():
+        raise HTTPException(status_code=404, detail="Contorno nacional geoBoundaries-AGO-ADM0 indisponível.")
+    return FileResponse(source, media_type="application/geo+json")
 
 
 @router.get("/territorio/unidades")
