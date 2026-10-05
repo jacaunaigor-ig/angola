@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { api } from "../api.js";
+import { IconeCheck, IconeFechar } from "../components/Icones.jsx";
 import { Aviso, Cartao, Selo } from "../components/ui.jsx";
 
 export default function Discursos({ plano, sessao }) {
@@ -163,11 +164,21 @@ export default function Discursos({ plano, sessao }) {
               <button className="ghost" type="button" onClick={() => rever("EM_REVISAO")}>
                 Submeter para Revisão
               </button>
-              <button className="primary" type="button" onClick={() => rever("APROVADO")}>
-                ✓ Homologar / Aprovar
+              <button
+                className="primary"
+                type="button"
+                onClick={() => rever("APROVADO")}
+                style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+              >
+                <IconeCheck size={14} /> Homologar / Aprovar
               </button>
-              <button className="ghost perigo" type="button" onClick={() => rever("REJEITADO")}>
-                ✕ Rejeitar
+              <button
+                className="ghost perigo"
+                type="button"
+                onClick={() => rever("REJEITADO")}
+                style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+              >
+                <IconeFechar size={14} /> Rejeitar
               </button>
             </div>
           </div>

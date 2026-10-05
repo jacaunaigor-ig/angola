@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../api.js";
+import { IconeRefresh } from "../components/Icones.jsx";
 import { Aviso, Cartao, Selo, Vazio } from "../components/ui.jsx";
 
 const ATALHOS = [
@@ -92,8 +93,13 @@ export default function Eleitor() {
           titulo="Radar de Queixas Comunitárias"
           nota="Relatos espontâneos de problemas urbanos nos municípios de Angola. Telefones recebidos são mascarados e armazenados com hash irreversível."
           acao={
-            <button className="ghost" type="button" onClick={carregarQueixas}>
-              ↺ Actualizar
+            <button
+              className="ghost"
+              type="button"
+              onClick={carregarQueixas}
+              style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+            >
+              <IconeRefresh size={14} /> Actualizar
             </button>
           }
         >

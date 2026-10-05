@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { api } from "../api.js";
+import { IconeEscudo, IconeRefresh } from "../components/Icones.jsx";
 import { Aviso, Cartao, Kpi, Selo, Vazio } from "../components/ui.jsx";
 import { fmtInt, fmtPct } from "../territorio.js";
 
@@ -79,8 +80,9 @@ export default function DiaD({ plano, sessao }) {
           </div>
 
           {!modoDemo && sessao.ativa && (
-            <button className="primary" type="button" onClick={carregarApuramento} disabled={aCarregar}>
-              {aCarregar ? "A sincronizar…" : "↺ Actualizar"}
+            <button className="primary" type="button" onClick={carregarApuramento} disabled={aCarregar} style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+              <IconeRefresh size={14} />
+              {aCarregar ? "A sincronizar…" : "Actualizar"}
             </button>
           )}
         </div>
@@ -150,8 +152,8 @@ export default function DiaD({ plano, sessao }) {
                     <td className="num" style={{ color: "var(--unita)", fontWeight: "600" }}>{item.votos_unita}</td>
                     <td><code>{item.hash}</code></td>
                     <td>
-                      <span className="badge badge-baixa">
-                        ✓ Ed25519 VÁLIDA
+                      <span className="badge badge-baixa" style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                        <IconeEscudo size={12} /> Ed25519 VÁLIDA
                       </span>
                     </td>
                   </tr>

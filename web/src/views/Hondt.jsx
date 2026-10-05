@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api.js";
+import { IconeRefresh } from "../components/Icones.jsx";
 import { Aviso, Cartao, Kpi, Selo } from "../components/ui.jsx";
 import MapaTerritorio from "../Mapa.jsx";
 import { fmtInt } from "../territorio.js";
@@ -116,8 +117,9 @@ export default function Hondt({ hondtGeral, contorno, territorio }) {
               setChoqueB(0);
               setRecentralizar((c) => c + 1);
             }}
+            style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
           >
-            ↺ Repor Cenário Neutro
+            <IconeRefresh size={14} /> Repor Cenário Neutro
           </button>
         </div>
         <Aviso>{erro}</Aviso>

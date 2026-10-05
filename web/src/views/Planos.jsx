@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { api } from "../api.js";
+import { IconeCheck } from "../components/Icones.jsx";
 import { Aviso, Cartao, Selo } from "../components/ui.jsx";
 import { fmtInt } from "../territorio.js";
 
@@ -62,8 +63,8 @@ export default function Planos({ planos, plano, setPlano }) {
 
                 <ul style={{ listStyle: "none", padding: "0", margin: "12px 0", display: "grid", gap: "6px", fontSize: "12px" }}>
                   {destaques.map((d, i) => (
-                    <li key={i} style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--text)" }}>
-                      <span style={{ color: "var(--ok)", fontWeight: "bold" }}>✓</span> {d}
+                    <li key={i} style={{ display: "flex", alignItems: "center", gap: "7px", color: "var(--text)" }}>
+                      <IconeCheck size={13} style={{ color: "var(--ok)", flexShrink: 0 }} /> {d}
                     </li>
                   ))}
                 </ul>
@@ -74,9 +75,15 @@ export default function Planos({ planos, plano, setPlano }) {
                 className={activo ? "primary" : "ghost"}
                 onClick={() => setPlano(item.codigo)}
                 aria-pressed={activo}
-                style={{ width: "100%", marginTop: "12px" }}
+                style={{ width: "100%", marginTop: "12px", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "6px" }}
               >
-                {activo ? "✓ Plano Seleccionado" : `Mudar para ${item.nome}`}
+                {activo ? (
+                  <>
+                    <IconeCheck size={14} /> Plano Seleccionado
+                  </>
+                ) : (
+                  `Mudar para ${item.nome}`
+                )}
               </button>
             </article>
           );

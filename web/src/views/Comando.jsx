@@ -1,20 +1,32 @@
 import { useMemo, useState } from "react";
 import GraficoSerie from "../components/GraficoSerie.jsx";
+import {
+  IconeCentrar,
+  IconeFiltro,
+  IconeLogistica,
+  IconeMalha,
+  IconeMargem,
+  IconePesquisa,
+  IconePrioridade,
+  IconeRuas,
+  IconeSatelite,
+  IconeZonamento,
+} from "../components/Icones.jsx";
 import { Aviso, Cartao, Kpi, Selo } from "../components/ui.jsx";
 import MapaTerritorio from "../Mapa.jsx";
 import { classificar, fmtInt, fmtPct, priorizar, rotuloZona, serieParaGrafico } from "../territorio.js";
 
 const PESOS_PADRAO = { disputa: 4, volume: 3, abstencao: 3, jovens: 2 };
 const CAMADAS = [
-  ["zona", "Zonamento"],
-  ["margem", "Margem"],
-  ["score", "Prioridade"],
-  ["custo", "Logística"],
+  ["zona", "Zonamento", IconeZonamento],
+  ["margem", "Margem", IconeMargem],
+  ["score", "Prioridade", IconePrioridade],
+  ["custo", "Logística", IconeLogistica],
 ];
 const FUNDOS_OPCOES = [
-  ["ruas", "Ruas"],
-  ["satelite", "Satélite"],
-  ["nenhum", "Só malha"],
+  ["ruas", "Ruas", IconeRuas],
+  ["satelite", "Satélite", IconeSatelite],
+  ["nenhum", "Só malha", IconeMalha],
 ];
 
 function deputados(hondt) {
@@ -271,13 +283,15 @@ export default function Comando({ dados, territorio, plano, setPlano, versao, se
             <div className="mapa-toolbar-seccao">
               <span>Camadas</span>
               <div className="btn-group">
-                {CAMADAS.map(([id, rotulo]) => (
+                {CAMADAS.map(([id, rotulo, Icone]) => (
                   <button
                     key={id}
                     type="button"
                     className={camada === id ? "activa" : ""}
                     onClick={() => setCamada(id)}
+                    style={{ display: "inline-flex", alignItems: "center", gap: "5px" }}
                   >
+                    <Icone size={13} />
                     {rotulo}
                   </button>
                 ))}
@@ -287,13 +301,15 @@ export default function Comando({ dados, territorio, plano, setPlano, versao, se
             <div className="mapa-toolbar-seccao">
               <span>Fundo</span>
               <div className="btn-group">
-                {FUNDOS_OPCOES.map(([id, rotulo]) => (
+                {FUNDOS_OPCOES.map(([id, rotulo, Icone]) => (
                   <button
                     key={id}
                     type="button"
                     className={fundo === id ? "activa" : ""}
                     onClick={() => setFundo(id)}
+                    style={{ display: "inline-flex", alignItems: "center", gap: "5px" }}
                   >
+                    <Icone size={13} />
                     {rotulo}
                   </button>
                 ))}
@@ -307,8 +323,9 @@ export default function Comando({ dados, territorio, plano, setPlano, versao, se
                 setSelecionado(null);
                 setRecentralizar((c) => c + 1);
               }}
+              style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
             >
-              ↺ Centrar Angola
+              <IconeCentrar size={14} /> Centrar Angola
             </button>
           </div>
 
@@ -330,11 +347,15 @@ export default function Comando({ dados, territorio, plano, setPlano, versao, se
 
           <div className="row" style={{ marginTop: "10px", marginBottom: "4px" }}>
             <label className="cresce">
-              Filtrar por nome
+              <span style={{ display: "inline-flex", alignItems: "center", gap: "5px" }}>
+                <IconePesquisa size={12} /> Filtrar por nome
+              </span>
               <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Huambo, Luanda, Benguela…" />
             </label>
             <label>
-              Zona
+              <span style={{ display: "inline-flex", alignItems: "center", gap: "5px" }}>
+                <IconeFiltro size={12} /> Zona
+              </span>
               <select value={filtroZona} onChange={(e) => setFiltroZona(e.target.value)}>
                 <option value="">Todas</option>
                 <option value="BASTIAO">Bastião</option>

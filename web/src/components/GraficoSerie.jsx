@@ -26,7 +26,7 @@ export default function GraficoSerie({ pontos }) {
         {[0, 25, 50, 75, 100].map((marca) => (
           <g key={marca}>
             <line x1={margemX} x2={largura - margemX} y1={y(marca)} y2={y(marca)} stroke="var(--line)" strokeWidth="1" />
-            <text x={margemX - 8} y={y(marca) + 4} textAnchor="end" fill="var(--muted)" fontSize="11" fontFamily="monospace">
+            <text x={margemX - 8} y={y(marca) + 4} textAnchor="end" fill="var(--muted)" fontSize="11" fontFamily="var(--font-mono)">
               {marca}%
             </text>
           </g>
@@ -52,7 +52,7 @@ export default function GraficoSerie({ pontos }) {
             {p.mpla !== null && (
               <g>
                 <circle cx={x(i)} cy={y(p.mpla)} r="4.5" fill="var(--mpla)" stroke="var(--bg)" strokeWidth="1.5" />
-                <text x={x(i)} y={y(p.mpla) - 9} textAnchor="middle" fill="#93c5fd" fontSize="11" fontWeight="700">
+                <text x={x(i)} y={y(p.mpla) - 9} textAnchor="middle" fill="#93c5fd" fontSize="11.5" fontWeight="700" fontFamily="var(--font-mono)">
                   {p.mpla}%
                 </text>
               </g>
@@ -62,7 +62,7 @@ export default function GraficoSerie({ pontos }) {
             {p.unita !== null && (
               <g>
                 <circle cx={x(i)} cy={y(p.unita)} r="4.5" fill="var(--unita)" stroke="var(--bg)" strokeWidth="1.5" />
-                <text x={x(i)} y={y(p.unita) + 16} textAnchor="middle" fill="#fdba74" fontSize="11" fontWeight="700">
+                <text x={x(i)} y={y(p.unita) + 16} textAnchor="middle" fill="#fdba74" fontSize="11.5" fontWeight="700" fontFamily="var(--font-mono)">
                   {p.unita}%
                 </text>
               </g>
@@ -74,7 +74,7 @@ export default function GraficoSerie({ pontos }) {
             )}
 
             {/* Eixo X - Ano */}
-            <text x={x(i)} y={altura - 8} textAnchor="middle" fill="var(--text-bright)" fontSize="12.5" fontWeight="600">
+            <text x={x(i)} y={altura - 8} textAnchor="middle" fill="var(--text-bright)" fontSize="12" fontWeight="700" fontFamily="var(--font-mono)">
               {p.ano}
             </text>
           </g>

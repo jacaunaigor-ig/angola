@@ -1,5 +1,19 @@
 import { useEffect, useState } from "react";
 import ErrorBoundary from "./components/ErrorBoundary.jsx";
+import {
+  IconeAngolaEmblema,
+  IconeAuto,
+  IconeDashboard,
+  IconeDesktop,
+  IconeDiaD,
+  IconeDiscursos,
+  IconeEleitor,
+  IconeFechar,
+  IconeHondt,
+  IconeMenu,
+  IconeMobile,
+  IconePlanos,
+} from "./components/Icones.jsx";
 import { Aviso, Selo } from "./components/ui.jsx";
 import { useDadosGlobais, useTerritorio } from "./hooks/useDadosBase.js";
 import { useSessao } from "./hooks/useSessao.js";
@@ -11,14 +25,14 @@ import Hondt from "./views/Hondt.jsx";
 import Planos from "./views/Planos.jsx";
 
 const DECISAO = [
-  ["comando", "Dashboard", "Mapa e campanha", "🗺️"],
-  ["hondt", "Hondt", "Cadeiras provinciais", "⚖️"],
-  ["diad", "Dia D", "Apuramento", "🗳️"],
+  ["comando", "Dashboard", "Mapa e campanha", IconeDashboard],
+  ["hondt", "Hondt", "Cadeiras provinciais", IconeHondt],
+  ["diad", "Dia D", "Apuramento", IconeDiaD],
 ];
 const APOIO = [
-  ["planos", "Planos", "Contratação", "💼"],
-  ["discurso", "Discursos", "Revisão humana", "🎙️"],
-  ["eleitor", "Eleitor", "WhatsApp", "💬"],
+  ["planos", "Planos", "Contratação", IconePlanos],
+  ["discurso", "Discursos", "Revisão humana", IconeDiscursos],
+  ["eleitor", "Eleitor", "WhatsApp", IconeEleitor],
 ];
 const ABAS = [...DECISAO, ...APOIO];
 
@@ -109,8 +123,8 @@ export default function App() {
       {!isMobileView && (
         <aside className="rail">
           <div className="brand">
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <span style={{ fontSize: "20px" }}>🇦🇴</span>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <IconeAngolaEmblema size={26} />
               <div>
                 <p className="eyebrow">Angola 2027</p>
                 <strong>Sala de comando</strong>
@@ -120,7 +134,7 @@ export default function App() {
 
           <nav className="tabs" aria-label="Secções">
             <p className="nav-rotulo">Decisão</p>
-            {DECISAO.map(([id, nome, nota, icone]) => (
+            {DECISAO.map(([id, nome, nota, Icone]) => (
               <button
                 key={id}
                 type="button"
@@ -128,8 +142,8 @@ export default function App() {
                 aria-current={aba === id ? "page" : undefined}
                 onClick={() => mudarAba(id)}
               >
-                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                  <span>{icone}</span>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <Icone size={18} />
                   <div>
                     <span>{nome}</span>
                     <small>{nota}</small>
@@ -139,7 +153,7 @@ export default function App() {
             ))}
 
             <p className="nav-rotulo">Apoio</p>
-            {APOIO.map(([id, nome, nota, icone]) => (
+            {APOIO.map(([id, nome, nota, Icone]) => (
               <button
                 key={id}
                 type="button"
@@ -147,8 +161,8 @@ export default function App() {
                 aria-current={aba === id ? "page" : undefined}
                 onClick={() => mudarAba(id)}
               >
-                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                  <span>{icone}</span>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <Icone size={18} />
                   <div>
                     <span>{nome}</span>
                     <small>{nota}</small>
@@ -176,7 +190,7 @@ export default function App() {
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
               {isMobileView && (
-                <span style={{ fontSize: "18px", marginRight: "2px" }}>🇦🇴</span>
+                <IconeAngolaEmblema size={20} style={{ marginRight: "4px" }} />
               )}
               <p className="eyebrow">República de Angola · Pleito 2027</p>
             </div>
@@ -193,7 +207,7 @@ export default function App() {
                 onClick={() => alternarModo("desktop")}
                 title="Forçar visualização em ecrã largo (Desktop)"
               >
-                🖥️ Desktop
+                <IconeDesktop size={14} /> Desktop
               </button>
               <button
                 type="button"
@@ -201,7 +215,7 @@ export default function App() {
                 onClick={() => alternarModo("mobile")}
                 title="Forçar modo compacto (Mobile Touch)"
               >
-                📱 Mobile
+                <IconeMobile size={14} /> Mobile
               </button>
               <button
                 type="button"
@@ -209,7 +223,7 @@ export default function App() {
                 onClick={() => alternarModo("auto")}
                 title="Adaptar automaticamente ao tamanho da janela"
               >
-                Auto
+                <IconeAuto size={14} /> Auto
               </button>
             </div>
 
@@ -254,7 +268,7 @@ export default function App() {
             className={aba === "comando" ? "dock-item activa" : "dock-item"}
             onClick={() => mudarAba("comando")}
           >
-            <span className="dock-icon">🗺️</span>
+            <span className="dock-icon"><IconeDashboard size={20} /></span>
             <span className="dock-label">Dashboard</span>
           </button>
 
@@ -263,7 +277,7 @@ export default function App() {
             className={aba === "hondt" ? "dock-item activa" : "dock-item"}
             onClick={() => mudarAba("hondt")}
           >
-            <span className="dock-icon">⚖️</span>
+            <span className="dock-icon"><IconeHondt size={20} /></span>
             <span className="dock-label">Hondt</span>
           </button>
 
@@ -272,7 +286,7 @@ export default function App() {
             className={aba === "diad" ? "dock-item activa" : "dock-item"}
             onClick={() => mudarAba("diad")}
           >
-            <span className="dock-icon">🗳️</span>
+            <span className="dock-icon"><IconeDiaD size={20} /></span>
             <span className="dock-label">Dia D</span>
           </button>
 
@@ -281,7 +295,7 @@ export default function App() {
             className={menuAberto || abaDeApoioActiva ? "dock-item activa" : "dock-item"}
             onClick={() => setMenuAberto((v) => !v)}
           >
-            <span className="dock-icon">☰</span>
+            <span className="dock-icon"><IconeMenu size={20} /></span>
             <span className="dock-label">{abaDeApoioActiva ? actual[1] : "Mais"}</span>
           </button>
         </nav>
@@ -302,20 +316,20 @@ export default function App() {
                 onClick={() => setMenuAberto(false)}
                 aria-label="Fechar menu móvel"
               >
-                ✕
+                <IconeFechar size={18} />
               </button>
             </div>
 
             <div className="mobile-drawer-grid">
               <p className="nav-rotulo">Módulos de Apoio</p>
-              {APOIO.map(([id, nome, nota, icone]) => (
+              {APOIO.map(([id, nome, nota, Icone]) => (
                 <button
                   key={id}
                   type="button"
                   className={`mobile-menu-card ${aba === id ? "activa" : ""}`}
                   onClick={() => mudarAba(id)}
                 >
-                  <span className="menu-card-icon">{icone}</span>
+                  <span className="menu-card-icon"><Icone size={20} /></span>
                   <div>
                     <strong>{nome}</strong>
                     <p className="muted">{nota}</p>
@@ -331,7 +345,7 @@ export default function App() {
                   onClick={() => alternarModo("desktop")}
                   style={{ flex: 1, padding: "8px" }}
                 >
-                  🖥️ Desktop
+                  <IconeDesktop size={14} /> Desktop
                 </button>
                 <button
                   type="button"
@@ -339,7 +353,7 @@ export default function App() {
                   onClick={() => alternarModo("mobile")}
                   style={{ flex: 1, padding: "8px" }}
                 >
-                  📱 Mobile
+                  <IconeMobile size={14} /> Mobile
                 </button>
                 <button
                   type="button"
@@ -347,7 +361,7 @@ export default function App() {
                   onClick={() => alternarModo("auto")}
                   style={{ flex: 1, padding: "8px" }}
                 >
-                  Auto
+                  <IconeAuto size={14} /> Auto
                 </button>
               </div>
 
