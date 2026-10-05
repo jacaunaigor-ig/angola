@@ -21,6 +21,7 @@ services:
       - ./database/06_migration_fastapi_users.sql:/docker-entrypoint-initdb.d/06_usuarios.sql:ro
       - ./database/05_audit_logs.sql:/docker-entrypoint-initdb.d/05_audit.sql:ro
       - ./database/06_planos_comerciais.sql:/docker-entrypoint-initdb.d/06_planos.sql:ro
+      - ./database/07_migration_rls_multi_tenancy.sql:/docker-entrypoint-initdb.d/07_rls.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s

@@ -1,6 +1,6 @@
 -- ==============================================================================
 -- CARGA DE DADOS TERRITORIAIS OFICIAIS VERSIONADOS - PIPELINE ETL
--- Gerado em: 2026-10-01T21:04:05.522Z
+-- Gerado em: 2026-10-05T16:54:50.941Z
 -- Proveniência: OFICIAL (CNE 2022 / INE Projeções / Lei DPA)
 -- ==============================================================================
 

@@ -51,3 +51,35 @@ def test_fastapi_contract_registers_health_auth_and_legacy_routes():
     assert "/health/ready" in schema["paths"]
     assert "/api/auth/token" in schema["paths"]
     assert "/api/sincronizar-visitas" in schema["paths"]
+    assert "/api/dia-d/submeter-ata" in schema["paths"]
+    assert "/api/dia-d/casos-juridicos" in schema["paths"]
+    assert "/api/discursos/gerar" in schema["paths"]
+    assert "/api/discursos/{speech_id}/status" in schema["paths"]
+
+
+def test_schema_validations_and_sanitization():
+    from app.schemas import AtaSubmissionRequest, LegalCaseCreateRequest, SpeechGenerateRequest
+    from uuid import uuid4
+
+    case = LegalCaseCreateRequest(
+        titulo="Irregularidade no voto",
+        descricao_fato="Constatada divergência na urna 04",
+        tipo_irregularidade="GEOFENCE_EXCEDIDO",
+    )
+    assert case.prioridade == "ALTA"
+    assert case.titulo == "Irregularidade no voto"
+
+    speech_req = SpeechGenerateRequest(
+        municipio="Viana",
+    )
+    assert speech_req.nome_partido == "Nosso Partido"
+    assert speech_req.municipio == "Viana"
+
+    with pytest.raises(Exception):
+        # Invalid hash format
+        AtaSubmissionRequest(
+            id=uuid4(),
+            local_voto_id=uuid4(),
+            foto_hash_sha256="not-a-valid-sha256",
+            localizacao_envio={"longitude": 13.2, "latitude": -8.9},
+        )

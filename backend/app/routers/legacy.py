@@ -12,7 +12,13 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 from psycopg import Error
 
-from ..schemas import ZoningRequest
+from ..schemas import (
+    AtaSubmissionRequest,
+    LegalCaseCreateRequest,
+    SpeechGenerateRequest,
+    SpeechStatusUpdateRequest,
+    ZoningRequest,
+)
 from ..security import require_roles
 
 router = APIRouter(prefix="/api", tags=["legacy-compatible"])
@@ -460,76 +466,76 @@ def election_count(
 
 @router.post("/dia-d/submeter-ata")
 def submit_election_record(
+    payload: AtaSubmissionRequest,
     request: Request,
     user: Annotated[dict, Depends(ROLE_FIELD)],
-    body: dict = Body(...),
 ):
-    required = {"id", "local_voto_id", "foto_hash_sha256", "localizacao_envio"}
-    if not required.issubset(body):
-        raise HTTPException(status_code=422, detail=f"Campos obrigatórios: {', '.join(sorted(required))}.")
-    try:
-        ata_id = UUID(str(body["id"]))
-        place_id = UUID(str(body["local_voto_id"]))
-        campaign_id = UUID(str(body.get("campanha_id", user["campaign_id"])))
-        activist_id = UUID(str(body.get("delegado_id") or user.get("ativista_id") or ""))
-        latitude = float(body["localizacao_envio"]["latitude"])
-        longitude = float(body["localizacao_envio"]["longitude"])
-        if not re.fullmatch(r"[0-9a-fA-F]{64}", str(body["foto_hash_sha256"])):
-            raise ValueError("foto_hash_sha256 deve ser SHA-256 hexadecimal.")
-    except (ValueError, TypeError, KeyError) as exc:
-        raise HTTPException(status_code=422, detail=f"Dados da ata inválidos: {exc}") from exc
+    ata_id = payload.id
+    place_id = payload.local_voto_id
+    campaign_id = payload.campanha_id or UUID(user["campaign_id"])
+    activist_id = payload.delegado_id or (UUID(user["ativista_id"]) if user.get("ativista_id") else None)
+    if not activist_id:
+        raise HTTPException(status_code=422, detail="delegado_id é obrigatório.")
+    latitude = payload.localizacao_envio.latitude
+    longitude = payload.localizacao_envio.longitude
+
     if str(campaign_id) != user["campaign_id"]:
         raise HTTPException(status_code=403, detail="A campanha não corresponde ao token autenticado.")
     if user["perfil"] != "ADMIN" and (
         not user.get("ativista_id") or str(activist_id) != user["ativista_id"]
     ):
         raise HTTPException(status_code=403, detail="O utilizador não está associado ao delegado informado.")
-    registered = body.get("registado_em") or datetime.now(UTC).isoformat()
+    registered = payload.registado_em.isoformat() if payload.registado_em else datetime.now(UTC).isoformat()
     data_hash = hashlib.sha256(
-        "|".join(str(body.get(k, "")) for k in (
-            "local_voto_id", "mesa_numero", "votos_favoraveis", "votos_oponentes",
-            "votos_nulos", "votos_brancos", "total_votantes", "registado_em",
+        "|".join(str(k) for k in (
+            place_id, payload.mesa_numero, payload.votos_favoraveis, payload.votos_oponentes,
+            payload.votos_nulos, payload.votos_brancos, payload.total_votantes, registered,
         )).encode()
     ).hexdigest()
     with request.app.state.db_pool.connection() as connection:
-        assigned_activist = connection.execute(
-            """
-            SELECT id FROM ativistas
-            WHERE id = %s AND campanha_id = %s AND ativo = TRUE
-              AND (local_voto_atribuido_id IS NULL OR local_voto_atribuido_id = %s)
-            """,
-            (activist_id, campaign_id, place_id),
-        ).fetchone()
-        if not assigned_activist:
-            raise HTTPException(status_code=403, detail="Delegado ou assembleia não atribuídos à campanha.")
-        try:
-            row = connection.execute(
+        with connection.transaction():
+            connection.execute(
+                "SELECT set_config('app.current_campanha_id', %s, true)",
+                (str(campaign_id),),
+            )
+            assigned_activist = connection.execute(
                 """
-                INSERT INTO atas_apuramento (
-                    id, campanha_id, local_voto_id, mesa_numero, delegado_id,
-                    votos_favoraveis, votos_oponentes, votos_nulos, votos_brancos,
-                    total_votantes, foto_ata_url, foto_hash_sha256, dados_hash_sha256,
-                    localizacao_envio, registado_em, sincronizado_em
-                ) VALUES (
-                    %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                    ST_SetSRID(ST_MakePoint(%s, %s), 4326)::geography, %s, clock_timestamp()
-                )
-                ON CONFLICT (id) DO NOTHING
-                RETURNING id, status, distancia_assembleia_metros
+                SELECT id FROM ativistas
+                WHERE id = %s AND campanha_id = %s AND ativo = TRUE
+                  AND (local_voto_atribuido_id IS NULL OR local_voto_atribuido_id = %s)
                 """,
-                (
-                    ata_id, campaign_id, place_id, int(body.get("mesa_numero", 1)),
-                    activist_id, int(body.get("votos_favoraveis", 0)),
-                    int(body.get("votos_oponentes", 0)), int(body.get("votos_nulos", 0)),
-                    int(body.get("votos_brancos", 0)), int(body.get("total_votantes", 0)),
-                    body.get("foto_ata_url", ""), body["foto_hash_sha256"], data_hash,
-                    longitude, latitude, registered,
-                ),
+                (activist_id, campaign_id, place_id),
             ).fetchone()
-        except Error as exc:
-            if getattr(exc, "sqlstate", None) == "23505":
-                raise HTTPException(status_code=409, detail="Já existe uma ata para esta mesa.") from exc
-            raise
+            if not assigned_activist:
+                raise HTTPException(status_code=403, detail="Delegado ou assembleia não atribuídos à campanha.")
+            try:
+                row = connection.execute(
+                    """
+                    INSERT INTO atas_apuramento (
+                        id, campanha_id, local_voto_id, mesa_numero, delegado_id,
+                        votos_favoraveis, votos_oponentes, votos_nulos, votos_brancos,
+                        total_votantes, foto_ata_url, foto_hash_sha256, dados_hash_sha256,
+                        localizacao_envio, registado_em, sincronizado_em
+                    ) VALUES (
+                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                        ST_SetSRID(ST_MakePoint(%s, %s), 4326)::geography, %s, clock_timestamp()
+                    )
+                    ON CONFLICT (id) DO NOTHING
+                    RETURNING id, status, distancia_assembleia_metros
+                    """,
+                    (
+                        ata_id, campaign_id, place_id, payload.mesa_numero,
+                        activist_id, payload.votos_favoraveis,
+                        payload.votos_oponentes, payload.votos_nulos,
+                        payload.votos_brancos, payload.total_votantes,
+                        payload.foto_ata_url, payload.foto_hash_sha256, data_hash,
+                        longitude, latitude, registered,
+                    ),
+                ).fetchone()
+            except Error as exc:
+                if getattr(exc, "sqlstate", None) == "23505":
+                    raise HTTPException(status_code=409, detail="Já existe uma ata para esta mesa.") from exc
+                raise
     if row is None:
         raise HTTPException(status_code=409, detail="A ata já foi recebida; não pode ser reescrita.")
     return {
@@ -546,32 +552,34 @@ def submit_election_record(
 
 @router.post("/dia-d/casos-juridicos", status_code=201)
 def create_legal_case(
+    payload: LegalCaseCreateRequest,
     request: Request,
     user: Annotated[dict, Depends(ROLE_REVIEW)],
-    body: dict = Body(...),
 ):
-    for field in ("titulo", "descricao_fato", "tipo_irregularidade"):
-        if not body.get(field):
-            raise HTTPException(status_code=422, detail=f"Campo obrigatório: {field}.")
-    campaign = body.get("campanha_id", user["campaign_id"])
+    campaign = payload.campanha_id or UUID(user["campaign_id"])
     if str(campaign) != user["campaign_id"]:
         raise HTTPException(status_code=403, detail="A campanha não corresponde ao token autenticado.")
     with request.app.state.db_pool.connection() as connection:
-        row = connection.execute(
-            """
-            INSERT INTO casos_juridicos (
-                campanha_id, ata_id, local_voto_id, titulo, descricao_fato,
-                tipo_irregularidade, prioridade, advogado_responsavel, anexos_urls
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-            RETURNING *
-            """,
-            (
-                campaign, body.get("ata_id"), body.get("local_voto_id"),
-                body["titulo"], body["descricao_fato"], body["tipo_irregularidade"],
-                body.get("prioridade", "ALTA"), body.get("advogado_responsavel"),
-                body.get("anexos_urls", []),
-            ),
-        ).fetchone()
+        with connection.transaction():
+            connection.execute(
+                "SELECT set_config('app.current_campanha_id', %s, true)",
+                (str(campaign),),
+            )
+            row = connection.execute(
+                """
+                INSERT INTO casos_juridicos (
+                    campanha_id, ata_id, local_voto_id, titulo, descricao_fato,
+                    tipo_irregularidade, prioridade, advogado_responsavel, anexos_urls
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING *
+                """,
+                (
+                    campaign, payload.ata_id, payload.local_voto_id,
+                    payload.titulo, payload.descricao_fato, payload.tipo_irregularidade,
+                    payload.prioridade, payload.advogado_responsavel,
+                    payload.anexos_urls,
+                ),
+            ).fetchone()
     return {
         "sucesso": True,
         "mensagem": "Caso jurídico formal protocolado.",
@@ -589,6 +597,10 @@ def list_legal_cases(
     if str(campanha_id) != user["campaign_id"]:
         raise HTTPException(status_code=403, detail="A campanha não corresponde ao token autenticado.")
     with request.app.state.db_pool.connection() as connection:
+        connection.execute(
+            "SELECT set_config('app.current_campanha_id', %s, true)",
+            (str(campanha_id),),
+        )
         rows = connection.execute(
             """
             SELECT cj.*, lv.nome AS assembleia_nome, lv.codigo_cne
@@ -602,23 +614,37 @@ def list_legal_cases(
 
 
 def _speech_draft(municipio: str, zone: str, concerns: list[str], settings) -> dict:
+    draft = None
     if settings.anthropic_api_key:
-        response = Anthropic(api_key=settings.anthropic_api_key).messages.create(
-            model=settings.ai_model,
-            max_tokens=1200,
-            system=(
-                "Escreva apenas rascunho para revisão humana. Não invente estatísticas, não ataque pessoas "
-                "e prefixe cada compromisso futuro por [PROMESSA — REVISAR]. Retorne JSON com hook_abertura, "
-                "tom_adotado, compromissos_propostas (dor_associada, texto_proposta), bloco_juventude e armadilhas_a_evitar."
-            ),
-            messages=[{
-                "role": "user",
-                "content": f"Município: {municipio}; classificação histórica: {zone}; dores agregadas: {', '.join(concerns) or 'sem dados de campo'}.",
-            }],
-        )
-        text = "".join(block.text for block in response.content if getattr(block, "type", "") == "text")
-        draft = json.loads(text)
-    else:
+        try:
+            response = Anthropic(api_key=settings.anthropic_api_key).messages.create(
+                model=settings.ai_model,
+                max_tokens=1200,
+                system=(
+                    "Escreva apenas rascunho para revisão humana. Não invente estatísticas, não ataque pessoas "
+                    "e prefixe cada compromisso futuro por [PROMESSA — REVISAR]. Retorne JSON com hook_abertura, "
+                    "tom_adotado, compromissos_propostas (dor_associada, texto_proposta), bloco_juventude e armadilhas_a_evitar."
+                ),
+                messages=[{
+                    "role": "user",
+                    "content": f"Município: {municipio}; classificação histórica: {zone}; dores agregadas: {', '.join(concerns) or 'sem dados de campo'}.",
+                }],
+            )
+            text = "".join(block.text for block in response.content if getattr(block, "type", "") == "text").strip()
+            try:
+                draft = json.loads(text)
+            except json.JSONDecodeError:
+                json_match = re.search(r"\{[\s\S]*\}", text)
+                if json_match:
+                    try:
+                        draft = json.loads(json_match.group(0))
+                    except json.JSONDecodeError:
+                        draft = None
+        except Exception as exc:
+            logger.warning("Falha ao consultar API Anthropic para discurso: %s", exc)
+            draft = None
+
+    if not isinstance(draft, dict):
         draft = {
             "hook_abertura": f"Comunidade de {municipio}, este é um rascunho para revisão do comité.",
             "tom_adotado": "Escuta e foco programático",
@@ -637,61 +663,66 @@ def _speech_draft(municipio: str, zone: str, concerns: list[str], settings) -> d
 
 @router.post("/discursos/gerar", status_code=201)
 def generate_speech(
+    payload: SpeechGenerateRequest,
     request: Request,
     user: Annotated[dict, Depends(ROLE_REVIEW)],
-    body: dict = Body(...),
 ):
-    municipality = str(body.get("municipio", "")).strip()
+    municipality = payload.municipio.strip()
     if not municipality:
         raise HTTPException(status_code=422, detail="municipio é obrigatório.")
-    campaign = body.get("campanha_id", user["campaign_id"])
+    campaign = payload.campanha_id or UUID(user["campaign_id"])
     if str(campaign) != user["campaign_id"]:
         raise HTTPException(status_code=403, detail="A campanha não corresponde ao token autenticado.")
     with request.app.state.db_pool.connection() as connection:
-        territory = connection.execute(
-            """
-            SELECT municipio, provincia,
-                   coalesce(sum(total_eleitores_aptos), 0) AS eleitores,
-                   mode() WITHIN GROUP (ORDER BY zonamento_historico) AS zona
-            FROM locais_voto WHERE lower(municipio) = lower(%s)
-            GROUP BY municipio, provincia
-            """,
-            (municipality,),
-        ).fetchone()
-        if not territory:
-            raise HTTPException(status_code=404, detail="Município não encontrado nos dados territoriais.")
-        concerns = connection.execute(
-            """
-            SELECT concern AS dor FROM visitas_terreno vt
-            JOIN locais_voto lv ON ST_DWithin(vt.localizacao, lv.localizacao, 4000)
-            CROSS JOIN LATERAL unnest(vt.dores_prioritarias) AS concern
-            WHERE lower(lv.municipio) = lower(%s) AND vt.campanha_id = %s
-            GROUP BY concern ORDER BY count(*) DESC LIMIT 3
-            """,
-            (municipality, campaign),
-        ).fetchall()
-        draft = _speech_draft(
-            municipality, territory["zona"] or "CAMPO_BATALHA",
-            [item["dor"] for item in concerns], request.app.state.settings,
-        )
-        row = connection.execute(
-            """
-            INSERT INTO discursos_campanha (
-                campanha_id, unidade_territorial_id, modelo_ia_utilizado,
-                hook_abertura, compromissos_propostas, bloco_juventude,
-                armadilhas_evitar, status_aprovacao
-            ) VALUES (
-                %s, (SELECT id FROM unidades_territoriais WHERE lower(nome) = lower(%s) LIMIT 1),
-                %s, %s, %s, %s, %s, 'RASCUNHO'
-            ) RETURNING id, status_aprovacao, criado_em
-            """,
-            (
-                campaign, municipality,
-                request.app.state.settings.ai_model if request.app.state.settings.anthropic_api_key else "heuristico_auditado_v1",
-                draft["hook_abertura"], json.dumps(draft["compromissos_propostas"]),
-                draft["bloco_juventude"], json.dumps(draft["armadilhas_a_evitar"]),
-            ),
-        ).fetchone()
+        with connection.transaction():
+            connection.execute(
+                "SELECT set_config('app.current_campanha_id', %s, true)",
+                (str(campaign),),
+            )
+            territory = connection.execute(
+                """
+                SELECT municipio, provincia,
+                       coalesce(sum(total_eleitores_aptos), 0) AS eleitores,
+                       mode() WITHIN GROUP (ORDER BY zonamento_historico) AS zona
+                FROM locais_voto WHERE lower(municipio) = lower(%s)
+                GROUP BY municipio, provincia
+                """,
+                (municipality,),
+            ).fetchone()
+            if not territory:
+                raise HTTPException(status_code=404, detail="Município não encontrado nos dados territoriais.")
+            concerns = connection.execute(
+                """
+                SELECT concern AS dor FROM visitas_terreno vt
+                JOIN locais_voto lv ON ST_DWithin(vt.localizacao, lv.localizacao, 4000)
+                CROSS JOIN LATERAL unnest(vt.dores_prioritarias) AS concern
+                WHERE lower(lv.municipio) = lower(%s) AND vt.campanha_id = %s
+                GROUP BY concern ORDER BY count(*) DESC LIMIT 3
+                """,
+                (municipality, campaign),
+            ).fetchall()
+            draft = _speech_draft(
+                municipality, territory["zona"] or "CAMPO_BATALHA",
+                [item["dor"] for item in concerns], request.app.state.settings,
+            )
+            row = connection.execute(
+                """
+                INSERT INTO discursos_campanha (
+                    campanha_id, unidade_territorial_id, modelo_ia_utilizado,
+                    hook_abertura, compromissos_propostas, bloco_juventude,
+                    armadilhas_evitar, status_aprovacao
+                ) VALUES (
+                    %s, (SELECT id FROM unidades_territoriais WHERE lower(nome) = lower(%s) LIMIT 1),
+                    %s, %s, %s, %s, %s, 'RASCUNHO'
+                ) RETURNING id, status_aprovacao, criado_em
+                """,
+                (
+                    campaign, municipality,
+                    request.app.state.settings.ai_model if request.app.state.settings.anthropic_api_key else "heuristico_auditado_v1",
+                    draft["hook_abertura"], json.dumps(draft["compromissos_propostas"]),
+                    draft["bloco_juventude"], json.dumps(draft["armadilhas_a_evitar"]),
+                ),
+            ).fetchone()
     speech = {
         "id": str(row["id"]),
         "campanha_id": str(campaign),
@@ -710,39 +741,42 @@ def generate_speech(
 @router.patch("/discursos/{speech_id}/status")
 def update_speech_status(
     speech_id: UUID,
+    payload: SpeechStatusUpdateRequest,
     request: Request,
     user: Annotated[dict, Depends(ROLE_REVIEW)],
-    body: dict = Body(...),
 ):
-    status_value = body.get("status")
-    if status_value not in {"RASCUNHO", "EM_REVISAO", "APROVADO", "REJEITADO"}:
-        raise HTTPException(status_code=422, detail="Status de aprovação inválido.")
-    reviewer = str(body.get("responsavel_revisao", "")).strip()
-    if not reviewer:
-        raise HTTPException(status_code=422, detail="responsavel_revisao é obrigatório para auditoria.")
     with request.app.state.db_pool.connection() as connection:
-        row = connection.execute(
-            """
-            UPDATE discursos_campanha
-            SET status_aprovacao = %s, responsavel_revisao = %s,
-                comentarios_revisao = %s,
-                aprovado_em = CASE WHEN %s = 'APROVADO' THEN clock_timestamp() ELSE NULL END,
-                atualizado_em = clock_timestamp()
-            WHERE id = %s AND campanha_id = %s RETURNING *
-            """,
-            (
-                status_value, reviewer, body.get("comentarios_revisao"),
-                status_value, speech_id, user["campaign_id"],
-            ),
-        ).fetchone()
+        with connection.transaction():
+            connection.execute(
+                "SELECT set_config('app.current_campanha_id', %s, true)",
+                (str(user["campaign_id"]),),
+            )
+            row = connection.execute(
+                """
+                UPDATE discursos_campanha
+                SET status_aprovacao = %s, responsavel_revisao = %s,
+                    comentarios_revisao = %s,
+                    aprovado_em = CASE WHEN %s = 'APROVADO' THEN clock_timestamp() ELSE NULL END,
+                    atualizado_em = clock_timestamp()
+                WHERE id = %s AND campanha_id = %s RETURNING *
+                """,
+                (
+                    payload.status, payload.responsavel_revisao, payload.comentarios_revisao,
+                    payload.status, speech_id, user["campaign_id"],
+                ),
+            ).fetchone()
     if not row:
         raise HTTPException(status_code=404, detail="Discurso não encontrado.")
-    return {"sucesso": True, "mensagem": f"Discurso atualizado para {status_value}.", "discurso": row}
+    return {"sucesso": True, "mensagem": f"Discurso atualizado para {payload.status}.", "discurso": row}
 
 
 @router.get("/discursos/historico/{municipio}")
 def speech_history(municipio: str, request: Request, user: Annotated[dict, Depends(ROLE_REVIEW)]):
     with request.app.state.db_pool.connection() as connection:
+        connection.execute(
+            "SELECT set_config('app.current_campanha_id', %s, true)",
+            (str(user["campaign_id"]),),
+        )
         rows = connection.execute(
             """
             SELECT dc.*, ut.nome AS territorio_nome
@@ -759,6 +793,10 @@ def speech_history(municipio: str, request: Request, user: Annotated[dict, Depen
 @router.get("/discurso-territorializado/{municipio}")
 def territorial_speech(municipio: str, request: Request, user: Annotated[dict, Depends(ROLE_REVIEW)]):
     with request.app.state.db_pool.connection() as connection:
+        connection.execute(
+            "SELECT set_config('app.current_campanha_id', %s, true)",
+            (str(user["campaign_id"]),),
+        )
         territory = connection.execute(
             """
             SELECT lv.municipio, lv.provincia,

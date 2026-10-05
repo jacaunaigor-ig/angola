@@ -46,7 +46,8 @@ projeto_angola/
 │   ├── 03_seed_municipios_angola.sql    # Matriz oficial CNE
 │   ├── 04_carga_territorial_oficial.sql # Carga gerada pelo ETL com DPA 2016/2024
 │   ├── 05_migration_fastapi_evidence.sql # Persistência de evidências de campo
-│   └── 06_migration_fastapi_users.sql   # Contas e associação a mobilizadores
+│   ├── 06_migration_fastapi_users.sql   # Contas e associação a mobilizadores
+│   └── 07_migration_rls_multi_tenancy.sql # Isolamento multi-tenancy e Row-Level Security (RLS)
 ├── docs/                                # Documentação Técnica e de Negócio
 │   ├── auditoria.md                     # Relatório de auditoria técnica (Passo 0)
 │   ├── legal.md                         # Marco legal eleitoral e conformidade com a CNE
@@ -93,8 +94,8 @@ python -m pip install -r backend/requirements.txt
 copy .env.example .env
 python boot.py        # Valida ambiente e PostGIS, depois inicia a API na porta 8000
 ```
-Em bases existentes, aplique as migrations SQL `05` e `06` antes de iniciar a API. Em novas bases, o Docker Compose executa os scripts SQL por ordem no primeiro arranque.
-Para uma base nova fora do Compose, execute os scripts `01` a `06` de `database/` em ordem, usando `psql` com `ON_ERROR_STOP=1`, antes do primeiro deploy.
+Em bases existentes, aplique as migrations SQL `05`, `06` e `07` antes de iniciar a API. Em novas bases, o Docker Compose executa os scripts SQL por ordem no primeiro arranque.
+Para uma base nova fora do Compose, execute os scripts `01` a `07` de `database/` em ordem, usando `psql` com `ON_ERROR_STOP=1`, antes do primeiro deploy.
 
 Crie uma conta ligada a um mobilizador já cadastrado na campanha (não passe a senha como argumento):
 ```bash

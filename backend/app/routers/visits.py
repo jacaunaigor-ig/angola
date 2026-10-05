@@ -190,12 +190,13 @@ def list_visits(
     query += " ORDER BY registado_em DESC LIMIT %s"
     params.append(limit)
     with request.app.state.db_pool.connection() as connection:
+        connection.execute("SELECT set_config('app.current_campanha_id', %s, true)", (campaign_id,))
         rows = connection.execute(query, params).fetchall()
     return {"total": len(rows), "visitas": rows}
 
 
 @router.post("/visitas/{visit_id}/evidencias", status_code=201)
-async def upload_visit_evidence(
+def upload_visit_evidence(
     visit_id: str,
     request: Request,
     user: Annotated[dict, Depends(field_user)],
@@ -212,7 +213,7 @@ async def upload_visit_evidence(
 
     chunks = []
     size = 0
-    while chunk := await evidence.read(64 * 1024):
+    while chunk := evidence.file.read(64 * 1024):
         size += len(chunk)
         if size > 5 * 1024 * 1024:
             raise HTTPException(status_code=413, detail="Cada evidência está limitada a 5 MB.")
@@ -222,6 +223,10 @@ async def upload_visit_evidence(
 
     with request.app.state.db_pool.connection() as connection:
         with connection.transaction():
+            connection.execute(
+                "SELECT set_config('app.current_campanha_id', %s, true)",
+                (str(user["campaign_id"]),),
+            )
             visit = connection.execute(
                 "SELECT id FROM visitas_terreno WHERE id = %s AND campanha_id = %s",
                 (visit_uuid, user["campaign_id"]),

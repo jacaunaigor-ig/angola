@@ -189,4 +189,32 @@ export const apiService = {
     }
     return outboxSync.varrerESincronizar(campanhaId);
   },
+
+  /**
+   * Submete a ata de apuramento da mesa eleitoral com geofencing
+   */
+  async submeterAta(payload) {
+    const identity = await offlineStorage.obterIdentidade();
+    const activeCampaignId = identity?.campanha_id || CAMPANHA_PADRAO_ID;
+    const activeActivistId = identity?.ativista_id || ATIVISTA_PADRAO_ID;
+
+    const body = {
+      campanha_id: activeCampaignId,
+      delegado_id: activeActivistId,
+      ...payload,
+    };
+
+    const response = await fetch(`${API_BASE_URL}/dia-d/submeter-ata`, {
+      method: 'POST',
+      headers: await authenticatedHeaders(),
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      const errorJson = await response.json().catch(() => ({}));
+      throw new Error(errorJson.detail || errorJson.erro || `Erro HTTP ${response.status}`);
+    }
+
+    return await response.json();
+  },
 };

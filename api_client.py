@@ -7,6 +7,8 @@ Em conformidade estrita com o Princípio de Honestidade dos Dados.
 import os
 import json
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util import Retry
 from typing import Dict, Any, Optional, Tuple
 
 API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000/api")
@@ -19,13 +21,26 @@ class ApiClient:
         self.headers = {"Authorization": f"Bearer {token}"} if token else {}
         self.plano = "NACIONAL"
         self.territorio = None
+        self.session = requests.Session()
+        if self.headers:
+            self.session.headers.update(self.headers)
+        adapter = HTTPAdapter(
+            pool_connections=10,
+            pool_maxsize=20,
+            max_retries=Retry(total=2, backoff_factor=0.3, status_forcelist=[502, 503, 504]),
+        )
+        self.session.mount("http://", adapter)
+        self.session.mount("https://", adapter)
 
     def definir_contrato(self, plano: str, territorio: Optional[str] = None) -> None:
         self.plano = (plano or "NACIONAL").upper()
         self.territorio = territorio
 
     def _headers(self) -> Dict[str, str]:
-        return {"X-Plano-Campanha": self.plano, "Content-Type": "application/json"}
+        headers = {"X-Plano-Campanha": self.plano, "Content-Type": "application/json"}
+        if self.headers.get("Authorization"):
+            headers["Authorization"] = self.headers["Authorization"]
+        return headers
 
     def verificar_saude(self) -> Tuple[bool, Dict[str, Any]]:
         """
@@ -33,7 +48,7 @@ class ApiClient:
         Nunca retorna um status falso de 'conectado' se a API falhar.
         """
         try:
-            resp = requests.get(f"{self.base_url}/health", timeout=TIMEOUT_SECONDS)
+            resp = self.session.get(f"{self.base_url}/health", timeout=TIMEOUT_SECONDS)
             data = resp.json() if resp.content else {}
             bd_ok = data.get("base_dados") == "CONECTADA"
             status_ok = data.get("status") == "ONLINE" and resp.status_code == 200
@@ -57,7 +72,7 @@ class ApiClient:
     def obter_relatorio_qualidade(self) -> Dict[str, Any]:
         """Obtém o relatório de qualidade de carga do pipeline ETL."""
         try:
-            resp = requests.get(f"{self.base_url}/territorio/relatorio-qualidade", timeout=TIMEOUT_SECONDS)
+            resp = self.session.get(f"{self.base_url}/territorio/relatorio-qualidade", timeout=TIMEOUT_SECONDS)
             if resp.status_code == 200:
                 return resp.json().get("relatorio", {})
         except Exception:
@@ -73,7 +88,7 @@ class ApiClient:
     def obter_versoes_malha(self) -> list:
         """Lista as versões político-administrativas (DPA 2016 e DPA 2024)."""
         try:
-            resp = requests.get(f"{self.base_url}/territorio/versoes", timeout=TIMEOUT_SECONDS)
+            resp = self.session.get(f"{self.base_url}/territorio/versoes", timeout=TIMEOUT_SECONDS)
             if resp.status_code == 200:
                 return resp.json().get("versoes", [])
         except Exception:
@@ -93,7 +108,7 @@ class ApiClient:
             if self.territorio:
                 params["territorio"] = self.territorio
             url = f"{self.base_url}/territorio/unidades"
-            resp = requests.get(url, params=params, headers=self._headers(), timeout=TIMEOUT_SECONDS)
+            resp = self.session.get(url, params=params, headers=self._headers(), timeout=TIMEOUT_SECONDS)
             if resp.status_code == 200:
                 return True, resp.json(), "OFICIAL (API)"
         except Exception:
@@ -114,7 +129,7 @@ class ApiClient:
         """Obtém os totais de terreno do War Room."""
         try:
             params = f"?campanha_id={campanha_id}" if campanha_id else ""
-            resp = requests.get(f"{self.base_url}/war-room/resumo-nacional{params}", headers=self.headers, timeout=TIMEOUT_SECONDS)
+            resp = self.session.get(f"{self.base_url}/war-room/resumo-nacional{params}", timeout=TIMEOUT_SECONDS)
             if resp.status_code == 200:
                 data = resp.json()
                 return True, data, "OFICIAL (API)"
@@ -127,8 +142,7 @@ class ApiClient:
         """Obtém a consolidação do apuramento paralelo do Dia D."""
         try:
             params = f"?campanha_id={campanha_id}" if campanha_id else ""
-            resp = requests.get(f"{self.base_url}/dia-d/apuramento-paralelo{params}", headers=self.headers, timeout=TIMEOUT_SECONDS)
-            resp = requests.get(
+            resp = self.session.get(
                 f"{self.base_url}/dia-d/apuramento-paralelo{params}",
                 headers=self._headers(),
                 timeout=TIMEOUT_SECONDS,
@@ -145,7 +159,7 @@ class ApiClient:
         """Obtém o discurso tático e promessas para um município."""
         try:
             params = f"?campanha_id={campanha_id}" if campanha_id else ""
-            resp = requests.get(f"{self.base_url}/discurso-territorializado/{municipio}{params}", headers=self.headers, timeout=TIMEOUT_SECONDS)
+            resp = self.session.get(f"{self.base_url}/discurso-territorializado/{municipio}{params}", timeout=TIMEOUT_SECONDS)
             if resp.status_code == 200:
                 data = resp.json()
                 return True, data, "ESTIMADO / MODELADO (API)"
@@ -163,10 +177,10 @@ class ApiClient:
                 "nome_oposicao": nome_oposicao,
                 "diretrizes_cliente": diretrizes
             }
-            resp = requests.post(f"{self.base_url}/discursos/gerar", json=payload, headers=self.headers, timeout=8.0)
+            resp = self.session.post(f"{self.base_url}/discursos/gerar", json=payload, timeout=8.0)
             if resp.status_code in [200, 201]:
                 return True, resp.json().get("discurso", {})
-        except Exception as e:
+        except Exception:
             pass
         return False, {}
 
@@ -178,7 +192,7 @@ class ApiClient:
                 "responsavel_revisao": responsavel,
                 "comentarios_revisao": comentarios
             }
-            resp = requests.patch(f"{self.base_url}/discursos/{discurso_id}/status", json=payload, headers=self.headers, timeout=TIMEOUT_SECONDS)
+            resp = self.session.patch(f"{self.base_url}/discursos/{discurso_id}/status", json=payload, timeout=TIMEOUT_SECONDS)
             if resp.status_code == 200:
                 return True, "Status atualizado com sucesso."
             return False, resp.json().get("detalhes", "Erro ao atualizar status.")
@@ -188,7 +202,7 @@ class ApiClient:
     def simular_zonamento(self, votos_partido: int, votos_oposicao: int, total_validos: int, limiar_bastiao: float, limiar_oposicao: float) -> Dict[str, Any]:
         """Envia parâmetros para o motor de zonamento e retorna a classificação com fórmula."""
         try:
-            resp = requests.post(
+            resp = self.session.post(
                 f"{self.base_url}/zonamento/simular",
                 json={
                     "votos_partido": votos_partido,
@@ -235,7 +249,7 @@ class ApiClient:
     def invalidar_lote_visitas(self, uuids: list, motivo: str, responsavel: str = "coordenacao_war_room") -> Tuple[bool, str]:
         """Invalida um lote suspeito com um clique (sem apagar a trilha)."""
         try:
-            resp = requests.post(
+            resp = self.session.post(
                 f"{self.base_url}/visitas/invalidar-lote",
                 json={"uuids": uuids, "motivo": motivo, "responsavel": responsavel},
                 headers=self._headers(),
@@ -254,7 +268,7 @@ class ApiClient:
     def criar_caso_juridico(self, titulo: str, descricao_fato: str, tipo_irregularidade: str) -> Tuple[bool, str]:
         """Protocola um caso jurídico. Falha de forma honesta se a API não responder."""
         try:
-            resp = requests.post(
+            resp = self.session.post(
                 f"{self.base_url}/dia-d/casos-juridicos",
                 json={
                     "titulo": titulo,
@@ -277,7 +291,7 @@ class ApiClient:
 
     def catalogo_planos(self) -> Dict[str, Any]:
         try:
-            resp = requests.get(f"{self.base_url}/planos", timeout=TIMEOUT_SECONDS)
+            resp = self.session.get(f"{self.base_url}/planos", timeout=TIMEOUT_SECONDS)
             if resp.status_code == 200:
                 return resp.json()
         except Exception:
