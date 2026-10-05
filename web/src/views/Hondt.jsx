@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { api } from "../api.js";
 import { Aviso, Cartao, Kpi, Selo } from "../components/ui.jsx";
+import MapaTerritorio from "../Mapa.jsx";
+import { useTerritorio } from "../hooks/useDadosBase.js";
 import { fmtInt } from "../territorio.js";
 
 const CIRCULOS_PADRAO = [
@@ -23,7 +25,8 @@ function Assentos({ mpla, unita, grande }) {
   );
 }
 
-export default function Hondt({ hondtGeral }) {
+export default function Hondt({ hondtGeral, contorno }) {
+  const malha = useTerritorio("NACIONAL", "DPA_2016_18P");
   const [provincia, setProvincia] = useState("Huambo");
   const [choqueA, setChoqueA] = useState(0);
   const [choqueB, setChoqueB] = useState(0);
@@ -83,6 +86,23 @@ export default function Hondt({ hondtGeral }) {
       </Cartao>
 
       <section className="grid-2">
+        <Cartao
+          titulo="Círculos no território"
+          nota="Clique numa província para abrir o simulador Hondt desse círculo. Só os 18 círculos de 2022 têm votos oficiais."
+        >
+          <MapaTerritorio
+            features={malha.features}
+            contorno={contorno}
+            onSelect={(props) => {
+              if (circulos.includes(props?.nome)) setProvincia(props.nome);
+            }}
+            selecionado={provincia}
+            camada="zona"
+            compacto
+            mostrarNomes
+            fundo="ruas"
+          />
+        </Cartao>
         <Cartao titulo={`Projecção: ${provincia}`} nota="5 assentos" className={aSimular ? "a-carregar" : ""}>
           {r ? (
             <>
@@ -116,8 +136,9 @@ export default function Hondt({ hondtGeral }) {
             <div className="skeleton bloco-vazio" aria-busy="true" />
           )}
         </Cartao>
+      </section>
 
-        <Cartao titulo="Panorama dos 18 círculos" nota="Resultados CNE 2022, 90 deputados provinciais" acao={<Selo tipo="OFICIAL" />}>
+      <Cartao titulo="Panorama dos 18 círculos" nota="Resultados CNE 2022, 90 deputados provinciais" acao={<Selo tipo="OFICIAL" />}>
           {hondtGeral && (
             <div className="kpis dois">
               <Kpi rotulo="MPLA" valor={hondtGeral.total_deputados_provinciais?.partido_a} />
@@ -155,8 +176,7 @@ export default function Hondt({ hondtGeral }) {
               })}
             </tbody>
           </table>
-        </Cartao>
-      </section>
+      </Cartao>
     </main>
   );
 }
