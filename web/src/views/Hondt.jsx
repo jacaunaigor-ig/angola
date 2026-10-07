@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { api } from "../api.js";
 import { IconeRefresh } from "../components/Icones.jsx";
 import Hemiciclo from "../components/Hemiciclo.jsx";

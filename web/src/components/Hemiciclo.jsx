@@ -1,3 +1,5 @@
+import React from "react";
+
 const TOTAL_ASSENTOS = 220;
 const MAIORIA_ABSOLUTA = 111;
 const FILAS = 9;

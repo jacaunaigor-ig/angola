@@ -1,3 +1,5 @@
+import React from "react";
+
 const SERIES = [
   ["mpla", "MPLA", "var(--mpla)", null],
   ["unita", "UNITA", "var(--unita)", null],

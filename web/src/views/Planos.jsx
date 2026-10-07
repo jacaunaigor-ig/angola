@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { api } from "../api.js";
 import { IconeCheck } from "../components/Icones.jsx";
 import { Aviso, Cartao, Selo } from "../components/ui.jsx";

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import GraficoSerie from "../components/GraficoSerie.jsx";
 import {
   IconeCentrar,
@@ -12,6 +12,7 @@ import {
   IconeSatelite,
   IconeZonamento,
 } from "../components/Icones.jsx";
+import BriefingDia from "../components/BriefingDia.jsx";
 import { Aviso, Cartao, Kpi, Selo } from "../components/ui.jsx";
 import MapaTerritorio from "../Mapa.jsx";
 import { classificar, fmtInt, fmtPct, priorizar, rotuloZona, serieParaGrafico } from "../territorio.js";
@@ -222,6 +223,8 @@ export default function Comando({ dados, territorio, plano, setPlano, versao, se
   return (
     <main className="page">
       <Aviso>{territorio.erro}</Aviso>
+
+      <BriefingDia linhas={linhas} onEscolher={setSelecionado} />
 
       <section className="kpis" aria-label="Indicadores nacionais">
         <Kpi rotulo="Eleitorado 2022" valor={fmtInt(soma("eleitores_cne"))} selo="OFICIAL" carregando={aCarregar} />

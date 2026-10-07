@@ -31,7 +31,7 @@ flowchart LR
   A --> R["data/raw/ e geo_angola/<br/>CNE · INE · DPA · Malha Vetorial"]
 ```
 
-Detalhes e decisões em [docs/arquitetura.md](docs/arquitetura.md).
+Detalhes e decisões em [docs/arquitetura.md](docs/arquitetura.md). Superfícies de operação (consulta CNE, sala autenticada, laboratório `?lab=1`) em [docs/produto.md](docs/produto.md).
 
 ## Arranque rápido
 
