@@ -271,6 +271,14 @@ const sqliteOutbox = {
     });
   },
 
+  async atualizarPayload(uuid, payload) {
+    await this.inicializar();
+    await adaptador.executar(
+      `UPDATE outbox_visitas SET payload = ?, atualizado_em = ? WHERE uuid = ?`,
+      [JSON.stringify(payload), agoraIso(), uuid]
+    );
+  },
+
   async marcarSincronizados(uuids) {
     if (!uuids || uuids.length === 0) return 0;
     await this.inicializar();

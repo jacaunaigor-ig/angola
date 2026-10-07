@@ -7,9 +7,12 @@ import {
   ScrollView,
   TextInput,
   Alert,
+  Image,
   Platform,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system';
 import { THEME } from '../theme/theme';
 import { generateUUID } from '../services/offlineStorage';
 import { apiService } from '../services/api';
@@ -28,6 +31,10 @@ export default function ElectionDayScreen() {
   const [votosBrancos, setVotosBrancos] = useState('2');
   const [fotoCapturada, setFotoCapturada] = useState(false);
   const [fotoHash, setFotoHash] = useState('');
+  const [fotoUri, setFotoUri] = useState('');
+  const [fotoMime, setFotoMime] = useState('image/jpeg');
+  const [fotoTamanho, setFotoTamanho] = useState(0);
+  const [storageKeyFoto, setStorageKeyFoto] = useState('');
   const [distanciaMetros, setDistanciaMetros] = useState(48.5); // Simulação de 48.5m da escola
   const [enviandoAta, setEnviandoAta] = useState(false);
   const [ataEnviadaComSucesso, setAtaEnviadaComSucesso] = useState(false);
@@ -65,13 +72,44 @@ export default function ElectionDayScreen() {
     (parseInt(votosNulos, 10) || 0) +
     (parseInt(votosBrancos, 10) || 0);
 
-  const simularCapturaFotoAta = async () => {
-    // Gera hash SHA-256 criptográfico real para a captura da ata
-    const conteudoSimulado = `MESA_${mesaNumero}_ASSEMBLEIA_${assembleiaAtribuida.codigo_cne}_${Date.now()}`;
-    const realSha256 = await cryptoSignService.calcularHashFotoAta(conteudoSimulado);
-
-    setFotoCapturada(true);
-    setFotoHash(realSha256);
+  const capturarFotoAta = async () => {
+    try {
+      const permissao = await ImagePicker.requestCameraPermissionsAsync();
+      if (permissao.status !== 'granted') {
+        Alert.alert(
+          'Câmara necessária',
+          'Autorize a câmara para fotografar a ata oficial da mesa. Sem a fotografia a ata não tem valor probatório.',
+        );
+        return;
+      }
+      const resultado = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 0.7,
+        allowsEditing: false,
+        exif: false,
+      });
+      if (resultado.canceled || !resultado.assets?.[0]) {
+        return;
+      }
+      const asset = resultado.assets[0];
+      const uri = asset.uri;
+      const mime = asset.mimeType || 'image/jpeg';
+      const info = await FileSystem.getInfoAsync(uri);
+      const tamanho = info.size || asset.fileSize || 0;
+      if (tamanho > 5 * 1024 * 1024) {
+        Alert.alert('Ficheiro demasiado grande', 'A fotografia da ata não pode exceder 5 MB.');
+        return;
+      }
+      const hashLocal = await cryptoSignService.calcularHashFotoAta(uri);
+      setFotoUri(uri);
+      setFotoMime(mime);
+      setFotoTamanho(tamanho);
+      setFotoHash(hashLocal);
+      setFotoCapturada(true);
+      setStorageKeyFoto('');
+    } catch (err) {
+      Alert.alert('Captura falhou', err.message || 'Não foi possível abrir a câmara neste aparelho.');
+    }
   };
 
   const submeterAtaComGeofence = async () => {
@@ -86,6 +124,28 @@ export default function ElectionDayScreen() {
       const localVotoId = assembleiaAtribuida.id || 'e0000000-0000-0000-0000-000000000001';
       const timestampIso = new Date().toISOString();
 
+      let hashFotoFinal = fotoHash;
+      let fotoUrl = `/api/evidencias/storage/atas/${localVotoId}/${ataId}.jpg`;
+      let uploadOk = false;
+      if (fotoUri) {
+        try {
+          const ticket = await apiService.pedirTicketUploadAta({
+            nomeArquivo: `ata-mesa-${mesaNumero}.jpg`,
+            mimeType: fotoMime,
+            tamanhoBytes: Math.max(fotoTamanho, 1),
+            sha256: fotoHash,
+          });
+          const enviado = await apiService.enviarBinarioAta(ticket.upload_url, fotoUri, fotoMime);
+          hashFotoFinal = enviado.sha256 || fotoHash;
+          fotoUrl = ticket.public_url;
+          setFotoHash(hashFotoFinal);
+          setStorageKeyFoto(ticket.storage_key);
+          uploadOk = true;
+        } catch (err) {
+          console.warn('[Dia D] Fotografia não enviada para o storage:', err.message);
+        }
+      }
+
       // 1. Assina digitalmente o pacote canônico com a chave Ed25519 do delegado
       const assinaturaResult = await cryptoSignService.assinarAtaApuramento({
         local_voto_id: localVotoId,
@@ -95,7 +155,7 @@ export default function ElectionDayScreen() {
         votos_nulos: parseInt(votosNulos, 10) || 0,
         votos_brancos: parseInt(votosBrancos, 10) || 0,
         total_votantes: totalVotantesCalculado,
-        foto_hash_sha256: fotoHash,
+        foto_hash_sha256: hashFotoFinal,
         registado_em: timestampIso,
         localizacao: {
           longitude: assembleiaAtribuida.coordenadas_oficiais.longitude,
@@ -112,8 +172,8 @@ export default function ElectionDayScreen() {
         votos_nulos: parseInt(votosNulos, 10) || 0,
         votos_brancos: parseInt(votosBrancos, 10) || 0,
         total_votantes: totalVotantesCalculado,
-        foto_ata_url: `/api/evidencias/storage/atas/${localVotoId}/${ataId}.jpg`,
-        foto_hash_sha256: fotoHash,
+        foto_ata_url: fotoUrl,
+        foto_hash_sha256: hashFotoFinal,
         assinatura_digital_ed25519: assinaturaResult.assinatura_digital_ed25519,
         chave_publica_delegado_ed25519: assinaturaResult.chave_publica_delegado_ed25519,
         localizacao_envio: {
@@ -133,7 +193,13 @@ export default function ElectionDayScreen() {
         console.warn('[Dia D] Ata não transmitida, guardada na fila local:', err.message);
         const bruto = await AsyncStorage.getItem(FILA_ATAS_PENDENTES);
         const fila = bruto ? JSON.parse(bruto) : [];
-        fila.push({ payload, guardado_em: timestampIso, motivo: String(err.message || 'falha de rede') });
+        fila.push({
+          payload,
+          fotoUri,
+          uploadOk,
+          guardado_em: timestampIso,
+          motivo: String(err.message || 'falha de rede'),
+        });
         await AsyncStorage.setItem(FILA_ATAS_PENDENTES, JSON.stringify(fila));
       }
 
@@ -384,16 +450,22 @@ export default function ElectionDayScreen() {
               styles.cameraButton,
               fotoCapturada && { borderColor: THEME.colors.bastaio, backgroundColor: 'rgba(16, 185, 129, 0.15)' },
             ]}
-            onPress={simularCapturaFotoAta}
+            onPress={capturarFotoAta}
           >
             <Text style={styles.cameraIcon}>{fotoCapturada ? '📸 ✅' : '📷'}</Text>
             <Text style={styles.cameraTitle}>
-              {fotoCapturada ? 'Fotografia da Ata Capturada e Selada' : 'Escanear / Fotografar Ata Oficial'}
+              {fotoCapturada ? 'Fotografia da Ata Capturada e Selada' : 'Fotografar Ata Oficial da Mesa'}
             </Text>
+            {fotoUri ? (
+              <Image source={{ uri: fotoUri }} style={{ width: '100%', height: 140, borderRadius: 8, marginTop: 8 }} />
+            ) : null}
             {fotoCapturada ? (
-              <Text style={styles.hashText}>SHA-256: {fotoHash.slice(0, 24)}...</Text>
+              <Text style={styles.hashText}>
+                SHA-256: {fotoHash.slice(0, 24)}...
+                {storageKeyFoto ? ' · storage OK' : ''}
+              </Text>
             ) : (
-              <Text style={styles.cameraSub}>Carimbo de data/hora e GPS embutidos no ficheiro</Text>
+              <Text style={styles.cameraSub}>Câmara nativa. O hash e o PUT ao ticket acontecem na transmissão.</Text>
             )}
           </TouchableOpacity>
 

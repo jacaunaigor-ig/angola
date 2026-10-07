@@ -21,7 +21,9 @@ O núcleo analítico não importa nada de web nem de base de dados. Isso permite
 
 **Evidências.** `POST /api/evidencias/presigned-upload` devolve um URL `PUT` com `expires` e `signature` (HMAC-SHA256 da chave de armazenamento, 15 min). O ficheiro é imutável: um segundo envio dá 409. A leitura exige sessão da mesma campanha. A interface é a de um bucket S3/R2, e trocar o armazenamento não muda os clientes.
 
-**Canal do eleitor.** O webhook valida `X-Hub-Signature-256` quando `WHATSAPP_APP_SECRET` existe (obrigatório em produção). Responde com assembleias de exemplo e regista queixas por município e tema. Telefones ficam mascarados (`***222`) e guardados como HMAC com o segredo do servidor.
+**Canal do eleitor.** O webhook valida `X-Hub-Signature-256` quando `WHATSAPP_APP_SECRET` existe (obrigatório em produção). Responde com assembleias de exemplo e grava queixas em `queixas_eleitor` (RLS, retenção 90 dias). Telefones ficam mascarados (`***222`) e guardados como HMAC. Sem PostgreSQL, a fila fica em memória só para demonstração.
+
+**Apuramento em tempo real.** `GET /api/dia-d/stream` envia Server-Sent Events à sala de comando sempre que uma ata da campanha autenticada é aceite. O nginx desliga o buffering nesse caminho.
 
 ## Segurança
 

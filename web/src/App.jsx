@@ -187,12 +187,13 @@ export default function App() {
       <div className="workspace" id="conteudo">
         {/* Cabeçalho */}
         <header className="top">
-          <div>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              {isMobileView && (
-                <IconeAngolaEmblema size={20} style={{ marginRight: "4px" }} />
-              )}
-              <p className="eyebrow">República de Angola · Pleito 2027</p>
+          <div className="top-identidade">
+            <div className="produto-marca">
+              {isMobileView && <IconeAngolaEmblema size={22} />}
+              <div className="produto-marca-texto">
+                <p className="eyebrow">GPS Eleitoral · Angola 2027</p>
+                <span className="produto-versao">Versão Comercial 2.0</span>
+              </div>
             </div>
             <h1>{actual[1]}</h1>
             <p className="lede">{actual[2]}</p>

@@ -52,6 +52,7 @@ def test_fastapi_contract_registers_health_auth_and_legacy_routes():
     assert "/api/auth/token" in schema["paths"]
     assert "/api/sincronizar-visitas" in schema["paths"]
     assert "/api/dia-d/submeter-ata" in schema["paths"]
+    assert "/api/dia-d/stream" in schema["paths"]
     assert "/api/dia-d/casos-juridicos" in schema["paths"]
     assert "/api/discursos/gerar" in schema["paths"]
     assert "/api/discursos/{speech_id}/status" in schema["paths"]
@@ -482,3 +483,25 @@ def test_unidades_ancoram_geometria_geo_angola_sem_inventar_dpa2024():
     huambo = next(f for f in dpa2024.json()["features"] if f["properties"]["nome"] == "Huambo")
     assert huambo["geometry"]["type"] in {"Polygon", "MultiPolygon"}
     assert huambo["properties"]["geometria_fonte"] == "geo_angola"
+
+
+def test_submissao_de_ata_grava_colunas_ed25519_no_insert():
+    from pathlib import Path
+
+    fonte = Path(__file__).resolve().parents[1] / "app" / "routers" / "legacy.py"
+    texto = fonte.read_text(encoding="utf-8")
+    assert "assinatura_ed25519" in texto
+    assert "chave_publica_ed25519" in texto
+
+
+def test_pubsub_de_atas_entrega_aos_subscritores():
+    from app.events import cancelar, publicar_ata, subscrever
+
+    canal = subscrever()
+    try:
+        publicar_ata({"tipo": "ata", "campanha_id": "demo"})
+        evento = canal.get_nowait()
+        assert evento["tipo"] == "ata"
+        assert evento["campanha_id"] == "demo"
+    finally:
+        cancelar(canal)

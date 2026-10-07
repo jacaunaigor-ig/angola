@@ -33,7 +33,10 @@ function parseStoredList(raw, key) {
 }
 
 export function generateUUID() {
-  return Crypto.randomUUID();
+  if (typeof Crypto.randomUUID === 'function') {
+    return Crypto.randomUUID();
+  }
+  return sqliteOutbox.gerarUuidVisita();
 }
 
 export const offlineStorage = {
@@ -65,20 +68,18 @@ export const offlineStorage = {
     await SecureStore.deleteItemAsync(IDENTITY_KEY);
   },
 
+  async obterFilaVisitasAsyncStorage() {
+    try {
+      const raw = await AsyncStorage.getItem(STORAGE_KEYS.QUEUE_VISITAS);
+      return parseStoredList(raw, STORAGE_KEYS.QUEUE_VISITAS);
+    } catch (error) {
+      console.error('[OfflineStorage] Erro ao carregar fila AsyncStorage:', error);
+      return [];
+    }
+  },
+
   async enfileirarVisita(visita) {
     return serializeQueue(async () => {
-      const fila = await this.obterFilaVisitas();
-      const novaVisita = {
-  return sqliteOutbox.gerarUuidVisita();
-}
-
-export const offlineStorage = {
-  /**
-   * Enfileira uma nova visita na tabela SQLite local (Outbox) com status PENDENTE.
-   * Mantém um espelho em AsyncStorage apenas para compatibilidade com ecrãs existentes.
-   */
-  async enfileirarVisita(visita) {
-    try {
       const uuid = visita.uuid || visita.id || generateUUID();
       const novaVisita = await sqliteOutbox.enfileirarVisita({
         ...visita,
@@ -87,36 +88,33 @@ export const offlineStorage = {
         registado_em: visita.registado_em || new Date().toISOString(),
         evidencias: Array.isArray(visita.evidencias) ? visita.evidencias : [],
         sincronizado: false,
-      };
-      if (fila.some((item) => item.id === novaVisita.id)) {
-        throw new Error(`Já existe uma visita local com o ID ${novaVisita.id}.`);
-      }
-      fila.push(novaVisita);
-      await AsyncStorage.setItem(STORAGE_KEYS.QUEUE_VISITAS, JSON.stringify(fila));
       });
 
       const filaExistente = await this.obterFilaVisitasAsyncStorage();
-      filaExistente.push(novaVisita);
-      await AsyncStorage.setItem(STORAGE_KEYS.QUEUE_VISITAS, JSON.stringify(filaExistente));
+      if (!filaExistente.some((item) => item.id === novaVisita.id || item.uuid === novaVisita.uuid)) {
+        filaExistente.push(novaVisita);
+        await AsyncStorage.setItem(STORAGE_KEYS.QUEUE_VISITAS, JSON.stringify(filaExistente));
+      }
       return novaVisita;
     });
   },
 
   async obterFilaVisitas() {
-    const raw = await AsyncStorage.getItem(STORAGE_KEYS.QUEUE_VISITAS);
-    return parseStoredList(raw, STORAGE_KEYS.QUEUE_VISITAS);
+    try {
+      const pendentes = await sqliteOutbox.obterPendentes(500);
+      if (pendentes.length > 0) {
+        return pendentes.map((item) => item.payload);
+      }
+      return this.obterFilaVisitasAsyncStorage();
+    } catch (error) {
+      console.error('[OfflineStorage] Erro ao carregar fila SQLite:', error);
+      return this.obterFilaVisitasAsyncStorage();
+    }
   },
 
   async anexarEvidencia(visitaId, sourceUri, mimeType = 'image/jpeg') {
     if (!['image/jpeg', 'image/png'].includes(mimeType)) {
       throw new Error('A evidência deve ser uma imagem JPEG ou PNG.');
-  async obterFilaVisitasAsyncStorage() {
-    try {
-      const raw = await AsyncStorage.getItem(STORAGE_KEYS.QUEUE_VISITAS);
-      return raw ? JSON.parse(raw) : [];
-    } catch (error) {
-      console.error('[OfflineStorage] Erro ao carregar fila AsyncStorage:', error);
-      return [];
     }
     return serializeQueue(async () => {
       const info = await FileSystem.getInfoAsync(sourceUri, { size: true });
@@ -136,50 +134,25 @@ export const offlineStorage = {
       await FileSystem.copyAsync({ from: sourceUri, to: evidence.uri });
 
       const fila = await this.obterFilaVisitas();
-      const index = fila.findIndex((item) => item.id === visitaId);
+      const index = fila.findIndex((item) => item.id === visitaId || item.uuid === visitaId);
       if (index < 0) {
         await FileSystem.deleteAsync(evidence.uri, { idempotent: true });
         throw new Error(`Visita ${visitaId} não encontrada na fila local.`);
       }
-      fila[index].evidencias = [...(fila[index].evidencias || []), evidence];
+      const actualizada = {
+        ...fila[index],
+        evidencias: [...(fila[index].evidencias || []), evidence],
+      };
+      fila[index] = actualizada;
       await AsyncStorage.setItem(STORAGE_KEYS.QUEUE_VISITAS, JSON.stringify(fila));
+      await sqliteOutbox.atualizarPayload(actualizada.uuid || actualizada.id, actualizada);
       return evidence;
     });
   },
 
-  async confirmarSincronizacao(idsConfirmados) {
-    const confirmed = new Set(idsConfirmados);
-    return serializeQueue(async () => {
-      const fila = await this.obterFilaVisitas();
-      const sincronizadas = fila.filter((visit) => confirmed.has(visit.id));
-      const restantes = fila.filter((visit) => !confirmed.has(visit.id));
-      const historico = parseStoredList(
-        await AsyncStorage.getItem(STORAGE_KEYS.HISTORICO_VISITAS),
-        STORAGE_KEYS.HISTORICO_VISITAS
-      );
-      const arquivadas = sincronizadas.map((visit) => ({ ...visit, sincronizado: true }));
-  /**
-   * Retorna as visitas PENDENTES da fila SQLite (fonte de verdade do Outbox).
-   */
-  async obterFilaVisitas() {
-    try {
-      const pendentes = await sqliteOutbox.obterPendentes(500);
-      if (pendentes.length > 0) {
-        return pendentes.map((item) => item.payload);
-      }
-      return this.obterFilaVisitasAsyncStorage();
-    } catch (error) {
-      console.error('[OfflineStorage] Erro ao carregar fila SQLite:', error);
-      return this.obterFilaVisitasAsyncStorage();
-    }
-  },
-
-  /**
-   * Confirma HTTP 200: marca SINCRONIZADO na tabela SQLite e arquiva o histórico.
-   */
   async confirmarSincronizacao(idsSincronizados) {
-    try {
-      const uuids = (idsSincronizados || []).filter(Boolean);
+    const uuids = (idsSincronizados || []).filter(Boolean);
+    return serializeQueue(async () => {
       if (uuids.length > 0) {
         await sqliteOutbox.marcarSincronizados(uuids);
       }
@@ -189,21 +162,17 @@ export const offlineStorage = {
       const restantes = fila.filter((v) => !uuids.includes(v.uuid) && !uuids.includes(v.id));
 
       await AsyncStorage.setItem(STORAGE_KEYS.QUEUE_VISITAS, JSON.stringify(restantes));
-      await AsyncStorage.setItem(
-        STORAGE_KEYS.HISTORICO_VISITAS,
-        JSON.stringify([...arquivadas, ...historico].slice(0, 500))
-      );
+
+      const historicoRaw = await AsyncStorage.getItem(STORAGE_KEYS.HISTORICO_VISITAS);
+      const historico = historicoRaw ? parseStoredList(historicoRaw, STORAGE_KEYS.HISTORICO_VISITAS) : [];
+      const historicoAtualizado = [...sincronizadas, ...historico].slice(0, 500);
+      await AsyncStorage.setItem(STORAGE_KEYS.HISTORICO_VISITAS, JSON.stringify(historicoAtualizado));
 
       for (const visit of sincronizadas) {
         for (const evidence of visit.evidencias || []) {
           await FileSystem.deleteAsync(evidence.uri, { idempotent: true });
         }
       }
-      const historicoRaw = await AsyncStorage.getItem(STORAGE_KEYS.HISTORICO_VISITAS);
-      const historico = historicoRaw ? JSON.parse(historicoRaw) : [];
-      const historicoAtualizado = [...sincronizadas, ...historico].slice(0, 500);
-      await AsyncStorage.setItem(STORAGE_KEYS.HISTORICO_VISITAS, JSON.stringify(historicoAtualizado));
-
       return { restantes: restantes.length, arquivadas: sincronizadas.length };
     });
   },
@@ -221,7 +190,6 @@ export const offlineStorage = {
   },
 
   async contarPendencias() {
-    return (await this.obterFilaVisitas()).length;
     try {
       return await sqliteOutbox.contarPendencias();
     } catch (error) {

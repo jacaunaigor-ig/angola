@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api.js";
 import { IconeRefresh } from "../components/Icones.jsx";
+import Hemiciclo from "../components/Hemiciclo.jsx";
 import { Aviso, Cartao, Kpi, Selo } from "../components/ui.jsx";
 import MapaTerritorio from "../Mapa.jsx";
 import { fmtInt } from "../territorio.js";
@@ -220,6 +221,13 @@ export default function Hondt({ hondtGeral, contorno, territorio }) {
             <Kpi rotulo="Total Mandatos Provinciais UNITA" valor={`${hondtGeral.total_deputados_provinciais?.partido_b} / 90`} />
           </div>
         )}
+        <Hemiciclo
+          mpla={124}
+          unita={90}
+          outros={6}
+          titulo="Plenário nacional · 220 assentos (CNE 2022)"
+          nota="130 pelo círculo nacional + 90 provinciais. Maioria absoluta: 111. Selo OFICIAL CNE 2022."
+        />
 
         <div className="table-responsive">
           <table>
