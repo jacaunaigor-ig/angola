@@ -71,7 +71,8 @@ export default function Entrada({ onEntrar, onConsulta }) {
           </button>
         </div>
         <p className="muted entrada-nota">
-          A consulta mostra só dados oficiais e estimados. Atas, discursos e queixas da campanha exigem sessão.
+          Demonstração: campanha a0000000-…001, analista@campanha.ao, senha-segura-2027 (sem PostgreSQL).
+          A consulta CNE mostra só dados oficiais e estimados.
         </p>
       </div>
     </div>

@@ -14,11 +14,21 @@ from .routers import auth, health, legacy, plans, visits, whatsapp
 from .settings import Settings, get_settings
 
 
-def create_app(settings: Settings | None = None, pool: ConnectionPool | None = None) -> FastAPI:
+def create_app(
+    settings: Settings | None = None,
+    pool: ConnectionPool | None = None,
+    *,
+    require_database: bool = True,
+) -> FastAPI:
     configured = settings or get_settings()
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        if not require_database and pool is None:
+            app.state.db_pool = None
+            app.state.db_ready = False
+            yield
+            return
         active_pool = pool or create_pool(
             configured.database_url,
             configured.database_pool_min_size,
