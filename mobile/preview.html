@@ -496,35 +496,139 @@
     /* ========================================================
        ECRÃ 2: PORTA-A-PORTA (ATIVISTAS DE TERRENO)
        ======================================================== */
-    .door-scroll {
-      padding: 16px;
-      flex: 1;
-      overflow-y: auto;
+    .door-faixa {
+      height: 4px;
+      background: #ce1126;
+      flex-shrink: 0;
     }
 
-    .target-meter-card {
-      background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(30, 43, 69, 0.6));
-      border: 1px solid rgba(16, 185, 129, 0.3);
+    .door-scroll {
+      padding: 16px 16px 28px;
+      flex: 1;
+      overflow-y: auto;
+      background: #100c0b;
+      --surface-solid: #1c1412;
+      --border: #3d2f28;
+      --text-primary: #f4eee4;
+      --text-secondary: #b09a82;
+      --text-muted: #7a6858;
+      --bastaio: #3dbe8b;
+      --batalha: #e08a3c;
+      --oposicao: #e15b5b;
+      --accent: #f5c518;
+    }
+
+    .door-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .door-eyebrow {
+      color: #f5c518;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+    }
+
+    .door-title {
+      color: #f4eee4;
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -0.6px;
+      line-height: 1.1;
+      margin-top: 2px;
+    }
+
+    .door-sync {
+      display: flex;
+      align-items: center;
+      background: #1c1412;
+      border: 1px solid #3d2f28;
+      border-radius: 999px;
+      padding: 8px 10px;
+      color: #f4eee4;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .door-sync-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #3dbe8b;
+      margin-right: 6px;
+    }
+
+    .door-sync-dot.fila { background: #f5c518; }
+
+    .door-gps {
+      background: #1c1412;
+      border: 1px solid #3d2f28;
       border-radius: 14px;
       padding: 12px 14px;
+      margin-bottom: 10px;
+    }
+
+    .door-gps strong {
+      display: block;
+      color: #f4eee4;
+      font-size: 15px;
+      letter-spacing: 0.2px;
+    }
+
+    .door-gps span {
+      color: #b09a82;
+      font-size: 12px;
+    }
+
+    .door-privacidade {
+      color: #b09a82;
+      font-size: 12px;
+      line-height: 17px;
+      margin-bottom: 16px;
+    }
+
+    .door-ok {
+      display: none;
+      background: rgba(61, 190, 139, 0.14);
+      border: 1px solid #3dbe8b;
+      color: #3dbe8b;
+      border-radius: 14px;
+      padding: 12px;
       margin-bottom: 14px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .door-section {
+      color: #f4eee4;
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 8px;
     }
 
     .sentiment-selector {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
       gap: 8px;
-      margin-bottom: 16px;
+      margin-bottom: 18px;
     }
 
     .sentiment-touch-card {
-      background: var(--surface-solid);
-      border: 2px solid var(--border);
-      border-radius: 16px;
-      padding: 14px 6px;
+      background: #1c1412;
+      border: 1px solid #3d2f28;
+      border-radius: 18px;
+      min-height: 92px;
+      padding: 16px 6px;
       text-align: center;
       cursor: pointer;
-      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      transition: all 0.2s;
     }
 
     .sentiment-touch-card:active {
@@ -544,25 +648,22 @@
     }
 
     .sentiment-touch-card.active-pos {
-      border-color: var(--bastaio);
-      background: rgba(16, 185, 129, 0.15);
-      box-shadow: 0 0 16px var(--bastaio-glow);
+      border-color: #3dbe8b;
+      background: rgba(61, 190, 139, 0.16);
     }
-    .sentiment-touch-card.active-pos .touch-label { color: var(--bastaio); }
+    .sentiment-touch-card.active-pos .touch-label { color: #3dbe8b; }
 
     .sentiment-touch-card.active-neu {
-      border-color: var(--batalha);
-      background: rgba(249, 115, 22, 0.15);
-      box-shadow: 0 0 16px var(--batalha-glow);
+      border-color: #e08a3c;
+      background: rgba(224, 138, 60, 0.16);
     }
-    .sentiment-touch-card.active-neu .touch-label { color: var(--batalha); }
+    .sentiment-touch-card.active-neu .touch-label { color: #e08a3c; }
 
     .sentiment-touch-card.active-neg {
-      border-color: var(--oposicao);
-      background: rgba(239, 68, 68, 0.15);
-      box-shadow: 0 0 16px var(--oposicao-glow);
+      border-color: #ce1126;
+      background: rgba(206, 17, 38, 0.18);
     }
-    .sentiment-touch-card.active-neg .touch-label { color: var(--oposicao); }
+    .sentiment-touch-card.active-neg .touch-label { color: #e15b5b; }
 
     /* Seletor de Idade em Pílulas */
     .age-pill-row {
@@ -573,110 +674,87 @@
 
     .age-pill-btn {
       flex: 1;
-      background: var(--surface-solid);
-      border: 1px solid var(--border);
-      color: var(--text-secondary);
-      border-radius: 10px;
-      padding: 8px 4px;
-      font-size: 11px;
+      background: #1c1412;
+      border: 1px solid #3d2f28;
+      color: #b09a82;
+      border-radius: 14px;
+      padding: 12px 4px;
+      font-size: 13px;
       font-weight: 700;
       cursor: pointer;
       text-align: center;
       transition: all 0.2s;
     }
 
-    .age-pill-btn.selected {
-      background: rgba(56, 189, 248, 0.15);
-      border-color: var(--accent);
-      color: var(--accent);
-      box-shadow: 0 0 10px var(--accent-glow);
+    .age-pill-btn .youth-pill {
+      display: block;
+      margin-top: 2px;
+      font-size: 10px;
+      color: #f5c518;
     }
 
-    /* Tags de Dores Locais */
+    .age-pill-btn.selected {
+      background: rgba(245, 197, 24, 0.14);
+      border-color: #f5c518;
+      color: #f4eee4;
+    }
+
     .dores-tags-grid {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      margin-bottom: 16px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 18px;
     }
 
     .dor-tag-btn {
-      background: var(--surface-solid);
-      border: 1px solid var(--border);
-      color: var(--text-secondary);
-      padding: 7px 12px;
-      border-radius: 9999px;
-      font-size: 11px;
+      background: #1c1412;
+      border: 1px solid #3d2f28;
+      color: #b09a82;
+      padding: 14px 12px;
+      border-radius: 14px;
+      font-size: 13px;
       font-weight: 600;
       cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 5px;
+      text-align: left;
       transition: all 0.2s;
     }
 
     .dor-tag-btn.selected {
-      background: rgba(249, 115, 22, 0.18);
-      border-color: var(--batalha);
-      color: #FED7AA;
-      box-shadow: 0 0 10px var(--batalha-glow);
+      background: rgba(245, 197, 24, 0.12);
+      border-color: #f5c518;
+      color: #f4eee4;
+      font-weight: 700;
     }
 
-    /* Gravador de Nota de Voz Simulada */
-    .voice-memo-card {
-      background: var(--surface-solid);
-      border: 1px dashed var(--border);
-      border-radius: 12px;
-      padding: 10px 14px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 16px;
-      cursor: pointer;
+    .door-note {
+      width: 100%;
+      min-height: 88px;
+      background: #1c1412;
+      border: 1px solid #3d2f28;
+      border-radius: 14px;
+      color: #f4eee4;
+      font-size: 14px;
+      padding: 14px;
+      margin-bottom: 18px;
+      resize: vertical;
+      user-select: text;
     }
 
-    .voice-waves {
-      display: flex;
-      align-items: center;
-      gap: 3px;
-    }
+    .door-note::placeholder { color: #7a6858; }
 
-    .v-bar {
-      width: 3px;
-      height: 12px;
-      background: var(--accent);
-      border-radius: 2px;
-    }
-
-    .v-bar.active {
-      animation: soundWave 0.8s infinite alternate ease-in-out;
-    }
-
-    @keyframes soundWave {
-      0% { height: 4px; }
-      100% { height: 18px; }
-    }
-
-    /* Botão Principal de Gravação */
     .btn-record-huge {
-      background: linear-gradient(135deg, #10B981, #059669);
-      color: #080D1A;
-      font-size: 15px;
+      background: #f5c518;
+      color: #1a1204;
+      font-size: 16px;
       font-weight: 800;
-      padding: 15px;
-      border-radius: 16px;
+      padding: 16px;
+      border-radius: 18px;
       width: 100%;
       border: none;
       cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
-      transition: all 0.2s;
     }
 
-    .btn-record-huge:hover { transform: translateY(-1px); }
+    .btn-record-huge:hover { filter: brightness(1.05); }
 
     /* ========================================================
        ECRÃ 3: PAINEL DO DIA D (APURAMENTO & FRAUDE AUDIT)
@@ -996,40 +1074,35 @@
              ECRÃ 2: PORTA-A-PORTA (ATIVISTAS DE TERRENO)
              ======================================================== -->
         <div id="screen2" class="screen">
+          <div class="door-faixa"></div>
           <div class="door-scroll">
-            
-            <!-- Meta Diária e Status do Brigadista -->
-            <div class="target-meter-card">
-              <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;">
-                <span style="font-weight:700; color:var(--bastaio);">🎯 META DA BRIGADA 04</span>
-                <strong style="color:var(--text-primary);">42 / 60 Residências (70%)</strong>
+            <div class="door-header">
+              <div>
+                <div class="door-eyebrow">Campo · sem nome nem BI</div>
+                <div class="door-title">Porta-a-porta</div>
               </div>
-              <div class="progress-track">
-                <div class="progress-fill-bar" style="width: 70%; background:var(--bastaio);"></div>
-              </div>
+              <button class="door-sync" type="button" onclick="dispararSincronizacao()">
+                <span id="doorSyncDot" class="door-sync-dot"></span>
+                <span id="doorSyncText">Fila vazia</span>
+              </button>
             </div>
 
-            <!-- GPS Tag & Privacidade -->
-            <div style="display:flex; justify-content:space-between; align-items:center; background:var(--surface-solid); border:1px solid var(--border); padding:8px 12px; border-radius:10px; margin-bottom:12px; font-size:11px;">
-              <div style="display:flex; align-items:center; gap:6px;">
-                <span style="color:var(--bastaio);">📍</span>
-                <span id="labelCoords" style="font-family:'JetBrains Mono'; color:var(--text-primary);">-8.9167, 13.2667</span>
-              </div>
-              <span style="color:var(--bastaio); font-weight:700;">±3.8m</span>
+            <div class="door-gps">
+              <strong id="labelCoords">-8.9165, 13.2664</strong>
+              <span>Posição perturbada ~110 m · Lei 22/11</span>
             </div>
 
-            <!-- Termo de Minimização e Privacidade -->
-            <div style="background:rgba(56, 189, 248, 0.08); border:1px solid var(--accent); border-radius:10px; padding:8px 12px; font-size:10px; line-height:14px; margin-bottom:14px;">
-              <strong style="color:var(--accent);">🔒 PRIVACIDADE LEI N.º 22/11:</strong>
-              <span style="color:var(--text-secondary);">Coleta restrita a carências públicas agregadas. Não gravamos nomes, BIs ou escolhas individuais.</span>
-            </div>
+            <p class="door-privacidade">
+              Só carências do sítio, idade e humor. Nada de nome, BI ou telefone. A visita fica no aparelho até haver rede.
+            </p>
 
-            <!-- 1. Sentimento Táctil -->
-            <div style="font-size:12px; font-weight:800; letter-spacing:0.3px; margin-bottom:8px;">1. SENTIMENTO DO ELEITOR:</div>
+            <div id="sucessoVisita" class="door-ok"></div>
+
+            <div class="door-section">Humor na porta</div>
             <div class="sentiment-selector">
               <div class="sentiment-touch-card" id="btnPos" onclick="selecionarSentimento('POSITIVO')">
                 <span class="emoji-big">🙂</span>
-                <span class="touch-label">Apoio (Verde)</span>
+                <span class="touch-label">Apoia</span>
               </div>
               <div class="sentiment-touch-card" id="btnNeu" onclick="selecionarSentimento('NEUTRO')">
                 <span class="emoji-big">😐</span>
@@ -1037,51 +1110,34 @@
               </div>
               <div class="sentiment-touch-card" id="btnNeg" onclick="selecionarSentimento('NEGATIVO')">
                 <span class="emoji-big">🙁</span>
-                <span class="touch-label">Rejeição</span>
+                <span class="touch-label">Recusa</span>
               </div>
             </div>
 
-            <!-- 2. Faixa Etária -->
-            <div style="font-size:12px; font-weight:800; letter-spacing:0.3px; margin-bottom:8px;">2. FAIXA ETÁRIA:</div>
+            <div class="door-section">Idade</div>
             <div class="age-pill-row">
-              <div class="age-pill-btn selected" onclick="selecionarIdade(this, '18-24')">18-24 (Jovem)</div>
-              <div class="age-pill-btn" onclick="selecionarIdade(this, '25-35')">25-35 (Jovem)</div>
+              <div class="age-pill-btn selected" onclick="selecionarIdade(this, '18-24')">18-24<span class="youth-pill">jovem</span></div>
+              <div class="age-pill-btn" onclick="selecionarIdade(this, '25-35')">25-35<span class="youth-pill">jovem</span></div>
               <div class="age-pill-btn" onclick="selecionarIdade(this, '36-50')">36-50</div>
               <div class="age-pill-btn" onclick="selecionarIdade(this, '50+')">50+</div>
             </div>
 
-            <!-- 3. Queixas Locais -->
-            <div style="font-size:12px; font-weight:800; letter-spacing:0.3px; margin-bottom:8px;">3. CARÊNCIAS / DORES DA COMUNIDADE:</div>
+            <div class="door-section">Carências da casa</div>
             <div class="dores-tags-grid">
               <div class="dor-tag-btn" onclick="toggleDorChip(this, 'AGUA')">💧 Falta de Água</div>
               <div class="dor-tag-btn" onclick="toggleDorChip(this, 'ENERGIA')">⚡ Cortes de Luz</div>
               <div class="dor-tag-btn" onclick="toggleDorChip(this, 'EMPREGO')">💼 Desemprego Jovem</div>
-              <div class="dor-tag-btn" onclick="toggleDorChip(this, 'SANEAMENTO')">🚯 Saneamento & Valas</div>
-              <div class="dor-tag-btn" onclick="toggleDorChip(this, 'ESTRADAS')">🚧 Vias & Buracos</div>
+              <div class="dor-tag-btn" onclick="toggleDorChip(this, 'SANEAMENTO')">🚯 Saneamento / Lixo</div>
+              <div class="dor-tag-btn" onclick="toggleDorChip(this, 'ESTRADAS')">🚧 Vias e Buracos</div>
               <div class="dor-tag-btn" onclick="toggleDorChip(this, 'SAUDE')">🏥 Posto de Saúde</div>
+              <div class="dor-tag-btn" onclick="toggleDorChip(this, 'EDUCACAO')">🎒 Vagas Escolares</div>
+              <div class="dor-tag-btn" onclick="toggleDorChip(this, 'SEGURANCA')">🛡️ Segurança / Assaltos</div>
             </div>
 
-            <!-- Gravador Simulado de Nota de Voz -->
-            <div class="voice-memo-card" onclick="simularGravacaoVoz()">
-              <div style="display:flex; align-items:center; gap:8px;">
-                <span style="font-size:18px;">🎙️</span>
-                <div>
-                  <div style="font-size:11px; font-weight:700;" id="voiceLabel">Gravar Nota de Voz do Eleitor</div>
-                  <div style="font-size:9px; color:var(--text-muted);">Transcreve áudio para tags de carência</div>
-                </div>
-              </div>
-              <div class="voice-waves" id="voiceWaves">
-                <div class="v-bar"></div>
-                <div class="v-bar"></div>
-                <div class="v-bar"></div>
-                <div class="v-bar"></div>
-              </div>
-            </div>
+            <div class="door-section">Nota do brigadista</div>
+            <textarea id="notaBrigadista" class="door-note" placeholder="O que pediram, sem identificar a pessoa"></textarea>
 
-            <!-- Botão de Registro Offline -->
-            <button class="btn-record-huge" onclick="salvarVisitaLocal()">
-              <span>💾</span> Gravar Visita no Telemóvel (Offline)
-            </button>
+            <button class="btn-record-huge" type="button" onclick="salvarVisitaLocal()">Registar visita</button>
           </div>
         </div>
 
@@ -1394,12 +1450,18 @@
     function atualizarBadge() {
       const dot = document.getElementById('syncDot');
       const text = document.getElementById('syncText');
+      const doorDot = document.getElementById('doorSyncDot');
+      const doorText = document.getElementById('doorSyncText');
       if (filaOffline.length > 0) {
         dot.className = 'sync-dot offline';
         text.innerText = `${filaOffline.length} Offline`;
+        if (doorDot) doorDot.className = 'door-sync-dot fila';
+        if (doorText) doorText.innerText = `${filaOffline.length} na fila`;
       } else {
         dot.className = 'sync-dot';
         text.innerText = 'Nuvem OK';
+        if (doorDot) doorDot.className = 'door-sync-dot';
+        if (doorText) doorText.innerText = 'Fila vazia';
       }
     }
 
@@ -1471,24 +1533,27 @@
 
     function salvarVisitaLocal() {
       if (!sentimentoSelecionado) {
-        alert('Por favor, indique o sentimento do eleitor 🙂 / 😐 / 🙁');
+        alert('Indique se a casa apoia, está indecisa ou recusa.');
         return;
       }
 
       const m = MUNICIPIOS_DATA[municipioAtual] || MUNICIPIOS_DATA['Talatona'];
+      const offset = () => (Math.random() - 0.5) * 0.0018;
+      const id = crypto.randomUUID();
 
-      // Coordenada com perturbação de privacidade proposital (~110m)
       const novaVisita = {
-        id: crypto.randomUUID(),
+        id,
         campanha_id: 'a0000000-0000-0000-0000-000000000001',
         ativista_id: 'b0000000-0000-0000-0000-000000000001',
+        municipio: municipioAtual,
         localizacao: {
-          longitude: Number(m.lon.toFixed(3)),
-          latitude: Number(m.lat.toFixed(3))
+          longitude: Number((m.lon + offset()).toFixed(6)),
+          latitude: Number((m.lat + offset()).toFixed(6))
         },
         sentimento: sentimentoSelecionado,
         faixa_etaria: faixaSelecionada,
         dores_prioritarias: doresSelecionadas,
+        observacoes: document.getElementById('notaBrigadista').value,
         registado_em: new Date().toISOString()
       };
 
@@ -1496,8 +1561,15 @@
       localStorage.setItem('visitas_pendentes', JSON.stringify(filaOffline));
       atualizarBadge();
 
-      alert(`✅ Visita em ${municipioAtual} guardada no aparelho em modo OFFLINE!\n\nPrivacidade: Coordenadas truncadas para proteção da residência.\nTotal na fila: ${filaOffline.length} visitas.`);
+      const aviso = document.getElementById('sucessoVisita');
+      aviso.style.display = 'block';
+      aviso.innerText = `Visita gravada no telemóvel · ${id.slice(-6)}`;
+      setTimeout(() => { aviso.style.display = 'none'; }, 4000);
+
       selecionarSentimento(null);
+      doresSelecionadas = [];
+      document.querySelectorAll('.dor-tag-btn').forEach(btn => btn.classList.remove('selected'));
+      document.getElementById('notaBrigadista').value = '';
     }
 
     async function dispararSincronizacao() {
