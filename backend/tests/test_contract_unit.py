@@ -8,6 +8,44 @@ from app.settings import Settings
 from pydantic import ValidationError
 
 
+def test_demo_credentials_issue_token_without_database():
+    from fastapi.testclient import TestClient
+
+    app = create_app(
+        Settings(
+            app_env="development",
+            jwt_secret_key="a-long-test-secret-key-that-is-at-least-32-chars",
+            cors_allowed_origins="http://localhost:5173",
+        ),
+        require_database=False,
+    )
+    with TestClient(app) as client:
+        ok = client.post(
+            "/api/auth/token",
+            json={
+                "campanha_id": "a0000000-0000-0000-0000-000000000001",
+                "email": "analista@campanha.ao",
+                "senha": "senha-segura-2027",
+            },
+        )
+        assert ok.status_code == 200, ok.text
+        token = ok.json()["access_token"]
+        eu = client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"})
+        assert eu.status_code == 200
+        assert eu.json()["email"] == "analista@campanha.ao"
+        assert eu.json()["perfil"] == "ANALISTA"
+
+        recusado = client.post(
+            "/api/auth/token",
+            json={
+                "campanha_id": "a0000000-0000-0000-0000-000000000001",
+                "email": "analista@campanha.ao",
+                "senha": "errada",
+            },
+        )
+        assert recusado.status_code == 401
+
+
 def test_cors_rejects_wildcard_origin():
     with pytest.raises(ValueError, match="wildcard não é permitido"):
         Settings(cors_allowed_origins="*")

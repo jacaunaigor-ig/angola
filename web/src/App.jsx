@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import ErrorBoundary from "./components/ErrorBoundary.jsx";
 import {
   IconeAngolaEmblema,
@@ -21,8 +21,25 @@ import Comando from "./views/Comando.jsx";
 import DiaD from "./views/DiaD.jsx";
 import Discursos from "./views/Discursos.jsx";
 import Eleitor from "./views/Eleitor.jsx";
+import Entrada from "./views/Entrada.jsx";
 import Hondt from "./views/Hondt.jsx";
 import Planos from "./views/Planos.jsx";
+
+const CONSULTA_KEY = "warroom_consulta";
+
+function laboratorioActivo() {
+  if (typeof window === "undefined") return false;
+  try {
+    const q = new URLSearchParams(window.location.search);
+    if (q.get("lab") === "1") {
+      localStorage.setItem("warroom_lab", "1");
+      return true;
+    }
+    return localStorage.getItem("warroom_lab") === "1";
+  } catch {
+    return false;
+  }
+}
 
 const DECISAO = [
   ["comando", "Dashboard", "Mapa e campanha", IconeDashboard],
@@ -53,9 +70,16 @@ export default function App() {
   });
   const [versao, setVersao] = useState("DPA_2016_18P");
 
-  // Modo de visualização: 'auto' | 'desktop' | 'mobile'
+  const laboratorio = laboratorioActivo();
+  const [consulta, setConsulta] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return sessionStorage.getItem(CONSULTA_KEY) === "1";
+  });
+  const [pedirLogin, setPedirLogin] = useState(false);
+
+  // Modo de visualização: 'auto' | 'desktop' | 'mobile' (só laboratório)
   const [modoDispositivo, setModoDispositivo] = useState(() => {
-    if (typeof window !== "undefined") {
+    if (typeof window !== "undefined" && laboratorioActivo()) {
       return localStorage.getItem("warroom_device_mode") || "auto";
     }
     return "auto";
@@ -93,6 +117,29 @@ export default function App() {
   const isMobileView = modoDispositivo === "mobile" || (modoDispositivo === "auto" && isMobileScreen);
   const actual = ABAS.find(([id]) => id === aba) || ABAS[0];
   const abaDeApoioActiva = APOIO.some(([id]) => id === aba);
+  const emailSessao = sessao.utilizador?.email;
+  const perfilSessao = sessao.utilizador?.perfil;
+  const campanhaCurta = sessao.utilizador?.campanha_id
+    ? String(sessao.utilizador.campanha_id).slice(0, 8)
+    : "";
+
+  if (!sessao.ativa && (!consulta || pedirLogin)) {
+    return (
+      <Entrada
+        onEntrar={async (credenciais) => {
+          await sessao.entrar(credenciais);
+          sessionStorage.removeItem(CONSULTA_KEY);
+          setConsulta(false);
+          setPedirLogin(false);
+        }}
+        onConsulta={() => {
+          sessionStorage.setItem(CONSULTA_KEY, "1");
+          setConsulta(true);
+          setPedirLogin(false);
+        }}
+      />
+    );
+  }
 
   const mudarAba = (novaAba) => {
     setAba(novaAba);
@@ -200,41 +247,65 @@ export default function App() {
           </div>
 
           <div className="top-acoes">
-            {/* Alternador de Modo Desktop / Mobile */}
-            <div className="btn-group modo-switch" title="Alterne entre visualização Desktop e Mobile">
-              <button
-                type="button"
-                className={modoDispositivo === "desktop" ? "activa" : ""}
-                onClick={() => alternarModo("desktop")}
-                title="Forçar visualização em ecrã largo (Desktop)"
-              >
-                <IconeDesktop size={14} /> Desktop
-              </button>
-              <button
-                type="button"
-                className={modoDispositivo === "mobile" ? "activa" : ""}
-                onClick={() => alternarModo("mobile")}
-                title="Forçar modo compacto (Mobile Touch)"
-              >
-                <IconeMobile size={14} /> Mobile
-              </button>
-              <button
-                type="button"
-                className={modoDispositivo === "auto" ? "activa" : ""}
-                onClick={() => alternarModo("auto")}
-                title="Adaptar automaticamente ao tamanho da janela"
-              >
-                <IconeAuto size={14} /> Auto
-              </button>
-            </div>
+            {laboratorio && (
+              <div className="btn-group modo-switch" title="Laboratório: alterne Desktop e Mobile">
+                <button
+                  type="button"
+                  className={modoDispositivo === "desktop" ? "activa" : ""}
+                  onClick={() => alternarModo("desktop")}
+                  title="Forçar visualização em ecrã largo (Desktop)"
+                >
+                  <IconeDesktop size={14} /> Desktop
+                </button>
+                <button
+                  type="button"
+                  className={modoDispositivo === "mobile" ? "activa" : ""}
+                  onClick={() => alternarModo("mobile")}
+                  title="Forçar modo compacto (Mobile Touch)"
+                >
+                  <IconeMobile size={14} /> Mobile
+                </button>
+                <button
+                  type="button"
+                  className={modoDispositivo === "auto" ? "activa" : ""}
+                  onClick={() => alternarModo("auto")}
+                  title="Adaptar automaticamente ao tamanho da janela"
+                >
+                  <IconeAuto size={14} /> Auto
+                </button>
+              </div>
+            )}
 
-            <span className="badge badge-media">
-              Plano {plano}
-            </span>
+            <span className="badge badge-media">SKU {plano}</span>
 
-            <div className={`session ${sessao.ativa ? "on" : ""}`}>
-              <i />
-              <span>{sessao.ativa ? "Sessão Activa" : "Modo Consulta"}</span>
+            <div className="conta-campanha">
+              <div className={`session ${sessao.ativa ? "on" : ""}`}>
+                <i />
+                <span>{sessao.ativa ? emailSessao || "Sessão activa" : "Consulta CNE"}</span>
+              </div>
+              {sessao.ativa && (
+                <span className="conta-meta">
+                  {perfilSessao || "ANALISTA"}
+                  {campanhaCurta ? ` · ${campanhaCurta}` : ""}
+                </span>
+              )}
+              {sessao.ativa ? (
+                <button
+                  className="ghost"
+                  type="button"
+                  onClick={() => {
+                    sessao.sair();
+                    sessionStorage.removeItem(CONSULTA_KEY);
+                    setConsulta(false);
+                  }}
+                >
+                  Sair
+                </button>
+              ) : (
+                <button className="primary" type="button" onClick={() => setPedirLogin(true)}>
+                  Entrar
+                </button>
+              )}
             </div>
           </div>
         </header>
@@ -338,33 +409,37 @@ export default function App() {
                 </button>
               ))}
 
-              <p className="nav-rotulo" style={{ marginTop: "12px" }}>Modo de Visualização</p>
-              <div className="btn-group" style={{ width: "100%", justifyContent: "center" }}>
-                <button
-                  type="button"
-                  className={modoDispositivo === "desktop" ? "activa" : ""}
-                  onClick={() => alternarModo("desktop")}
-                  style={{ flex: 1, padding: "8px" }}
-                >
-                  <IconeDesktop size={14} /> Desktop
-                </button>
-                <button
-                  type="button"
-                  className={modoDispositivo === "mobile" ? "activa" : ""}
-                  onClick={() => alternarModo("mobile")}
-                  style={{ flex: 1, padding: "8px" }}
-                >
-                  <IconeMobile size={14} /> Mobile
-                </button>
-                <button
-                  type="button"
-                  className={modoDispositivo === "auto" ? "activa" : ""}
-                  onClick={() => alternarModo("auto")}
-                  style={{ flex: 1, padding: "8px" }}
-                >
-                  <IconeAuto size={14} /> Auto
-                </button>
-              </div>
+              {laboratorio && (
+                <>
+                  <p className="nav-rotulo" style={{ marginTop: "12px" }}>Modo de Visualização</p>
+                  <div className="btn-group" style={{ width: "100%", justifyContent: "center" }}>
+                    <button
+                      type="button"
+                      className={modoDispositivo === "desktop" ? "activa" : ""}
+                      onClick={() => alternarModo("desktop")}
+                      style={{ flex: 1, padding: "8px" }}
+                    >
+                      <IconeDesktop size={14} /> Desktop
+                    </button>
+                    <button
+                      type="button"
+                      className={modoDispositivo === "mobile" ? "activa" : ""}
+                      onClick={() => alternarModo("mobile")}
+                      style={{ flex: 1, padding: "8px" }}
+                    >
+                      <IconeMobile size={14} /> Mobile
+                    </button>
+                    <button
+                      type="button"
+                      className={modoDispositivo === "auto" ? "activa" : ""}
+                      onClick={() => alternarModo("auto")}
+                      style={{ flex: 1, padding: "8px" }}
+                    >
+                      <IconeAuto size={14} /> Auto
+                    </button>
+                  </div>
+                </>
+              )}
 
               <div style={{ marginTop: "16px", padding: "12px", background: "rgba(0,0,0,0.3)", borderRadius: "var(--radius-sm)" }}>
                 <p style={{ fontSize: "11px", color: "var(--muted)", margin: "0 0 6px" }}>PROVENIÊNCIA DOS DADOS</p>

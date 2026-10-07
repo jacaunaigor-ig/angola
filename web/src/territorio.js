@@ -36,7 +36,7 @@ export function corMargem(margem) {
   if (m >= 25) return "#1f8a62";
   if (m >= 15) return "#3dbe8b";
   if (m >= 5) return "#7dd3b0";
-  if (m > -5) return "#d6b25e";
+  if (m > -5) return "#f5c518";
   if (m > -15) return "#e08a3c";
   if (m > -25) return "#e15b5b";
   return "#a33b3b";
@@ -45,8 +45,8 @@ export function corMargem(margem) {
 export function corScore(score) {
   const n = Number(score);
   if (!Number.isFinite(n)) return "#4a5563";
-  if (n >= 80) return "#d6b25e";
-  if (n >= 60) return "#c49a4a";
+  if (n >= 80) return "#f5c518";
+  if (n >= 60) return "#d4a017";
   if (n >= 40) return "#8a7348";
   if (n >= 20) return "#4d5a6a";
   return "#343d4a";

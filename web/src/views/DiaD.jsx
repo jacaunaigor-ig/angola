@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { api, getToken } from "../api.js";
+import React, { useEffect, useRef, useState } from "react";
+import { api, apiOrigin, getToken } from "../api.js";
 import Hemiciclo from "../components/Hemiciclo.jsx";
 import { IconeEscudo, IconeRefresh } from "../components/Icones.jsx";
 import { Aviso, Cartao, Kpi, Selo, Vazio } from "../components/ui.jsx";
@@ -62,7 +62,8 @@ export default function DiaD({ plano, sessao }) {
 
     (async () => {
       try {
-        const resposta = await fetch(`/api/dia-d/stream?plano=${encodeURIComponent(plano)}`, {
+        const origem = apiOrigin() || (import.meta.env.DEV ? "http://127.0.0.1:8000" : "");
+        const resposta = await fetch(`${origem}/api/dia-d/stream?plano=${encodeURIComponent(plano)}`, {
           headers: {
             Accept: "text/event-stream",
             Authorization: `Bearer ${token}`,

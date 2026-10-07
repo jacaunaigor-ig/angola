@@ -305,10 +305,10 @@ export function IconeAngolaEmblema(props) {
       className={`svg-icon angola-emblem ${props.className || ""}`.trim()}
       aria-hidden="true"
     >
-      <circle cx="12" cy="12" r="10" fill="#181308" stroke="var(--accent)" strokeWidth="1.6" />
+      <circle cx="12" cy="12" r="10" fill="var(--flag-black, #0b0a09)" stroke="var(--flag-red, #ce1126)" strokeWidth="1.8" />
       <path
         d="M12 4.5l1.6 3.8 4.1.4-3.1 2.8.9 4-3.5-2-3.5 2 .9-4-3.1-2.8 4.1-.4L12 4.5z"
-        fill="var(--accent)"
+        fill="var(--flag-gold, #f5c518)"
       />
     </svg>
   );

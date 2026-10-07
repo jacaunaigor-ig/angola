@@ -1,44 +1,19 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { api } from "../api.js";
 import { IconeCheck, IconeFechar } from "../components/Icones.jsx";
-import { Aviso, Cartao, Selo } from "../components/ui.jsx";
+import { Aviso, Cartao, Selo, Vazio } from "../components/ui.jsx";
 
 export default function Discursos({ plano, sessao }) {
-  const [login, setLogin] = useState({ campanha_id: "", email: "", senha: "" });
   const [municipio, setMunicipio] = useState("Luanda");
   const [discurso, setDiscurso] = useState(null);
   const [erro, setErro] = useState("");
   const [aviso, setAviso] = useState("");
 
-  const campoLogin = (nome) => ({
-    value: login[nome],
-    onChange: (e) => setLogin({ ...login, [nome]: e.target.value }),
-  });
-
-  function preencherExemplo() {
-    setLogin({
-      campanha_id: "a0000000-0000-0000-0000-000000000001",
-      email: "analista@campanha.ao",
-      senha: "senha-segura-2027",
-    });
-  }
-
   function tratarErro(exc) {
     if (exc.status === 401) {
       sessao.sair();
-      setErro("A sessão terminou ou as credenciais são inválidas.");
+      setErro("A sessão terminou. Entre novamente no canto superior direito.");
     } else {
-      setErro(exc.message);
-    }
-  }
-
-  async function entrar(event) {
-    event.preventDefault();
-    setErro("");
-    try {
-      await sessao.entrar(login);
-      setLogin({ ...login, senha: "" });
-    } catch (exc) {
       setErro(exc.message);
     }
   }
@@ -79,42 +54,11 @@ export default function Discursos({ plano, sessao }) {
 
   return (
     <main className="page">
-      <Cartao
-        titulo="Autenticação da Campanha"
-        nota="O módulo de discursos territoriais e a recepção de atas do Dia D exigem JWT assinado com a chave da campanha."
-      >
-        {sessao.ativa ? (
-          <div className="row" style={{ alignItems: "center" }}>
-            <span className="live-feed-badge">
-              <i className="pulse-dot" /> Sessão Activa na Sala de Comando
-            </span>
-            <button className="ghost perigo" type="button" onClick={sessao.sair}>
-              Terminar Sessão
-            </button>
-          </div>
-        ) : (
-          <form onSubmit={entrar}>
-            <div className="row">
-              <label>
-                ID da Campanha (UUID)
-                <input required placeholder="a0000000-..." {...campoLogin("campanha_id")} />
-              </label>
-              <label>
-                E-mail Institucional
-                <input required type="email" autoComplete="username" placeholder="analista@campanha.ao" {...campoLogin("email")} />
-              </label>
-              <label>
-                Senha
-                <input required type="password" autoComplete="current-password" {...campoLogin("senha")} />
-              </label>
-              <button className="primary" type="submit">Iniciar Sessão</button>
-              <button className="ghost" type="button" onClick={preencherExemplo} title="Preenche dados de teste para desenvolvimento local">
-                Preencher Teste
-              </button>
-            </div>
-          </form>
-        )}
-      </Cartao>
+      {!sessao.ativa && (
+        <Vazio>
+          Discursos territoriais exigem sessão da campanha. Use Entrar no cabeçalho. Em consulta CNE este módulo fica fechado.
+        </Vazio>
+      )}
 
       <Cartao
         titulo="Geração Estratégica de Discurso Territorializado"
@@ -127,7 +71,7 @@ export default function Discursos({ plano, sessao }) {
               Município Alvo
               <input required value={municipio} onChange={(e) => setMunicipio(e.target.value)} placeholder="Viana, Cazenga, Lobito, Huambo..." />
             </label>
-            <button className="primary" type="submit">Gerar Rascunho Territorial</button>
+            <button className="primary" type="submit" disabled={!sessao.ativa}>Gerar Rascunho Territorial</button>
           </div>
         </form>
 

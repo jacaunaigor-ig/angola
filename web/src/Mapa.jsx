@@ -1,5 +1,5 @@
 import L from "leaflet";
-import { useEffect, useMemo, useRef } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import { CircleMarker, GeoJSON, MapContainer, TileLayer, Tooltip, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import { corCamada, fmtInt, fmtPct, rotuloZona } from "./territorio.js";
@@ -65,7 +65,7 @@ function estilo(feature, { camada, selecionado, filtro, fundo }) {
   const activo = selecionado && (props.nome === selecionado || props.codigo_dpa === selecionado);
   const comFundo = fundo !== "nenhum";
   return {
-    color: activo ? "#d6b25e" : comFundo ? "#f4f1e8" : "#0b1016",
+    color: activo ? "#f5c518" : comFundo ? "#f4eee4" : "#100c0b",
     weight: activo ? 2.4 : comFundo ? 1.1 : 1,
     fillColor: corCamada(camada, props),
     fillOpacity: dim ? 0.08 : comFundo ? 0.38 : 0.78,
@@ -132,7 +132,7 @@ export default function MapaTerritorio({
         <GeoJSON
           data={contorno}
           interactive={false}
-          style={{ color: "#d6b25e", weight: 2.2, fillOpacity: 0, opacity: 0.95 }}
+          style={{ color: "#f5c518", weight: 2.2, fillOpacity: 0, opacity: 0.95 }}
         />
       )}
       <GeoJSON
@@ -146,7 +146,7 @@ export default function MapaTerritorio({
             opacity: 0.97,
           });
           layer.on("click", () => onSelect?.(feature.properties));
-          layer.on("mouseover", () => layer.setStyle({ weight: 2.4, color: "#d6b25e" }));
+          layer.on("mouseover", () => layer.setStyle({ weight: 2.4, color: "#f5c518" }));
           layer.on("mouseout", () => layer.setStyle(estilo(feature, { camada, selecionado, filtro, fundo })));
         }}
       />
@@ -160,7 +160,7 @@ export default function MapaTerritorio({
             center={[lat, lng]}
             radius={activo ? 11 : 8}
             pathOptions={{
-              color: activo ? "#d6b25e" : "#f4f1e8",
+              color: activo ? "#f5c518" : "#f4eee4",
               weight: 1.5,
               fillColor: corCamada(camada, props),
               fillOpacity: 0.92,

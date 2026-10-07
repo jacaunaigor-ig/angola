@@ -16,30 +16,32 @@
 
   <style>
     :root {
-      --bg: #0a0e14;
-      --rail: #0f141d;
-      --panel: #141b24;
-      --panel-2: #1a222e;
-      --line: #263140;
-      --line-strong: #3b495c;
-      --text: #f1f4f8;
-      --text-bright: #ffffff;
-      --muted: #8e9baa;
-      --accent: #d6b25e;
-      --accent-ink: #141006;
-      --accent-glow: rgba(214, 178, 94, 0.2);
-      --ok: #34d399;
-      --ok-bg: rgba(52, 211, 153, 0.12);
-      --warn: #fb923c;
-      --warn-bg: rgba(251, 146, 60, 0.12);
-      --bad: #f87171;
-      --bad-bg: rgba(248, 113, 113, 0.12);
-      --info: #60a5fa;
-      --info-bg: rgba(96, 165, 250, 0.12);
-      --mpla: #3b82f6;
-      --mpla-bg: rgba(59, 130, 246, 0.16);
-      --unita: #f97316;
-      --unita-bg: rgba(249, 115, 22, 0.16);
+      --flag-red: #ce1126;
+      --flag-gold: #f5c518;
+      --bg: #100c0b;
+      --rail: #160f0e;
+      --panel: #1c1412;
+      --panel-2: #251c18;
+      --line: #3d2f28;
+      --line-strong: #6a5340;
+      --text: #f4eee4;
+      --text-bright: #fff8ec;
+      --muted: #b09a82;
+      --accent: #f5c518;
+      --accent-ink: #1a1204;
+      --accent-glow: rgba(245, 197, 24, 0.22);
+      --ok: #3dbe8b;
+      --ok-bg: rgba(61, 190, 139, 0.12);
+      --warn: #e08a3c;
+      --warn-bg: rgba(224, 138, 60, 0.12);
+      --bad: #e15b5b;
+      --bad-bg: rgba(225, 91, 91, 0.12);
+      --info: #c9a227;
+      --info-bg: rgba(201, 162, 39, 0.12);
+      --mpla: #ce1126;
+      --mpla-bg: rgba(206, 17, 38, 0.18);
+      --unita: #1e8a45;
+      --unita-bg: rgba(30, 138, 69, 0.16);
       --radius: 10px;
       --radius-sm: 6px;
       --font-sans: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -1221,7 +1223,7 @@
       if (m >= 25) return '#1f8a62';
       if (m >= 15) return '#34d399';
       if (m >= 5)  return '#6ee7b7';
-      if (m > -5)  return '#d6b25e';
+      if (m > -5)  return '#f5c518';
       if (m > -15) return '#fb923c';
       if (m > -25) return '#f87171';
       return '#ef4444';
@@ -1235,7 +1237,7 @@
     }
 
     function corScore(s) {
-      if (s >= 80) return '#d6b25e';
+      if (s >= 80) return '#f5c518';
       if (s >= 60) return '#c49a4a';
       if (s >= 40) return '#8a7348';
       if (s >= 20) return '#4d5a6a';
@@ -1266,7 +1268,7 @@
       // Contorno dourado de Angola
       if (DADOS.contorno && DADOS.contorno.features) {
         contornoLayer = L.geoJSON(DADOS.contorno, {
-          style: { color: '#d6b25e', weight: 2.5, fillOpacity: 0, opacity: 0.95 }
+          style: { color: '#f5c518', weight: 2.5, fillOpacity: 0, opacity: 0.95 }
         }).addTo(mapa);
       }
 
@@ -1277,7 +1279,7 @@
           return {
             fillColor: obterCor(feat.properties),
             fillOpacity: fundoAtivo === 'malha' ? 0.75 : 0.42,
-            color: sel ? '#d6b25e' : (fundoAtivo === 'malha' ? '#141b24' : '#ffffff'),
+            color: sel ? '#f5c518' : (fundoAtivo === 'malha' ? '#141b24' : '#ffffff'),
             weight: sel ? 3.5 : 1.2
           };
         },
@@ -1288,12 +1290,12 @@
             sticky: true
           });
           layer.on('click', () => selecionarProvincia(p.nome));
-          layer.on('mouseover', () => layer.setStyle({ weight: 2.8, color: '#d6b25e' }));
+          layer.on('mouseover', () => layer.setStyle({ weight: 2.8, color: '#f5c518' }));
           layer.on('mouseout', () => {
             const sel = feat.properties.nome === provSelecionada;
             layer.setStyle({
               weight: sel ? 3.5 : 1.2,
-              color: sel ? '#d6b25e' : (fundoAtivo === 'malha' ? '#141b24' : '#ffffff')
+              color: sel ? '#f5c518' : (fundoAtivo === 'malha' ? '#141b24' : '#ffffff')
             });
           });
         }
@@ -1323,7 +1325,7 @@
       if (geoLayer) {
         geoLayer.setStyle(feat => ({
           fillOpacity: fundo === 'malha' ? 0.75 : 0.42,
-          color: feat.properties.nome === provSelecionada ? '#d6b25e' : (fundo === 'malha' ? '#141b24' : '#ffffff')
+          color: feat.properties.nome === provSelecionada ? '#f5c518' : (fundo === 'malha' ? '#141b24' : '#ffffff')
         }));
       }
     }
@@ -1387,7 +1389,7 @@
           const isSel = layer.feature.properties.nome === nome;
           layer.setStyle({
             weight: isSel ? 3.5 : 1.2,
-            color: isSel ? '#d6b25e' : (fundoAtivo === 'malha' ? '#141b24' : '#ffffff')
+            color: isSel ? '#f5c518' : (fundoAtivo === 'malha' ? '#141b24' : '#ffffff')
           });
           if (isSel && mapa) {
             mapa.panTo(layer.getBounds().getCenter(), { animate: true });

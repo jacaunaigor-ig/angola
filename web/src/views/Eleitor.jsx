@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { api } from "../api.js";
 import { IconeRefresh } from "../components/Icones.jsx";
 import { Aviso, Cartao, Selo, Vazio } from "../components/ui.jsx";
