@@ -16,25 +16,27 @@
 
   <style>
     :root {
-      --bg: #080D1A;
-      --surface: rgba(18, 27, 47, 0.85);
-      --surface-solid: #121B2F;
-      --surface-elevated: #1E2B45;
-      --surface-hover: #263554;
-      --border: rgba(255, 255, 255, 0.08);
-      --border-focus: #38BDF8;
-      --bastaio: #10B981;
-      --bastaio-glow: rgba(16, 185, 129, 0.25);
-      --batalha: #F97316;
-      --batalha-glow: rgba(249, 115, 22, 0.25);
-      --oposicao: #EF4444;
-      --oposicao-glow: rgba(239, 68, 68, 0.25);
-      --accent: #38BDF8;
-      --accent-glow: rgba(56, 189, 248, 0.3);
-      --text-primary: #F8FAFC;
-      --text-secondary: #94A3B8;
-      --text-muted: #64748B;
-      --glass: rgba(18, 27, 47, 0.75);
+      --bg: #100c0b;
+      --surface: rgba(28, 20, 18, 0.92);
+      --surface-solid: #1c1412;
+      --surface-elevated: #251c18;
+      --surface-hover: #2e231e;
+      --border: #3d2f28;
+      --border-focus: #f5c518;
+      --bastaio: #3dbe8b;
+      --bastaio-glow: rgba(61, 190, 139, 0.25);
+      --batalha: #e08a3c;
+      --batalha-glow: rgba(224, 138, 60, 0.25);
+      --oposicao: #e15b5b;
+      --oposicao-glow: rgba(225, 91, 91, 0.25);
+      --accent: #f5c518;
+      --accent-glow: rgba(245, 197, 24, 0.28);
+      --flag-red: #ce1126;
+      --ink: #1a1204;
+      --text-primary: #f4eee4;
+      --text-secondary: #b09a82;
+      --text-muted: #7a6858;
+      --glass: rgba(28, 20, 18, 0.88);
       --glass-blur: blur(16px);
     }
 
@@ -48,7 +50,7 @@
     }
 
     body {
-      background: radial-gradient(circle at 50% 20%, #0F1D38 0%, #050811 100%);
+      background: radial-gradient(circle at 50% 20%, #2a1612 0%, #070504 100%);
       display: flex;
       justify-content: center;
       align-items: center;
@@ -76,7 +78,7 @@
       position: relative;
       overflow: hidden;
       border-radius: 48px;
-      border: 10px solid #1E293B;
+      border: 10px solid #2a211c;
       box-shadow: 
         0 0 0 2px rgba(255, 255, 255, 0.1),
         0 25px 60px -15px rgba(0, 0, 0, 0.8),
@@ -85,7 +87,7 @@
 
     /* Barra Superior / Dynamic Island */
     .status-bar-container {
-      background: rgba(8, 13, 26, 0.85);
+      background: rgba(16, 12, 11, 0.94);
       backdrop-filter: var(--glass-blur);
       padding: 8px 18px 4px 18px;
       display: flex;
@@ -133,7 +135,7 @@
       font-size: 10px;
       font-weight: 700;
       letter-spacing: 0.3px;
-      color: #F8FAFC;
+      color: var(--text-primary);
     }
 
     .status-icons {
@@ -150,6 +152,13 @@
     }
 
     /* Sub-header com Seletor e Indicador de Nuvem */
+    .faixa-bandeira {
+      height: 4px;
+      flex-shrink: 0;
+      background: linear-gradient(90deg, #ce1126 0 33.34%, #0b0a09 33.34% 66.66%, #f5c518 66.66% 100%);
+      z-index: 1600;
+    }
+
     .sub-nav {
       background: var(--surface);
       backdrop-filter: var(--glass-blur);
@@ -171,7 +180,7 @@
       width: 32px;
       height: 32px;
       border-radius: 10px;
-      background: linear-gradient(135deg, #10B981, #0284C7);
+      background: linear-gradient(180deg, #ce1126 0 34%, #0b0a09 34% 66%, #f5c518 66% 100%);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -263,7 +272,7 @@
 
     .hud-search-input {
       flex: 1;
-      background: rgba(18, 27, 47, 0.88);
+      background: rgba(28, 20, 18, 0.92);
       backdrop-filter: var(--glass-blur);
       border: 1px solid var(--border);
       border-radius: 12px;
@@ -279,8 +288,8 @@
     }
 
     .hud-btn {
-      background: rgba(56, 189, 248, 0.9);
-      color: #080D1A;
+      background: var(--accent);
+      color: var(--ink);
       font-weight: 800;
       font-size: 12px;
       padding: 0 14px;
@@ -294,7 +303,7 @@
     }
 
     .hud-btn:hover {
-      background: #7DD3FC;
+      background: #ffe56a;
     }
 
     .quick-chips-row {
@@ -313,7 +322,7 @@
     .quick-chips-row::-webkit-scrollbar { display: none; }
 
     .chip-item {
-      background: rgba(18, 27, 47, 0.85);
+      background: rgba(28, 20, 18, 0.9);
       backdrop-filter: blur(12px);
       border: 1px solid var(--border);
       color: var(--text-secondary);
@@ -327,7 +336,7 @@
 
     .chip-item.active {
       background: var(--accent);
-      color: #080D1A;
+      color: var(--ink);
       font-weight: 800;
       border-color: var(--accent);
       box-shadow: 0 0 10px var(--accent-glow);
@@ -336,7 +345,7 @@
     #map {
       flex: 1;
       width: 100%;
-      background: #060913;
+      background: #100c0b;
       z-index: 100;
     }
 
@@ -345,7 +354,7 @@
       position: absolute;
       bottom: 252px;
       left: 14px;
-      background: rgba(8, 13, 26, 0.85);
+      background: rgba(16, 12, 11, 0.9);
       backdrop-filter: var(--glass-blur);
       border: 1px solid var(--border);
       border-radius: 10px;
@@ -370,7 +379,7 @@
       bottom: 0;
       left: 0;
       right: 0;
-      background: rgba(18, 27, 47, 0.94);
+      background: rgba(28, 20, 18, 0.96);
       backdrop-filter: var(--glass-blur);
       border-top-left-radius: 32px;
       border-top-right-radius: 32px;
@@ -399,7 +408,7 @@
       width: 48px;
       height: 5px;
       border-radius: 3px;
-      background: #334155;
+      background: #5c4638;
     }
 
     .sheet-body {
@@ -427,7 +436,7 @@
     }
 
     .card-glass {
-      background: rgba(30, 43, 69, 0.6);
+      background: rgba(37, 28, 24, 0.85);
       border: 1px solid var(--border);
       border-radius: 14px;
       padding: 12px 14px;
@@ -458,8 +467,8 @@
     }
 
     .btn-action-primary {
-      background: linear-gradient(135deg, #0284C7, #38BDF8);
-      color: #080D1A;
+      background: var(--accent);
+      color: var(--ink);
       font-weight: 800;
       font-size: 13px;
       padding: 13px;
@@ -470,13 +479,13 @@
       align-items: center;
       justify-content: center;
       gap: 6px;
-      box-shadow: 0 4px 14px rgba(56, 189, 248, 0.35);
+      box-shadow: 0 4px 14px rgba(245, 197, 24, 0.28);
       transition: all 0.2s;
     }
 
     .btn-action-secondary {
       background: var(--surface-elevated);
-      border: 1px solid rgba(56, 189, 248, 0.4);
+      border: 1px solid rgba(245, 197, 24, 0.45);
       color: var(--accent);
       font-weight: 700;
       font-size: 12px;
@@ -802,8 +811,8 @@
     /* Scanner Viewfinder da Foto da Ata */
     .scanner-viewfinder {
       position: relative;
-      border: 2px dashed rgba(56, 189, 248, 0.5);
-      background: rgba(18, 27, 47, 0.7);
+      border: 2px dashed rgba(245, 197, 24, 0.55);
+      background: rgba(28, 20, 18, 0.75);
       border-radius: 18px;
       padding: 24px 16px;
       text-align: center;
@@ -818,8 +827,8 @@
       left: 0;
       right: 0;
       height: 2px;
-      background: #38BDF8;
-      box-shadow: 0 0 10px #38BDF8, 0 0 20px #38BDF8;
+      background: #f5c518;
+      box-shadow: 0 0 10px #f5c518, 0 0 20px #f5c518;
       animation: scanLaser 2.4s infinite alternate ease-in-out;
     }
 
@@ -867,7 +876,7 @@
     .modal-backdrop {
       position: absolute;
       top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(4, 7, 15, 0.88);
+      background: rgba(7, 5, 4, 0.9);
       backdrop-filter: blur(8px);
       z-index: 2500;
       display: none;
@@ -879,7 +888,7 @@
     }
 
     .modal-drawer {
-      background: #0E172A;
+      background: #1c1412;
       border-top-left-radius: 28px;
       border-top-right-radius: 28px;
       border-top: 1px solid rgba(255, 255, 255, 0.15);
@@ -891,13 +900,13 @@
     }
 
     .teleprompter-box {
-      background: #1E293B;
+      background: #251c18;
       border-left: 4px solid var(--accent);
       border-radius: 10px;
       padding: 14px;
       font-size: 14px;
       line-height: 22px;
-      color: #F8FAFC;
+      color: var(--text-primary);
       margin: 10px 0;
       font-style: italic;
     }
@@ -909,7 +918,7 @@
 
     /* Barra Inferior de Navegação Estilo iOS/Android Flagship */
     .bottom-tab-bar {
-      background: rgba(18, 27, 47, 0.95);
+      background: rgba(16, 12, 11, 0.96);
       backdrop-filter: var(--glass-blur);
       border-top: 1px solid var(--border);
       display: flex;
@@ -951,7 +960,7 @@
 
     /* Leaflet Tile Styling */
     .leaflet-tile {
-      opacity: 0.95;
+      opacity: 1;
     }
   </style>
 </head>
@@ -990,6 +999,7 @@
           <span class="sync-text" id="syncText">Nuvem OK</span>
         </div>
       </div>
+      <div class="faixa-bandeira"></div>
 
       <!-- CONTAINER PRINCIPAL DE TELAS -->
       <div class="screens-container">
@@ -1022,7 +1032,7 @@
           <!-- Floating GPS Status Tag -->
           <div class="telemetry-tag">
             <span>🛰️ GLONASS/GPS:</span>
-            <span class="telemetry-val">16 Sats (±3.8m)</span>
+            <span class="telemetry-val">16 sats · posição aproximada</span>
           </div>
 
           <!-- BottomSheet Dinâmico com Acrylic Glass -->
@@ -1802,7 +1812,7 @@
       atualizarBadge();
 
       map = L.map('map', { zoomControl: false }).setView([-8.9167, 13.2667], 13);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
       }).addTo(map);
