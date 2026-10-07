@@ -32,7 +32,8 @@
         "CAMERA",
         "INTERNET",
         "ACCESS_NETWORK_STATE"
-      ]
+      ],
+      "softwareKeyboardLayoutMode": "resize"
     },
     "plugins": [
       [
@@ -45,6 +46,13 @@
         "expo-camera",
         {
           "cameraPermission": "Captura e hash da Ata de Apuramento no Dia D."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Pré-visualização da fotografia da ata antes da assinatura digital.",
+          "cameraPermission": "Fotografar a Ata de Apuramento oficial da mesa de voto."
         }
       ]
     ],

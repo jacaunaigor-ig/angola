@@ -115,16 +115,12 @@ export default function ActivistDoorToDoorScreen() {
       if (!identity?.ativista_id || !identity?.campanha_id) {
         throw new Error('Inicie sessão com uma conta de mobilizador para registar visitas.');
       }
-      const novaVisita = {
-        id: generateUUID(),
-        campanha_id: identity.campanha_id,
-        ativista_id: identity.ativista_id,
       const uuidVisita = generateUUID();
       const novaVisita = {
         uuid: uuidVisita,
         id: uuidVisita,
-        campanha_id: CAMPANHA_PADRAO_ID,
-        ativista_id: ATIVISTA_PADRAO_ID,
+        campanha_id: identity.campanha_id,
+        ativista_id: identity.ativista_id,
         municipio: 'Talatona',
         localizacao: {
           latitude: coordenadas.latitude,

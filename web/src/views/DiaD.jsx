@@ -1,8 +1,9 @@
-import { useState } from "react";
-import { api } from "../api.js";
+import { useEffect, useRef, useState } from "react";
+import { api, getToken } from "../api.js";
+import Hemiciclo from "../components/Hemiciclo.jsx";
 import { IconeEscudo, IconeRefresh } from "../components/Icones.jsx";
 import { Aviso, Cartao, Kpi, Selo, Vazio } from "../components/ui.jsx";
-import { fmtInt, fmtPct } from "../territorio.js";
+import { fmtInt } from "../territorio.js";
 
 const PASSOS = [
   ["01", "Geofence no Terreno", "A ata só é aceite se o delegado estiver dentro do raio geográfico da mesa de voto."],
@@ -29,6 +30,9 @@ export default function DiaD({ plano, sessao }) {
   const [erro, setErro] = useState("");
   const [aCarregar, setACarregar] = useState(false);
   const [modoDemo, setModoDemo] = useState(true);
+  const [streamVivo, setStreamVivo] = useState(false);
+  const [ultimaAta, setUltimaAta] = useState(null);
+  const abortRef = useRef(null);
 
   async function carregarApuramento() {
     setErro("");
@@ -45,9 +49,67 @@ export default function DiaD({ plano, sessao }) {
     }
   }
 
-  const totais = apuramento?.totais || apuramento?.resumo || null;
+  useEffect(() => {
+    if (modoDemo || !sessao.ativa) {
+      setStreamVivo(false);
+      return undefined;
+    }
+    const token = getToken();
+    if (!token) return undefined;
+    const controller = new AbortController();
+    abortRef.current = controller;
+    let buffer = "";
+
+    (async () => {
+      try {
+        const resposta = await fetch(`/api/dia-d/stream?plano=${encodeURIComponent(plano)}`, {
+          headers: {
+            Accept: "text/event-stream",
+            Authorization: `Bearer ${token}`,
+            "X-Plano-Campanha": plano,
+          },
+          signal: controller.signal,
+        });
+        if (!resposta.ok || !resposta.body) {
+          setStreamVivo(false);
+          return;
+        }
+        setStreamVivo(true);
+        const leitor = resposta.body.getReader();
+        const decoder = new TextDecoder();
+        while (true) {
+          const { done, value } = await leitor.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const blocos = buffer.split("\n\n");
+          buffer = blocos.pop() || "";
+          for (const bloco of blocos) {
+            const linha = bloco.split("\n").find((l) => l.startsWith("data:"));
+            if (!linha) continue;
+            try {
+              const evento = JSON.parse(linha.slice(5).trim() || "{}");
+              if (evento.tipo === "ata") {
+                setUltimaAta(evento);
+                carregarApuramento();
+              }
+            } catch {
+              /* keep-alive */
+            }
+          }
+        }
+      } catch (exc) {
+        if (exc.name !== "AbortError") setStreamVivo(false);
+      } finally {
+        setStreamVivo(false);
+      }
+    })();
+
+    return () => controller.abort();
+  }, [modoDemo, sessao.ativa, plano]);
+
+  const totais = apuramento?.totais || apuramento?.resumo || apuramento?.contagem_votos_validos || null;
   const numerosReais = totais && typeof totais === "object"
-    ? Object.entries(totais).filter(([, valor]) => typeof valor === "number").slice(0, 4)
+    ? Object.entries(totais).filter(([, valor]) => typeof valor === "number" || valor?.votos != null).slice(0, 4)
     : [];
 
   return (
@@ -120,6 +182,14 @@ export default function DiaD({ plano, sessao }) {
           </section>
 
           <Cartao
+            titulo="Hemiciclo da Assembleia Nacional"
+            nota="220 assentos. A linha a ouro é a maioria absoluta (111). Distribuição ilustrativa CNE 2022."
+            acao={<Selo tipo="OFICIAL" />}
+          >
+            <Hemiciclo mpla={124} unita={90} outros={6} />
+          </Cartao>
+
+          <Cartao
             titulo="Transmissão de Atas em Tempo Real"
             nota="Fluxo demonstrativo com verificação criptográfica Ed25519 e coordenadas georreferenciadas."
             acao={
@@ -166,8 +236,12 @@ export default function DiaD({ plano, sessao }) {
       ) : (
         <Cartao
           titulo="Totais do Apuramento da Campanha"
-          nota="Dados consolidados transmitidos pelos delegados credenciados da sua campanha."
-          acao={<Selo tipo="OFICIAL" />}
+          nota={streamVivo
+            ? "Fluxo SSE ligado: novas atas actualizam este painel sem recarregar."
+            : "Dados consolidados transmitidos pelos delegados credenciados da sua campanha."}
+          acao={streamVivo
+            ? <span className="live-feed-badge"><i className="pulse-dot" /> SSE activo</span>
+            : <Selo tipo="OFICIAL" />}
         >
           <Aviso>{erro}</Aviso>
           {!sessao.ativa && (
@@ -177,14 +251,22 @@ export default function DiaD({ plano, sessao }) {
           )}
           {sessao.ativa && !apuramento && !erro && (
             <Vazio>
-              Clique em "Actualizar" para consultar as atas e o somatório apurado até ao momento.
+              O painel liga-se sozinho ao fluxo do Dia D. Também pode clicar em "Actualizar".
             </Vazio>
+          )}
+
+          {ultimaAta?.ata && (
+            <p className="lede">Última ata recebida: <code>{ultimaAta.ata.id}</code> · {ultimaAta.ata.status}</p>
           )}
 
           {numerosReais.length > 0 && (
             <div className="kpis">
               {numerosReais.map(([chave, valor]) => (
-                <Kpi key={chave} rotulo={chave.replaceAll("_", " ")} valor={fmtInt(valor)} />
+                <Kpi
+                  key={chave}
+                  rotulo={chave.replaceAll("_", " ")}
+                  valor={fmtInt(typeof valor === "number" ? valor : valor.votos)}
+                />
               ))}
             </div>
           )}

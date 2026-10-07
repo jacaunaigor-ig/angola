@@ -1,0 +1,22 @@
+Copyright (c) 2026 GPS Eleitoral — Angola 2027
+
+Todos os direitos reservados.
+
+Este repositório contém software comercial destinado a campanhas, partidos e
+coligações que contratem a plataforma. Sem uma licença escrita adicional:
+
+- não é permitido copiar, modificar, distribuir, sublicenciar nem vender o
+  código ou os artefactos compilados;
+- o uso em produção exige contrato e o SKU correspondente (Municipal,
+  Provincial ou Nacional);
+- os dados operacionais de cada campanha permanecem isolados e não são
+  transferidos com o código-fonte.
+
+Excepções de dados de terceiros (não abrangidas por esta reserva):
+
+- delimitações administrativas em `geo_angola/` (geoBoundaries, CC BY 4.0);
+- cartografia de fundo OpenStreetMap (ODbL);
+- resultados e estatísticas oficiais da CNE e do INE, cuja proveniência está
+  declarada em `data/raw/`.
+
+Ver `ATTRIBUTION.md` para as citações obrigatórias.

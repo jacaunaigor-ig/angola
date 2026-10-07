@@ -92,7 +92,7 @@ war_room/       Núcleo analítico em Python, sem dependência de web
 web/            Sala de comando React (hooks/, components/, views/)
 mobile/         App Expo: campo, Dia D, assinatura Ed25519, EAS (APK)
 data/raw/       Dados com proveniência; ver data/raw/README.md
-database/       Esquema PostGIS, seeds e migrations 01–07
+database/       Esquema PostGIS, seeds e migrations 01–09
 docs/           Arquitectura, roadmap, privacidade, legal, auditoria, demo
 app.py, pages/  Protótipo Streamlit (mantido, não é o cliente operacional)
 backend/src/    API Node legada, mantida por compatibilidade
@@ -108,3 +108,5 @@ backend/src/    API Node legada, mantida por compatibilidade
 - [Guia de demonstração B2B](docs/demo_guide.md)
 - [Dicionário de dados brutos](data/raw/README.md)
 - [Como contribuir](CONTRIBUTING.md)
+- [Licença](LICENSE)
+- [Atribuições cartográficas](ATTRIBUTION.md)

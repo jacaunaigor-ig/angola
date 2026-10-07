@@ -51,6 +51,9 @@ Para clientes B2B (partidos e coligações):
 2. **Descarte Seguro Pós-Pleito:**
    - No prazo de **90 dias** após a proclamação definitiva dos resultados eleitorais pelo Tribunal Constitucional de Angola, todos os dados brutos de visitas de campo contendo carimbos de tempo detalhados são expurgados do banco de dados operacional.
    - Restam arquivados apenas os relatórios consolidados em nível de província/município para fins de memória histórica da agremiação política contratante.
+3. **Canal WhatsApp (`queixas_eleitor`):**
+   - Guarda-se só município, categoria, descrição, telefone mascarado e hash HMAC. Sem nome, BI ou número em claro.
+   - A API apaga linhas com mais de **90 dias** em cada escrita e leitura (retenção contínua, não só no pós-pleito).
 
 ---
 

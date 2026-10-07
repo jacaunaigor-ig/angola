@@ -1,13 +1,18 @@
 import { offlineStorage } from './offlineStorage';
 import { outboxSync } from './outboxSync';
-import { API_BASE_URL, CAMPANHA_PADRAO_ID, ATIVISTA_PADRAO_ID } from './config';
+import {
+  API_BASE_URL as CONFIG_API,
+  CAMPANHA_PADRAO_ID as CONFIG_CAMP,
+  ATIVISTA_PADRAO_ID as CONFIG_ATIV,
+} from './config';
 
-export const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:8000/api';
+export const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || CONFIG_API;
+export const CAMPANHA_PADRAO_ID = process.env.EXPO_PUBLIC_CAMPAIGN_ID || CONFIG_CAMP;
+export const ATIVISTA_PADRAO_ID = CONFIG_ATIV;
 
-// IDs padrão de campanha e ativista para o dispositivo
-export const CAMPANHA_PADRAO_ID = process.env.EXPO_PUBLIC_CAMPAIGN_ID || 'a0000000-0000-0000-0000-000000000001';
-export const ATIVISTA_PADRAO_ID = 'b0000000-0000-0000-0000-000000000001';
-export { API_BASE_URL, CAMPANHA_PADRAO_ID, ATIVISTA_PADRAO_ID };
+function origemApi() {
+  return API_BASE_URL.replace(/\/api\/?$/, '');
+}
 
 async function authenticatedHeaders() {
   const token = await offlineStorage.obterToken();
@@ -216,5 +221,40 @@ export const apiService = {
     }
 
     return await response.json();
+  },
+
+  async pedirTicketUploadAta({ nomeArquivo, mimeType, tamanhoBytes, sha256 }) {
+    const response = await fetch(`${API_BASE_URL}/evidencias/presigned-upload`, {
+      method: 'POST',
+      headers: await authenticatedHeaders(),
+      body: JSON.stringify({
+        tipo: 'ATA_APURAMENTO',
+        nome_arquivo: nomeArquivo,
+        mime_type: mimeType,
+        tamanho_bytes: tamanhoBytes,
+        sha256_esperado: sha256,
+      }),
+    });
+    if (!response.ok) {
+      const errorJson = await response.json().catch(() => ({}));
+      throw new Error(errorJson.detail || `Ticket de upload recusado (HTTP ${response.status}).`);
+    }
+    return response.json();
+  },
+
+  async enviarBinarioAta(uploadUrl, fileUri, mimeType) {
+    const url = uploadUrl.startsWith('http') ? uploadUrl : `${origemApi()}${uploadUrl}`;
+    const ficheiro = await fetch(fileUri);
+    const corpo = await ficheiro.blob();
+    const response = await fetch(url, {
+      method: 'PUT',
+      headers: { 'Content-Type': mimeType || 'image/jpeg' },
+      body: corpo,
+    });
+    if (!response.ok) {
+      const errorJson = await response.json().catch(() => ({}));
+      throw new Error(errorJson.detail || `Upload da fotografia falhou (HTTP ${response.status}).`);
+    }
+    return response.json();
   },
 };

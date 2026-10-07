@@ -1,6 +1,8 @@
+import asyncio
 import hashlib
 import json
 import logging
+import queue
 import re
 from datetime import UTC, datetime
 from functools import lru_cache
@@ -10,7 +12,7 @@ from uuid import UUID
 
 from anthropic import Anthropic
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from psycopg import Error
 
 from war_room.assinatura_eleitoral import (
@@ -24,6 +26,7 @@ from war_room.motor_hondt import (
     simular_hondt_provincial,
 )
 
+from ..events import cancelar, publicar_ata, subscrever
 from ..schemas import (
     AtaSubmissionRequest,
     HondtSimulationRequest,
@@ -814,10 +817,12 @@ def submit_election_record(
                         id, campanha_id, local_voto_id, mesa_numero, delegado_id,
                         votos_favoraveis, votos_oponentes, votos_nulos, votos_brancos,
                         total_votantes, foto_ata_url, foto_hash_sha256, dados_hash_sha256,
-                        localizacao_envio, registado_em, sincronizado_em
+                        localizacao_envio, registado_em, sincronizado_em,
+                        assinatura_ed25519, chave_publica_ed25519
                     ) VALUES (
                         %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                        ST_SetSRID(ST_MakePoint(%s, %s), 4326)::geography, %s, clock_timestamp()
+                        ST_SetSRID(ST_MakePoint(%s, %s), 4326)::geography, %s, clock_timestamp(),
+                        %s, %s
                     )
                     ON CONFLICT (id) DO NOTHING
                     RETURNING id, status, distancia_assembleia_metros
@@ -829,6 +834,8 @@ def submit_election_record(
                         payload.votos_brancos, payload.total_votantes,
                         payload.foto_ata_url, payload.foto_hash_sha256, data_hash,
                         longitude, latitude, registered,
+                        payload.assinatura_digital_ed25519,
+                        payload.chave_publica_delegado_ed25519,
                     ),
                 ).fetchone()
             except Error as exc:
@@ -837,18 +844,72 @@ def submit_election_record(
                 raise
     if row is None:
         raise HTTPException(status_code=409, detail="A ata já foi recebida; não pode ser reescrita.")
+    ata = {
+        "id": str(row["id"]),
+        "status": row["status"],
+        "distancia_assembleia_metros": row["distancia_assembleia_metros"],
+        "alerta_revisao_humana": row["status"] == "SUSPEITA",
+        "assinatura_digital_verificada": assinatura_valida,
+        "cadeia_custodia": "ASSINADA_DIGITALMENTE_ED25519" if assinatura_valida else "SHA256_INTEGRIDADE",
+    }
+    publicar_ata(
+        {
+            "tipo": "ata",
+            "horario": datetime.now(UTC).isoformat(),
+            "campanha_id": str(campaign_id),
+            "ata": ata,
+        }
+    )
     return {
         "sucesso": True,
         "mensagem": "Ata de apuramento registrada com sucesso.",
-        "ata": {
-            "id": str(row["id"]),
-            "status": row["status"],
-            "distancia_assembleia_metros": row["distancia_assembleia_metros"],
-            "alerta_revisao_humana": row["status"] == "SUSPEITA",
-            "assinatura_digital_verificada": assinatura_valida,
-            "cadeia_custodia": "ASSINADA_DIGITALMENTE_ED25519" if assinatura_valida else "SHA256_INTEGRIDADE",
-        },
+        "ata": ata,
     }
+
+
+@router.get("/dia-d/stream")
+async def stream_apuramento(
+    request: Request,
+    user: Annotated[dict, Depends(ROLE_REVIEW)],
+    x_plano_campanha: str | None = Header(default=None),
+    plano: str | None = Query(default=None),
+):
+    """SSE: notifica a sala de comando quando entra uma ata da campanha autenticada."""
+    from .plans import exigir_funcionalidade, resolver_plano_request
+
+    plano_codigo = resolver_plano_request(x_plano_campanha, plano)
+    exigir_funcionalidade(plano_codigo, "dia_d")
+    campanha = user["campaign_id"]
+    canal = subscrever()
+
+    async def gerar():
+        try:
+            hello = json.dumps({"tipo": "conectado", "campanha_id": campanha})
+            yield f"event: ping\ndata: {hello}\n\n"
+            while True:
+                if await request.is_disconnected():
+                    break
+                try:
+                    evento = canal.get_nowait()
+                except queue.Empty:
+                    await asyncio.sleep(1.0)
+                    yield "event: ping\ndata: {}\n\n"
+                    continue
+                if evento.get("campanha_id") and evento["campanha_id"] != campanha:
+                    continue
+                yield f"event: ata\ndata: {json.dumps(evento, default=str)}\n\n"
+        finally:
+            cancelar(canal)
+
+    return StreamingResponse(
+        gerar(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @router.post("/dia-d/casos-juridicos", status_code=201)
