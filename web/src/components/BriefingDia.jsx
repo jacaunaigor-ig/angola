@@ -1,5 +1,5 @@
 import React from "react";
-import { exportarCsv } from "../lib/exportar.js";
+import { exportarCsv } from "../exportar.js";
 import { fmtInt, fmtPct, rotuloZona } from "../territorio.js";
 
 export default function BriefingDia({ linhas, onEscolher }) {
