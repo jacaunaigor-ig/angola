@@ -58,5 +58,14 @@ terminals/
 # Evidências enviadas em desenvolvimento (fotos de atas)
 data/storage/
 
+# Leitura semanal descarregada (volta a ser pedida ao fim de 7 dias)
+data/cache/
+
 # O repositório não tem package.json na raiz; este lock vem de installs acidentais
 /package-lock.json
+
+# Cache do Vite (não é código)
+web/.vite/
+
+# Transferências brutas da malha local
+geo_angola/_tmp/

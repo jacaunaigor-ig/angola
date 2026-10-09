@@ -1,14 +1,9 @@
 import React, { useState } from "react";
 import { IconeAngolaEmblema } from "../components/Icones.jsx";
 import { Aviso } from "../components/ui.jsx";
+import { CREDENCIAIS_DEMO } from "../filme.js";
 
-const DEMO = {
-  campanha_id: "a0000000-0000-0000-0000-000000000001",
-  email: "analista@campanha.ao",
-  senha: "senha-segura-2027",
-};
-
-export default function Entrada({ onEntrar, onConsulta }) {
+export default function Entrada({ onEntrar, onConsulta, onFilme }) {
   const [login, setLogin] = useState({ campanha_id: "", email: "", senha: "" });
   const [erro, setErro] = useState("");
   const [aEnviar, setAEnviar] = useState(false);
@@ -39,7 +34,7 @@ export default function Entrada({ onEntrar, onConsulta }) {
           <div>
             <p className="eyebrow">Angola 2027</p>
             <h1>GPS Eleitoral</h1>
-            <p className="lede">Sala de comando para campanhas. Cartografia CNE, Hondt e operação de campo.</p>
+            <p className="lede">Sala de comando para qualquer lista. Cartografia CNE, Hondt e operação de campo. O lado escolhe-se na sala; os números não mudam.</p>
           </div>
         </div>
 
@@ -66,9 +61,14 @@ export default function Entrada({ onEntrar, onConsulta }) {
           <button className="ghost" type="button" onClick={onConsulta}>
             Continuar em consulta CNE
           </button>
-          <button className="ghost" type="button" onClick={() => setLogin(DEMO)}>
+          <button className="ghost" type="button" onClick={() => setLogin(CREDENCIAIS_DEMO)}>
             Credenciais de demonstração
           </button>
+          {onFilme && (
+            <button className="primary entrada-filme" type="button" onClick={onFilme}>
+              Reproduzir demonstração
+            </button>
+          )}
         </div>
         <p className="muted entrada-nota">
           Demonstração: campanha a0000000-…001, analista@campanha.ao, senha-segura-2027 (sem PostgreSQL).

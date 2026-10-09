@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import GraficoSerie from "../components/GraficoSerie.jsx";
 import {
   IconeCentrar,
@@ -15,7 +15,27 @@ import {
 import BriefingDia from "../components/BriefingDia.jsx";
 import { Aviso, Cartao, Kpi, Selo } from "../components/ui.jsx";
 import MapaTerritorio from "../Mapa.jsx";
-import { classificar, fmtInt, fmtPct, priorizar, rotuloZona, serieParaGrafico } from "../territorio.js";
+import { PUBLICOS, fraseLado } from "../campanha.js";
+import { useCampo } from "../hooks/useCampo.js";
+import { useLeitura } from "../hooks/useLeitura.js";
+import { useMalhaLocal, useMalhaMunicipios } from "../hooks/useDadosBase.js";
+import { classificar, fmtInt, fmtPct, priorizar, rotuloZona, serieParaGrafico, tracarEstrategia } from "../territorio.js";
+
+const CHAVE_ZONAS = "warroom_zonas_analista";
+const ZONAS_ANALISTA = [
+  ["BASTIAO", "Bastião"],
+  ["CAMPO_BATALHA", "Disputa"],
+  ["OPOSICAO", "Oposição"],
+];
+
+function lerAjustes() {
+  try {
+    const bruto = JSON.parse(localStorage.getItem(CHAVE_ZONAS) || "{}");
+    return bruto && typeof bruto === "object" ? bruto : {};
+  } catch {
+    return {};
+  }
+}
 
 const PESOS_PADRAO = { disputa: 4, volume: 3, abstencao: 3, jovens: 2 };
 const CAMADAS = [
@@ -35,8 +55,34 @@ function deputados(hondt) {
   return [hondt["Nosso Partido"] ?? hondt.MPLA ?? 0, hondt["Oposição"] ?? hondt.UNITA ?? 0];
 }
 
-function PainelTerritorio({ foco }) {
+function PainelTerritorio({ foco, aoAbrirMunicipio, onDecidir, onNota }) {
   if (!foco) return <p className="vazio">Escolha um território no mapa ou na tabela.</p>;
+  if (foco.proveniencia_votos === "AUSENTE") {
+    const seloGeom = foco.nivel === "bairro" ? "OSM" : "OFICIAL";
+    return (
+      <div className="detalhe">
+        <div className="detalhe-topo">
+          <div>
+            <span className="eyebrow">{foco.provincia || "Angola"} · {foco.municipio || foco.nivel}</span>
+            <h2>{foco.nome}</h2>
+          </div>
+          <Selo tipo={seloGeom} />
+        </div>
+        <p>Sem apuramento da CNE neste nível. A disputa de bairro vê-se no mapa; o voto deste sítio não foi publicado.</p>
+        {foco.margem_circulo_perc != null && (
+          <p>
+            O círculo provincial de <strong>{foco.provincia}</strong> teve margem {fmtPct(foco.margem_circulo_perc)} em 2022.
+            Esse número é da província inteira.
+          </p>
+        )}
+        {foco.nivel === "municipio" && (
+          <button className="primary" type="button" onClick={() => aoAbrirMunicipio(foco.nome)}>
+            Ver comunas e bairros
+          </button>
+        )}
+      </div>
+    );
+  }
   const zona = foco.zonamento_activo || foco.zonamento;
   const cadeiras = deputados(foco.hondt_deputados);
   const geomSimulada = foco.proveniencia_geometria === "SIMULADO";
@@ -161,11 +207,103 @@ function PainelTerritorio({ foco }) {
           Fórmula: (Potencial × Competitividade Hondt) ÷ (Custo Logístico)^0.65
         </p>
       </div>
+
+      <DecisaoAnalista foco={foco} onDecidir={onDecidir} onNota={onNota} />
     </div>
   );
 }
 
-export default function Comando({ dados, territorio, plano, setPlano, versao, setVersao }) {
+function DecisaoAnalista({ foco, onDecidir, onNota }) {
+  const [campo] = useCampo();
+  const { leitura } = useLeitura();
+  const plano = tracarEstrategia(foco);
+  if (!plano) return null;
+  const registosAqui = campo.registos.filter(
+    (r) => (r.provincia || "").toLowerCase() === (foco.nome || "").toLowerCase(),
+  );
+  return (
+    <>
+      <div className="bloco">
+        <span style={{ fontSize: "12px", fontWeight: "600" }}>Zona de operação</span>
+        <p className="muted" style={{ fontSize: "11.5px", margin: "4px 0 8px" }}>
+          A fórmula lê a margem de 2022. A decisão do analista muda onde a campanha disputa e não altera o apuramento.
+          {foco.decisao_analista
+            ? ` Fórmula: ${rotuloZona(foco.zonamento_formula)}. Operação: ${rotuloZona(foco.zonamento_activo)}.`
+            : ` Em vigor: ${rotuloZona(foco.zonamento_activo)}, pela fórmula.`}
+        </p>
+        <div className="zona-escolha">
+          {ZONAS_ANALISTA.map(([id, rotulo]) => (
+            <button
+              key={id}
+              type="button"
+              className={`ghost${foco.decisao_analista && foco.zonamento_activo === id ? " activa" : ""}`}
+              onClick={() => onDecidir(id)}
+            >
+              {rotulo}
+            </button>
+          ))}
+          {foco.decisao_analista && (
+            <button type="button" className="ghost" onClick={() => onDecidir(null)}>
+              Usar a fórmula
+            </button>
+          )}
+        </div>
+        {foco.decisao_analista && (
+          <label className="nota-analista">
+            Nota da decisão
+            <textarea
+              rows={2}
+              value={foco.nota_analista || ""}
+              placeholder="Porque esta zona muda a operação"
+              onChange={(e) => onNota(e.target.value)}
+            />
+          </label>
+        )}
+      </div>
+
+      <div className="bloco">
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: "8px" }}>
+          <span style={{ fontSize: "12px", fontWeight: "600" }}>Estratégia · {plano.titulo}</span>
+          <Selo tipo={foco.decisao_analista ? "RASCUNHO" : "OFICIAL"} />
+        </div>
+        <p className="muted" style={{ fontSize: "12px", margin: "6px 0 0" }}>
+          {fraseLado(campo)} O plano usa a margem publicada neste círculo, seja qual for o cliente.
+        </p>
+        <ol className="estrategia">
+          {plano.movimentos.map((passo) => (
+            <li key={passo.fase}>
+              <strong>{passo.fase}</strong>
+              <span>{passo.acao}</span>
+            </li>
+          ))}
+          <li>
+            <strong>Públicos</strong>
+            <span>{PUBLICOS.map((p) => `${p.nome} (${p.canal})`).join(" · ")}</span>
+          </li>
+          {registosAqui.length > 0 && (
+            <li>
+              <strong>Redes</strong>
+              <span>{registosAqui.slice(0, 2).map((r) => `${r.canal}: ${r.texto}`).join(" ")}</span>
+            </li>
+          )}
+          {leitura?.temas?.[0] && (
+            <li>
+              <strong>Semana</strong>
+              <span>
+                Nas manchetes públicas, o tema mais citado é {leitura.temas[0].nome.toLowerCase()} ({leitura.temas[0].manchetes}).
+              </span>
+            </li>
+          )}
+        </ol>
+        <button type="button" className="ghost" style={{ marginTop: "8px" }} onClick={() => { window.location.hash = "redes"; }}>
+          Abrir redes e o lado da sala
+        </button>
+      </div>
+    </>
+  );
+}
+
+export default function Comando({ dados, territorio, plano, setPlano, versao, setVersao, pedidoEscala }) {
   const [bastiao, setBastiao] = useState(15);
   const [oposicao, setOposicao] = useState(-15);
   const [selecionado, setSelecionado] = useState(null);
@@ -174,14 +312,49 @@ export default function Comando({ dados, territorio, plano, setPlano, versao, se
   const [busca, setBusca] = useState("");
   const [fundo, setFundo] = useState("ruas");
   const [recentralizar, setRecentralizar] = useState(0);
+  const [escala, setEscala] = useState("provincias");
+  const [municipioAberto, setMunicipioAberto] = useState("");
+  const [ajustes, setAjustes] = useState(lerAjustes);
+
+  function gravarAjustes(seguinte) {
+    setAjustes(seguinte);
+    localStorage.setItem(CHAVE_ZONAS, JSON.stringify(seguinte));
+  }
+
+  function decidirZona(nome, zona) {
+    const seguinte = { ...ajustes };
+    if (!zona) delete seguinte[nome];
+    else seguinte[nome] = { zona, nota: ajustes[nome]?.nota || "", em: new Date().toISOString() };
+    gravarAjustes(seguinte);
+  }
+
+  function notarZona(nome, nota) {
+    if (!ajustes[nome]) return;
+    gravarAjustes({ ...ajustes, [nome]: { ...ajustes[nome], nota } });
+  }
+
+  useEffect(() => {
+    if (!pedidoEscala) return;
+    setEscala(pedidoEscala);
+    setMunicipioAberto("");
+    setSelecionado(null);
+  }, [pedidoEscala]);
 
   const linhas = useMemo(() => {
-    const marcadas = territorio.features.map((f) => ({
-      ...(f.properties || {}),
-      zonamento_activo: classificar(f.properties?.margem_apurada_perc, bastiao, oposicao),
-    }));
+    const marcadas = territorio.features.map((f) => {
+      const props = f.properties || {};
+      const formula = classificar(props.margem_apurada_perc, bastiao, oposicao);
+      const ajuste = ajustes[props.nome];
+      return {
+        ...props,
+        zonamento_formula: formula,
+        zonamento_activo: ajuste?.zona || formula,
+        decisao_analista: Boolean(ajuste?.zona),
+        nota_analista: ajuste?.nota || "",
+      };
+    });
     return priorizar(marcadas, PESOS_PADRAO);
-  }, [territorio.features, bastiao, oposicao]);
+  }, [territorio.features, bastiao, oposicao, ajustes]);
 
   const featuresActivas = useMemo(() => {
     const porNome = new Map(linhas.map((l) => [l.nome, l]));
@@ -198,23 +371,48 @@ export default function Comando({ dados, territorio, plano, setPlano, versao, se
     });
   }, [territorio.features, linhas]);
 
+  const verMunicipios = escala !== "provincias";
+  const malhaMunicipios = useMalhaMunicipios(verMunicipios);
+  const malhaLocal = useMalhaLocal(escala === "local" ? municipioAberto : "");
+
+  function abrirMunicipio(nome) {
+    setMunicipioAberto(nome);
+    setEscala("local");
+    setSelecionado(null);
+    setBusca("");
+  }
+
+  const featuresMapa = useMemo(() => {
+    if (escala === "municipios") return malhaMunicipios.features;
+    if (escala === "local") return [...malhaLocal.comunas, ...malhaLocal.bairros];
+    return featuresActivas;
+  }, [escala, featuresActivas, malhaMunicipios.features, malhaLocal.comunas, malhaLocal.bairros]);
+
+  const linhasLocais = useMemo(() => {
+    return featuresMapa.map((f) => f.properties || {}).filter((p) => p.nome);
+  }, [featuresMapa]);
+
   const visiveis = useMemo(() => {
+    const base = escala === "provincias" ? linhas : linhasLocais;
     const q = busca.trim().toLowerCase();
-    return linhas.filter((row) => {
-      if (filtroZona && row.zonamento_activo !== filtroZona) return false;
-      if (q && !(row.nome || "").toLowerCase().includes(q)) return false;
+    return base.filter((row) => {
+      if (escala === "provincias" && filtroZona && row.zonamento_activo !== filtroZona) return false;
+      if (q && !(row.nome || "").toLowerCase().includes(q) && !(row.provincia || "").toLowerCase().includes(q)) return false;
       return true;
     });
-  }, [linhas, filtroZona, busca]);
+  }, [linhas, linhasLocais, escala, filtroZona, busca]);
 
   const pontos = serieParaGrafico(dados.serie?.serie?.eleicoes);
   const soma = (campo) => linhas.reduce((s, r) => s + (Number(r[campo]) || 0), 0);
   const contagem = linhas.reduce((acc, r) => ({ ...acc, [r.zonamento_activo]: (acc[r.zonamento_activo] || 0) + 1 }), {});
-  const foco = selecionado ? linhas.find((l) => l.nome === selecionado.nome) || selecionado : visiveis[0] || linhas[0];
-  const aCarregar = territorio.carregando;
+  const foco = selecionado
+    ? (escala === "provincias" ? linhas : linhasLocais).find((l) => l.nome === selecionado.nome) || selecionado
+    : visiveis[0] || (escala === "provincias" ? linhas[0] : linhasLocais[0]);
+  const aCarregar = territorio.carregando || (verMunicipios && malhaMunicipios.carregando) || (escala === "local" && malhaLocal.carregando);
+  const notaMalha = escala === "local" ? malhaLocal.nota : malhaMunicipios.nota;
 
   const notaCamada = {
-    zona: "Zonamento da margem apurada em 2022 com limiares estratégicos configuráveis.",
+    zona: "A cor segue a margem de 2022, salvo quando o analista fixa a zona de operação.",
     margem: "Gradiente contínuo: azul/verde para vantagem do partido, vermelho para vantagem da oposição.",
     score: "Prioridade integrada: ponderação de potencial de votos, disputa Hondt e acessibilidade logística.",
     custo: "Classificação logística de acesso para deslocamento de brigadas e comícios.",
@@ -222,10 +420,12 @@ export default function Comando({ dados, territorio, plano, setPlano, versao, se
 
   return (
     <main className="page">
-      <Aviso>{territorio.erro}</Aviso>
+      <Aviso>{territorio.erro || malhaMunicipios.erro || malhaLocal.erro}</Aviso>
+      {escala !== "provincias" && notaMalha && <p className="nota-malha">{notaMalha}</p>}
 
       <BriefingDia linhas={linhas} onEscolher={setSelecionado} />
 
+      {escala === "provincias" && (
       <section className="kpis" aria-label="Indicadores nacionais">
         <Kpi rotulo="Eleitorado 2022" valor={fmtInt(soma("eleitores_cne"))} selo="OFICIAL" carregando={aCarregar} />
         <Kpi rotulo="População Total" valor={fmtInt(soma("populacao_total"))} selo="ESTIMADO" carregando={aCarregar} />
@@ -242,7 +442,31 @@ export default function Comando({ dados, territorio, plano, setPlano, versao, se
           <strong className={aCarregar ? "skeleton" : ""}>{aCarregar ? "\u00a0" : contagem.OPOSICAO || 0}</strong>
         </article>
       </section>
+      )}
 
+      {escala === "provincias" && (
+      <Cartao
+        titulo="Frentes de disputa"
+        nota="Círculos em conflito depois dos limiares e das decisões do analista. A margem continua a ser a da CNE em 2022."
+      >
+        <ul className="plano-lista">
+          {linhas.filter((r) => r.zonamento_activo === "CAMPO_BATALHA").slice(0, 6).map((row) => (
+            <li key={row.nome}>
+              <button type="button" className="plano-item" onClick={() => setSelecionado(row)}>
+                <strong>{row.nome}</strong>
+                <span>{tracarEstrategia(row)?.titulo} · margem {fmtPct(row.margem_apurada_perc)}</span>
+                {row.decisao_analista && <em>decisão</em>}
+              </button>
+            </li>
+          ))}
+        </ul>
+        {linhas.every((r) => r.zonamento_activo !== "CAMPO_BATALHA") && (
+          <p className="muted">Nenhum círculo está em disputa com estes limiares.</p>
+        )}
+      </Cartao>
+      )}
+
+      {escala === "provincias" && (
       <section className="controlos" aria-label="Parâmetros do zonamento">
         <label>
           Malha Territorial
@@ -268,21 +492,44 @@ export default function Comando({ dados, territorio, plano, setPlano, versao, se
           <input type="number" value={oposicao} onChange={(e) => setOposicao(Number(e.target.value))} />
         </label>
       </section>
+      )}
 
       <section className="palco">
         <Cartao
           className="map-card"
-          titulo="Mapa Estratégico de Angola"
-          nota={notaCamada}
+          titulo={escala === "local" ? `Comunas e bairros · ${municipioAberto}` : escala === "municipios" ? "Municípios" : "Mapa Estratégico de Angola"}
+          nota={escala === "provincias" ? notaCamada : "Geometria para a operação. A cor distingue vizinhos; não é a margem de 2022."}
           acao={
+            escala === "provincias" ? (
             <div className="legenda-zonas" aria-label="Legenda de zonas">
               <span><i className="ponto bastiao" /> Bastião</span>
               <span><i className="ponto batalha" /> Disputa</span>
               <span><i className="ponto oposicao" /> Oposição</span>
             </div>
+            ) : (
+              <Selo tipo={escala === "local" ? "OSM" : "OFICIAL"} />
+            )
           }
         >
           <div className="mapa-toolbar-wrapper">
+            <div className="mapa-toolbar-seccao">
+              <span>Escala</span>
+              <div className="btn-group">
+                <button type="button" className={escala === "provincias" ? "activa" : ""} onClick={() => { setEscala("provincias"); setMunicipioAberto(""); setSelecionado(null); }}>
+                  Províncias
+                </button>
+                <button type="button" className={escala === "municipios" ? "activa" : ""} onClick={() => { setEscala("municipios"); setMunicipioAberto(""); setSelecionado(null); }}>
+                  Municípios
+                </button>
+                {escala === "local" && (
+                  <button type="button" className="activa" onClick={() => { setEscala("municipios"); setSelecionado(null); }}>
+                    Voltar · {municipioAberto}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {escala === "provincias" && (
             <div className="mapa-toolbar-seccao">
               <span>Camadas</span>
               <div className="btn-group">
@@ -300,6 +547,7 @@ export default function Comando({ dados, territorio, plano, setPlano, versao, se
                 ))}
               </div>
             </div>
+            )}
 
             <div className="mapa-toolbar-seccao">
               <span>Fundo</span>
@@ -333,20 +581,29 @@ export default function Comando({ dados, territorio, plano, setPlano, versao, se
           </div>
 
           <MapaTerritorio
-            features={featuresActivas}
-            contorno={dados.contorno}
-            onSelect={setSelecionado}
+            features={featuresMapa}
+            contorno={escala === "provincias" ? dados.contorno : null}
+            onSelect={(props) => {
+              if (escala === "municipios" && props?.nivel === "municipio") abrirMunicipio(props.nome);
+              else setSelecionado(props);
+            }}
             selecionado={selecionado?.nome}
             camada={camada}
-            filtro={filtroZona}
+            filtro={escala === "provincias" ? filtroZona : ""}
             fundo={fundo}
             carregando={aCarregar}
             resetTrigger={recentralizar}
+            tetoZoom={escala === "local" ? 15 : escala === "municipios" ? 11 : 8}
           />
         </Cartao>
 
         <Cartao className="lateral" titulo="Diagnóstico Territorial">
-          <PainelTerritorio foco={foco} />
+          <PainelTerritorio
+            foco={foco}
+            aoAbrirMunicipio={abrirMunicipio}
+            onDecidir={(zona) => foco?.nome && decidirZona(foco.nome, zona)}
+            onNota={(nota) => foco?.nome && notarZona(foco.nome, nota)}
+          />
 
           <div className="row" style={{ marginTop: "10px", marginBottom: "4px" }}>
             <label className="cresce">
@@ -355,6 +612,7 @@ export default function Comando({ dados, territorio, plano, setPlano, versao, se
               </span>
               <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Huambo, Luanda, Benguela…" />
             </label>
+            {escala === "provincias" && (
             <label>
               <span style={{ display: "inline-flex", alignItems: "center", gap: "5px" }}>
                 <IconeFiltro size={12} /> Zona
@@ -366,6 +624,7 @@ export default function Comando({ dados, territorio, plano, setPlano, versao, se
                 <option value="OPOSICAO">Oposição</option>
               </select>
             </label>
+            )}
           </div>
 
           <div className="table-responsive">
@@ -373,15 +632,40 @@ export default function Comando({ dados, territorio, plano, setPlano, versao, se
               <caption className="sr-only">Territórios ordenados por prioridade</caption>
               <thead>
                 <tr>
-                  <th>Território</th>
-                  <th>Zona</th>
-                  <th>Dep.</th>
-                  <th>Acesso</th>
-                  <th className="num">Score</th>
+                  {escala === "provincias" ? (
+                    <>
+                      <th>Território</th>
+                      <th>Zona</th>
+                      <th>Dep.</th>
+                      <th>Acesso</th>
+                      <th className="num">Score</th>
+                    </>
+                  ) : (
+                    <>
+                      <th>Nome</th>
+                      <th>Nível</th>
+                      <th>Província</th>
+                      <th className="num">Círculo 2022</th>
+                    </>
+                  )}
                 </tr>
               </thead>
               <tbody>
-                {visiveis.slice(0, 12).map((row) => {
+                {visiveis.slice(0, 16).map((row, indice) => {
+                  if (escala !== "provincias") {
+                    return (
+                      <tr
+                        key={`${row.nivel}-${row.nome}-${indice}`}
+                        className={foco?.nome === row.nome ? "activa" : ""}
+                        onClick={() => (row.nivel === "municipio" ? abrirMunicipio(row.nome) : setSelecionado(row))}
+                      >
+                        <td><strong>{row.nome}</strong></td>
+                        <td>{row.nivel}</td>
+                        <td>{row.provincia || "—"}</td>
+                        <td className="num">{fmtPct(row.margem_circulo_perc)}</td>
+                      </tr>
+                    );
+                  }
                   const c = deputados(row.hondt_deputados);
                   return (
                     <tr
@@ -392,7 +676,10 @@ export default function Comando({ dados, territorio, plano, setPlano, versao, se
                       onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && setSelecionado(row)}
                     >
                       <td><strong>{row.nome}</strong></td>
-                      <td><span className={`zona ${row.zonamento_activo}`}>{rotuloZona(row.zonamento_activo)}</span></td>
+                      <td>
+                        <span className={`zona ${row.zonamento_activo}`}>{rotuloZona(row.zonamento_activo)}</span>
+                        {row.decisao_analista && <em className="marca-decisao">decisão</em>}
+                      </td>
                       <td>
                         {c ? (
                           <span style={{ fontSize: "11px", fontWeight: "600" }}>

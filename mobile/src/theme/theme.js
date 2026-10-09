@@ -1,39 +1,36 @@
 /**
- * Design System - GPS Eleitoral Angola 2027
- * Padrão Dark Mode Tático (Otimizado para poupança de bateria em ecrãs OLED em campo)
+ * Design System — GPS Eleitoral Angola 2027
+ * Mesma paleta da sala de comando: negro, vermelho e ouro da bandeira.
  */
 
 export const THEME = {
   colors: {
-    // Cores Estruturais
-    background: '#0F172A',      // Fundo Principal (Azul-Noite muito escuro)
-    surface: '#1E293B',         // Fundo de Cards e Painéis
-    surfaceElevated: '#334155', // Fundo de Inputs, Dropdowns e BottomSheet Header
-    border: '#334155',          // Bordas discretas
-    borderFocus: '#38BDF8',     // Destaque de seleção ativa
+    background: '#100c0b',
+    surface: '#1c1412',
+    surfaceElevated: '#251c18',
+    border: '#3d2f28',
+    borderFocus: '#f5c518',
+    flagRed: '#ce1126',
+    flagGold: '#f5c518',
 
-    // Cores Políticas e Zonamento Estratégico
-    bastaio: '#10B981',         // Verde Esmeralda (Zonas Seguras / Bastiões)
-    batalha: '#F97316',         // Laranja Alerta (Campos de Batalha / Zonas Cinzentas)
-    oposicao: '#EF4444',        // Vermelho Carmim (Zonas Críticas / Oposição)
+    bastaio: '#3dbe8b',
+    batalha: '#e08a3c',
+    oposicao: '#e15b5b',
 
-    // Sentimento do Eleitorado
     sentimento: {
-      positivo: '#10B981',      // 🙂 Verde
-      neutro: '#F59E0B',        // 😐 Âmbar
-      negativo: '#EF4444',      // 🙁 Vermelho
+      positivo: '#3dbe8b',
+      neutro: '#e08a3c',
+      negativo: '#e15b5b',
     },
 
-    // Acentos e Indicadores
-    accent: '#38BDF8',          // Azul Elétrico (GPS ativo / Ações secundárias)
-    success: '#10B981',
-    warning: '#F59E0B',
-    danger: '#EF4444',
+    accent: '#f5c518',
+    success: '#3dbe8b',
+    warning: '#e08a3c',
+    danger: '#e15b5b',
 
-    // Tipografia e Legibilidade
-    textPrimary: '#F8FAFC',     // Branco Suave (alto contraste para luz solar)
-    textSecondary: '#94A3B8',   // Cinza Neutro (rótulos e metadados)
-    textDisabled: '#64748B',
+    textPrimary: '#f4eee4',
+    textSecondary: '#b09a82',
+    textDisabled: '#7a6858',
   },
 
   typography: {
@@ -55,8 +52,8 @@ export const THEME = {
   },
 
   borderRadius: {
-    sm: 6,
-    md: 12,
+    sm: 8,
+    md: 14,
     lg: 18,
     full: 9999,
   },
