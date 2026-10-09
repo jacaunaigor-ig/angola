@@ -66,6 +66,65 @@ export function corCamada(camada, props) {
   return corZona(props?.zonamento_activo || props?.zonamento);
 }
 
+/** Plano de operação a partir dos números já publicados. Não inventa voto municipal. */
+export function tracarEstrategia(foco) {
+  if (!foco || foco.proveniencia_votos === "AUSENTE") return null;
+  const zona = foco.zonamento_activo || foco.zonamento || "CAMPO_BATALHA";
+  const margem = fmtPct(foco.margem_apurada_perc);
+  const movimentos = [];
+
+  if (zona === "BASTIAO") {
+    movimentos.push({
+      fase: "Defesa",
+      acao: `A margem oficial de 2022 é ${margem}. A tarefa é levar quem já inclina a favor à mesa, sem abrir uma narrativa de viragem.`,
+    });
+  } else if (zona === "OPOSICAO") {
+    movimentos.push({
+      fase: "Escuta",
+      acao: `A margem oficial de 2022 é ${margem}. O tom é de escuta: estes números não sustentam prometer a conquista do círculo.`,
+    });
+  } else {
+    movimentos.push({
+      fase: "Disputa",
+      acao: `A margem oficial de 2022 é ${margem}. A campanha trata este círculo como conflito e concentra aqui a brigada.`,
+    });
+  }
+
+  const faltam = Number(foco.hondt_votos_proxima_cadeira);
+  if (Number.isFinite(faltam) && faltam > 0) {
+    movimentos.push({
+      fase: "Cadeira",
+      acao: `Pelo Hondt de 2022 faltam ${fmtInt(faltam)} votos para a próxima cadeira neste círculo.`,
+    });
+  }
+
+  if (foco.abstencao_perc != null) {
+    movimentos.push({
+      fase: "Abstenção",
+      acao: `A abstenção foi ${fmtPct(foco.abstencao_perc)}. O ganho mensurável é converter ausentes, não atribuir voto a um bairro.`,
+    });
+  }
+
+  if (foco.juventude_perc != null) {
+    movimentos.push({
+      fase: "Juventude",
+      acao: `Os 18–35 anos são ${fmtPct(foco.juventude_perc)} do eleitorado estimado. O porta-a-porta marca esta faixa sem nome nem BI.`,
+    });
+  }
+
+  if (foco.custo_logistico_modal) {
+    const meio = String(foco.custo_logistico_descricao || "").replace(/[.\s]+$/, "");
+    movimentos.push({
+      fase: "Meio",
+      acao: `${foco.custo_logistico_modal}${meio ? `: ${meio}` : ""}. Factor de acesso ${foco.custo_logistico_fator || 1}×.`,
+    });
+  }
+
+  const titulo =
+    zona === "BASTIAO" ? "Segurar e mobilizar" : zona === "OPOSICAO" ? "Presença sem promessa falsa" : "Concentrar a disputa";
+  return { zona, titulo, movimentos };
+}
+
 export function priorizar(unidades, pesos) {
   const maxEleitores = Math.max(...unidades.map((u) => Number(u.eleitores_cne) || 0), 1);
   return unidades

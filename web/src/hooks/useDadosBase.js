@@ -86,3 +86,62 @@ export function useTerritorio(plano, versao) {
 
   return estado;
 }
+
+/** Municípios geoBoundaries. Só carrega quando a sala pede esta escala. */
+export function useMalhaMunicipios(activo) {
+  const [estado, setEstado] = useState({ carregando: false, erro: "", features: [], nota: "" });
+
+  useEffect(() => {
+    if (!activo) return undefined;
+    let cancelado = false;
+    setEstado((atual) => ({ ...atual, carregando: true, erro: "" }));
+    api("/api/territorio/municipios")
+      .then((geo) => {
+        if (cancelado) return;
+        setEstado({
+          carregando: false,
+          erro: "",
+          features: geo?.features || [],
+          nota: geo?.nota || "",
+        });
+      })
+      .catch((exc) => {
+        if (!cancelado) setEstado({ carregando: false, erro: exc.message, features: [], nota: "" });
+      });
+    return () => {
+      cancelado = true;
+    };
+  }, [activo]);
+
+  return estado;
+}
+
+/** Comunas e bairros de um município. */
+export function useMalhaLocal(municipio) {
+  const [estado, setEstado] = useState({ carregando: false, erro: "", comunas: [], bairros: [], nota: "" });
+
+  useEffect(() => {
+    if (!municipio) return undefined;
+    let cancelado = false;
+    setEstado({ carregando: true, erro: "", comunas: [], bairros: [], nota: "" });
+    api(`/api/territorio/local?municipio=${encodeURIComponent(municipio)}`)
+      .then((geo) => {
+        if (cancelado) return;
+        setEstado({
+          carregando: false,
+          erro: "",
+          comunas: geo?.comunas?.features || [],
+          bairros: geo?.bairros?.features || [],
+          nota: geo?.nota || "",
+        });
+      })
+      .catch((exc) => {
+        if (!cancelado) setEstado({ carregando: false, erro: exc.message, comunas: [], bairros: [], nota: "" });
+      });
+    return () => {
+      cancelado = true;
+    };
+  }, [municipio]);
+
+  return estado;
+}

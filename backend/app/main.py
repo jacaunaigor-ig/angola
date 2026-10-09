@@ -10,7 +10,7 @@ from psycopg_pool import ConnectionPool
 
 from .database import create_pool
 from .observability import configure_observability, logger, request_logging_middleware
-from .routers import auth, health, legacy, plans, visits, whatsapp
+from .routers import auth, health, legacy, leitura, plans, visits, whatsapp
 from .settings import Settings, get_settings
 
 
@@ -114,6 +114,7 @@ def create_app(
     application.include_router(plans.router)
     application.include_router(visits.router)
     application.include_router(legacy.router)
+    application.include_router(leitura.router)
     application.include_router(whatsapp.router)
     return application
 

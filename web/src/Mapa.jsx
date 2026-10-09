@@ -29,17 +29,22 @@ function boundsDe(features) {
   return caixa.isValid() ? caixa : null;
 }
 
-function Enquadrar({ malhaId, features, alvoNome, resetTrigger }) {
+function Enquadrar({ malhaId, features, alvoNome, resetTrigger, tetoZoom = 8 }) {
   const map = useMap();
   const actual = useRef(features);
   actual.current = features;
   useEffect(() => {
     const malha = actual.current || [];
     const alvo = malha.find((f) => f.properties?.nome === alvoNome);
+    if (alvo?.geometry?.type === "Point") {
+      const [lng, lat] = alvo.geometry.coordinates;
+      map.flyTo([lat, lng], Math.min(15, tetoZoom), { animate: true });
+      return;
+    }
     const caixa = alvo ? boundsDe([alvo]) : boundsDe(malha);
     if (!caixa) return;
-    map.fitBounds(caixa.pad(alvo ? 0.08 : 0.35), { maxZoom: alvo ? 8 : 5.4, animate: true });
-  }, [map, malhaId, alvoNome, resetTrigger]);
+    map.fitBounds(caixa.pad(alvo ? 0.08 : 0.35), { maxZoom: alvo ? tetoZoom : 5.4, animate: true });
+  }, [map, malhaId, alvoNome, resetTrigger, tetoZoom]);
   return null;
 }
 
@@ -52,7 +57,22 @@ function Creditos({ fundo }) {
   return null;
 }
 
+function corMalha(nome) {
+  const paleta = ["#8d6a4a", "#3d6b8c", "#6a7a45", "#8a5048", "#5c5a86", "#3f6f66", "#8a6a32", "#6e4d6a"];
+  let hash = 0;
+  for (const letra of nome || "") hash = (hash * 31 + letra.charCodeAt(0)) >>> 0;
+  return paleta[hash % paleta.length];
+}
+
 function tooltipHtml(props) {
+  if (props.proveniencia_votos === "AUSENTE") {
+    const circulo =
+      props.margem_circulo_perc == null
+        ? ""
+        : `<br/>Círculo ${props.provincia || ""}: ${fmtPct(props.margem_circulo_perc)} em 2022 (não é este polígono)`;
+    const nivel = props.nivel === "bairro" ? "Bairro OSM" : props.nivel === "comuna" ? "Comuna" : "Município";
+    return `<strong>${props.nome || "Território"}</strong><br/>${nivel}<br/>Sem votos da CNE neste nível${circulo}`;
+  }
   const zona = rotuloZona(props.zonamento_activo || props.zonamento);
   const geom = props.proveniencia_geometria === "SIMULADO" ? "<br/><em>Sem traçado oficial</em>" : "";
   return `<strong>${props.nome || "Território"}</strong><br/>${zona}<br/>Margem ${fmtPct(props.margem_apurada_perc)}<br/>Score ${props.score_prioridade ?? props.score ?? "—"} · ${fmtInt(props.eleitores_cne)} eleitores${geom}`;
@@ -64,10 +84,11 @@ function estilo(feature, { camada, selecionado, filtro, fundo }) {
   const dim = filtro && zona !== filtro;
   const activo = selecionado && (props.nome === selecionado || props.codigo_dpa === selecionado);
   const comFundo = fundo !== "nenhum";
+  const semVoto = props.proveniencia_votos === "AUSENTE";
   return {
     color: activo ? "#f5c518" : comFundo ? "#f4eee4" : "#100c0b",
     weight: activo ? 2.4 : comFundo ? 1.1 : 1,
-    fillColor: corCamada(camada, props),
+    fillColor: semVoto ? corMalha(props.nome) : corCamada(camada, props),
     fillOpacity: dim ? 0.08 : comFundo ? 0.38 : 0.78,
     opacity: dim ? 0.35 : 1,
   };
@@ -84,6 +105,7 @@ export default function MapaTerritorio({
   fundo = "ruas",
   carregando = false,
   resetTrigger = 0,
+  tetoZoom = 8,
 }) {
   const lista = features || [];
   const poligonos = useMemo(() => lista.filter((f) => f.geometry?.type !== "Point"), [lista]);
@@ -112,7 +134,7 @@ export default function MapaTerritorio({
       className={compacto ? "mapa mapa-compacto" : "mapa"}
       scrollWheelZoom
       minZoom={3}
-      maxZoom={12}
+      maxZoom={16}
       maxBounds={REGIAO}
       maxBoundsViscosity={0.55}
       worldCopyJump={false}
@@ -127,7 +149,7 @@ export default function MapaTerritorio({
           crossOrigin
         />
       )}
-      <Enquadrar malhaId={malhaId} features={poligonos} alvoNome={selecionado} resetTrigger={resetTrigger} />
+      <Enquadrar malhaId={malhaId} features={lista} alvoNome={selecionado} resetTrigger={resetTrigger} tetoZoom={tetoZoom} />
       {contorno?.features && (
         <GeoJSON
           data={contorno}
@@ -156,20 +178,22 @@ export default function MapaTerritorio({
         const activo = selecionado === props.nome;
         return (
           <CircleMarker
-            key={props.codigo_dpa || props.nome}
+            key={`${props.nivel || "ponto"}-${props.nome}-${lng}-${lat}`}
             center={[lat, lng]}
             radius={activo ? 11 : 8}
             pathOptions={{
               color: activo ? "#f5c518" : "#f4eee4",
               weight: 1.5,
-              fillColor: corCamada(camada, props),
+              fillColor: props.proveniencia_votos === "AUSENTE" ? corMalha(props.nome) : corCamada(camada, props),
               fillOpacity: 0.92,
               dashArray: "3 3",
             }}
             eventHandlers={{ click: () => onSelect?.(props) }}
           >
             <Tooltip className="mapa-tip" sticky>
-              {props.nome} · sem traçado oficial (DPA 2024)
+              {props.nivel === "bairro"
+                ? `${props.nome} · bairro OSM, sem votos CNE`
+                : `${props.nome} · sem traçado oficial (DPA 2024)`}
             </Tooltip>
           </CircleMarker>
         );

@@ -251,6 +251,19 @@ export function IconeMalha(props) {
   );
 }
 
+export function IconeRedes(props) {
+  return svgBase(
+    <>
+      <circle cx="6" cy="12" r="2.2" />
+      <circle cx="18" cy="6" r="2.2" />
+      <circle cx="18" cy="18" r="2.2" />
+      <path d="M8 11.2 15.8 7.2" />
+      <path d="M8 12.8 15.8 16.8" />
+    </>,
+    props,
+  );
+}
+
 export function IconeZonamento(props) {
   return svgBase(
     <>

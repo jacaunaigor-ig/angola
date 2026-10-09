@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import ErrorBoundary from "./components/ErrorBoundary.jsx";
 import {
   IconeAngolaEmblema,
@@ -13,8 +13,11 @@ import {
   IconeMenu,
   IconeMobile,
   IconePlanos,
+  IconeRedes,
 } from "./components/Icones.jsx";
+import FilmeNarra from "./components/FilmeNarra.jsx";
 import { Aviso, Selo } from "./components/ui.jsx";
+import { CREDENCIAIS_DEMO, PASSOS_FILME } from "./filme.js";
 import { useDadosGlobais, useTerritorio } from "./hooks/useDadosBase.js";
 import { useSessao } from "./hooks/useSessao.js";
 import Comando from "./views/Comando.jsx";
@@ -24,6 +27,7 @@ import Eleitor from "./views/Eleitor.jsx";
 import Entrada from "./views/Entrada.jsx";
 import Hondt from "./views/Hondt.jsx";
 import Planos from "./views/Planos.jsx";
+import Redes from "./views/Redes.jsx";
 
 const CONSULTA_KEY = "warroom_consulta";
 
@@ -47,6 +51,7 @@ const DECISAO = [
   ["diad", "Dia D", "Apuramento", IconeDiaD],
 ];
 const APOIO = [
+  ["redes", "Redes", "Qualquer lista", IconeRedes],
   ["planos", "Planos", "Contratação", IconePlanos],
   ["discurso", "Discursos", "Revisão humana", IconeDiscursos],
   ["eleitor", "Eleitor", "WhatsApp", IconeEleitor],
@@ -95,6 +100,13 @@ export default function App() {
   const sessao = useSessao();
   const dados = useDadosGlobais();
   const territorio = useTerritorio(plano, versao);
+  const [filme, setFilme] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return new URLSearchParams(window.location.search).get("filme") === "1";
+  });
+  const [passoFilme, setPassoFilme] = useState(0);
+  const [filmeAuto, setFilmeAuto] = useState(true);
+  const filmeLoginFeito = useRef(false);
 
   useEffect(() => {
     function aoMudarHash() {
@@ -114,7 +126,50 @@ export default function App() {
     };
   }, []);
 
-  const isMobileView = modoDispositivo === "mobile" || (modoDispositivo === "auto" && isMobileScreen);
+  useEffect(() => {
+    if (!filme || filmeLoginFeito.current || sessao.ativa) return undefined;
+    filmeLoginFeito.current = true;
+    sessao
+      .entrar(CREDENCIAIS_DEMO)
+      .then(() => {
+        sessionStorage.removeItem(CONSULTA_KEY);
+        setConsulta(false);
+        setPedirLogin(false);
+      })
+      .catch(() => {
+        sessionStorage.setItem(CONSULTA_KEY, "1");
+        setConsulta(true);
+      });
+    return undefined;
+  }, [filme, sessao]);
+
+  useEffect(() => {
+    if (!filme) return undefined;
+    if (!sessao.ativa && !consulta) return undefined;
+    const passo = PASSOS_FILME[passoFilme];
+    if (!passo) return undefined;
+    setAba(passo.aba);
+    window.location.hash = passo.aba;
+    sessionStorage.setItem("warroom_aba", passo.aba);
+    if (passo.plano) {
+      setPlano(passo.plano);
+      sessionStorage.setItem("warroom_plano", passo.plano);
+    }
+    return undefined;
+  }, [filme, passoFilme, sessao.ativa, consulta]);
+
+  useEffect(() => {
+    if (!filme || !filmeAuto) return undefined;
+    if (!sessao.ativa && !consulta) return undefined;
+    if (passoFilme >= PASSOS_FILME.length - 1) return undefined;
+    const espera = PASSOS_FILME[passoFilme]?.ms || 6000;
+    const temporizador = setTimeout(() => setPassoFilme((atual) => atual + 1), espera);
+    return () => clearTimeout(temporizador);
+  }, [filme, filmeAuto, passoFilme, sessao.ativa, consulta]);
+
+  const isMobileView = filme
+    ? false
+    : modoDispositivo === "mobile" || (modoDispositivo === "auto" && isMobileScreen);
   const actual = ABAS.find(([id]) => id === aba) || ABAS[0];
   const abaDeApoioActiva = APOIO.some(([id]) => id === aba);
   const emailSessao = sessao.utilizador?.email;
@@ -122,24 +177,6 @@ export default function App() {
   const campanhaCurta = sessao.utilizador?.campanha_id
     ? String(sessao.utilizador.campanha_id).slice(0, 8)
     : "";
-
-  if (!sessao.ativa && (!consulta || pedirLogin)) {
-    return (
-      <Entrada
-        onEntrar={async (credenciais) => {
-          await sessao.entrar(credenciais);
-          sessionStorage.removeItem(CONSULTA_KEY);
-          setConsulta(false);
-          setPedirLogin(false);
-        }}
-        onConsulta={() => {
-          sessionStorage.setItem(CONSULTA_KEY, "1");
-          setConsulta(true);
-          setPedirLogin(false);
-        }}
-      />
-    );
-  }
 
   const mudarAba = (novaAba) => {
     setAba(novaAba);
@@ -162,8 +199,33 @@ export default function App() {
     }
   };
 
+  if (!sessao.ativa && (!consulta || pedirLogin)) {
+    return (
+      <Entrada
+        onEntrar={async (credenciais) => {
+          await sessao.entrar(credenciais);
+          sessionStorage.removeItem(CONSULTA_KEY);
+          setConsulta(false);
+          setPedirLogin(false);
+        }}
+        onConsulta={() => {
+          sessionStorage.setItem(CONSULTA_KEY, "1");
+          setConsulta(true);
+          setPedirLogin(false);
+        }}
+        onFilme={() => {
+          setFilmeAuto(true);
+          setPassoFilme(0);
+          setFilme(true);
+        }}
+      />
+    );
+  }
+
+  const narra = PASSOS_FILME[passoFilme] || PASSOS_FILME[0];
+
   return (
-    <div className={`shell ${isMobileView ? "modo-mobile" : "modo-desktop"}`}>
+    <div className={`shell ${isMobileView ? "modo-mobile" : "modo-desktop"}${filme ? " filme-activo" : ""}`}>
       <a className="salto" href="#conteudo">Saltar para o conteúdo</a>
 
       {/* Sidebar Desktop (Oculta no modo Mobile) */}
@@ -294,6 +356,9 @@ export default function App() {
                   className="ghost"
                   type="button"
                   onClick={() => {
+                    setFilme(false);
+                    setFilmeAuto(true);
+                    setPassoFilme(0);
                     sessao.sair();
                     sessionStorage.removeItem(CONSULTA_KEY);
                     setConsulta(false);
@@ -320,12 +385,13 @@ export default function App() {
         {/* Conteúdo Dinâmico das Abas */}
         <ErrorBoundary key={aba}>
           {aba === "comando" && (
-            <Comando dados={dados} territorio={territorio} plano={plano} setPlano={mudarPlano} versao={versao} setVersao={setVersao} />
+            <Comando dados={dados} territorio={territorio} plano={plano} setPlano={mudarPlano} versao={versao} setVersao={setVersao} pedidoEscala={filme ? PASSOS_FILME[passoFilme]?.escala : ""} />
           )}
           {aba === "hondt" && (
             <Hondt hondtGeral={dados.hondtGeral} contorno={dados.contorno} territorio={territorio} />
           )}
           {aba === "diad" && <DiaD plano={plano} sessao={sessao} />}
+          {aba === "redes" && <Redes />}
           {aba === "planos" && <Planos planos={dados.planos} plano={plano} setPlano={mudarPlano} />}
           {aba === "discurso" && <Discursos plano={plano} sessao={sessao} />}
           {aba === "eleitor" && <Eleitor />}
@@ -452,6 +518,28 @@ export default function App() {
             </div>
           </div>
         </div>
+      )}
+
+      {filme && (
+        <FilmeNarra
+          passo={passoFilme}
+          total={PASSOS_FILME.length}
+          titulo={narra.titulo}
+          fala={narra.fala}
+          onParar={() => {
+            setFilme(false);
+            setFilmeAuto(true);
+            setPassoFilme(0);
+          }}
+          onAnterior={() => {
+            setFilmeAuto(false);
+            setPassoFilme((atual) => Math.max(0, atual - 1));
+          }}
+          onSeguinte={() => {
+            setFilmeAuto(false);
+            setPassoFilme((atual) => Math.min(PASSOS_FILME.length - 1, atual + 1));
+          }}
+        />
       )}
     </div>
   );
