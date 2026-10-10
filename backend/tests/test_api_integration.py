@@ -3,11 +3,12 @@ from uuid import uuid4
 
 import psycopg
 from conftest import ACTIVIST_ID, CAMPAIGN_ID, ZONE_ID, token_for
+from psycopg.rows import dict_row
 
 
 def test_postgres_transaction_commits_and_rolls_back(test_database_url):
     marker = uuid4()
-    with psycopg.connect(test_database_url) as connection:
+    with psycopg.connect(test_database_url, row_factory=dict_row) as connection:
         connection.execute("CREATE TEMP TABLE IF NOT EXISTS transaction_probe (id uuid PRIMARY KEY)")
         with connection.transaction():
             connection.execute("INSERT INTO transaction_probe VALUES (%s)", (marker,))
