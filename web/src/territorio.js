@@ -129,6 +129,9 @@ export function priorizar(unidades, pesos) {
   const maxEleitores = Math.max(...unidades.map((u) => Number(u.eleitores_cne) || 0), 1);
   return unidades
     .map((row) => {
+      if (row.proveniencia_votos === "AUSENTE") {
+        return { ...row, score: null };
+      }
       // Se a API já calculou o índice integrado completo (com custo logístico e Hondt):
       if (row.score_prioridade !== undefined && row.score_prioridade !== null) {
         return { ...row, score: Number(row.score_prioridade) };

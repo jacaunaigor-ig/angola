@@ -45,3 +45,7 @@ A seguir, por esta ordem:
 2. Guardar o registo de peças na campanha. Hoje fica só neste browser.
 3. Exportar o registo da semana em CSV.
 4. Separar os números de audiência por fonte e data. Hoje estão num parágrafo único.
+
+## Em curso: grão territorial e sync de visitas
+
+Município, comuna e bairro não herdam a acta provincial de 2022. A DPA 2024 só mantém votos OFICIAL nas províncias inalteradas. A sync FastAPI confirma lote idempotente, GPS a ~110 m e resposta sem nome, BI ou telefone.
