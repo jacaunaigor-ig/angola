@@ -1,5 +1,5 @@
 -- ==============================================================================
--- MIGRATION 09: QUEIXAS DO CANAL DO ELEITOR (WHATSAPP)
+-- MIGRATION 11: QUEIXAS DO CANAL DO ELEITOR (WHATSAPP)
 -- Persistência com retenção de 90 dias, telefones só mascarados + hash HMAC,
 -- e RLS por campanha. O webhook público pode gravar campanha_id NULL.
 -- ==============================================================================

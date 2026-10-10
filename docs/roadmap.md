@@ -19,7 +19,7 @@ Ordenadas por impacto.
 
 1. **Resposta ao eleitor não sai para a Meta.** O webhook devolve o texto, mas o envio pela Cloud API depende de `WHATSAPP_ACCESS_TOKEN` e de um cliente de saída.
 2. **Resultados municipais.** Só existem totais nacionais e círculos provinciais de 2022. Sem municípios, o score não distingue bairros.
-3. **Painéis executivos.** `pages/1_Paineis_Executivos.py` continua em Streamlit e com dados simulados.
+3. **Painéis executivos.** `prototipo/pages/1_Paineis_Executivos.py` continua em Streamlit e com dados simulados. A sala operacional é `web/`.
 4. **EAS cloud build.** O perfil `preview` gera APK; o build na nuvem Expo exige conta e `eas login`.
 
 ## Ordem sugerida

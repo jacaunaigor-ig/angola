@@ -44,7 +44,11 @@ jobs:
         with:
           node-version: '20.x'
           cache: 'npm'
-          cache-dependency-path: backend/package-lock.json
+          cache-dependency-path: arquivo/api-node/package-lock.json
+
+      - name: Dependências da API Node arquivada
+        working-directory: arquivo/api-node
+        run: npm ci
 
       - name: Configurar Python 3.11
         uses: actions/setup-python@v5
@@ -73,12 +77,12 @@ jobs:
           node tests/test_planos_comerciais.js
 
       - name: Testes do motor analítico (Python)
-        run: python -m unittest tests/test_anomalias_campo.py tests/test_planos_comerciais.py
+        run: python -m unittest tests/test_anomalias_campo.py tests/test_planos_comerciais.py tests/test_ordem_migracoes.py
 
       - name: Compilação dos módulos Python
         run: |
-          python -m py_compile app.py api_client.py boot.py backend/boot.py backend/create_user.py
-          python -c "import pathlib, py_compile; [py_compile.compile(str(p), doraise=True) for base in ('backend/app', 'backend/tests', 'pages', 'war_room') for p in pathlib.Path(base).rglob('*.py')]"
+          python -m py_compile boot.py backend/boot.py backend/create_user.py
+          python -c "import pathlib, py_compile; [py_compile.compile(str(p), doraise=True) for base in ('backend/app', 'backend/tests', 'prototipo', 'war_room') for p in pathlib.Path(base).rglob('*.py')]"
 
       - name: Testes de contrato e integração FastAPI + PostGIS
         run: python -m pytest backend/tests

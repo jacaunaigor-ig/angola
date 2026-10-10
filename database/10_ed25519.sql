@@ -1,5 +1,5 @@
 -- ==============================================================================
--- MIGRATION 08: CADEIA PROBATÓRIA ED25519 NAS ATAS DE APURAMENTO
+-- MIGRATION 10: CADEIA PROBATÓRIA ED25519 NAS ATAS DE APURAMENTO
 -- Guarda a assinatura e a chave pública do delegado após validação na API,
 -- para auditoria judicial posterior (não só verificação em memória no pedido).
 -- ==============================================================================
