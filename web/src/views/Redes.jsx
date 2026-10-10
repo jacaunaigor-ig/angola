@@ -3,11 +3,18 @@ import {
   CANAIS,
   LEITURAS,
   PARTIDOS,
+  PROVINCIAS,
   PUBLICOS,
   TEMAS,
+  canalDaFonte,
   fraseLado,
   leituraPorId,
+  mencaoNoTexto,
+  planoDaSemana,
   publicoPorId,
+  rotuloMencao,
+  temaConhecido,
+  termosDoLado,
 } from "../campanha.js";
 import { Aviso, Cartao, Selo } from "../components/ui.jsx";
 import { useCampo } from "../hooks/useCampo.js";
@@ -17,7 +24,7 @@ const VAZIO = {
   canal: "TikTok",
   tema: "EMPREGO",
   publico: "jovem_urbano",
-  provincia: "Luanda",
+  provincia: "Nacional",
   leitura: "facto",
   texto: "",
 };
@@ -28,6 +35,7 @@ export default function Redes() {
   const [campo, actualizar] = useCampo();
   const [filtro, setFiltro] = useState("");
   const [rascunho, setRascunho] = useState(VAZIO);
+  const [avisoPeca, setAvisoPeca] = useState("");
 
   function patchLado(lado, parcial) {
     actualizar({ ...campo, [lado]: { ...campo[lado], ...parcial } });
@@ -45,6 +53,21 @@ export default function Redes() {
     };
     actualizar({ ...campo, registos: [registo, ...campo.registos].slice(0, 80) });
     setRascunho({ ...VAZIO, texto: "" });
+    setAvisoPeca("");
+  }
+
+  function usarManchete(item) {
+    const tema = temaConhecido((item.temas || [])[0]);
+    setRascunho({
+      canal: canalDaFonte(item.fonte, item.titulo),
+      tema,
+      publico: "jovem_urbano",
+      provincia: "Nacional",
+      leitura: "facto",
+      texto: item.titulo || "",
+    });
+    setAvisoPeca("A manchete ficou no formulário, como facto público. Dizer se favorece ou critica é decisão tua.");
+    document.getElementById("registo-peca")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   function apagar(id) {
@@ -90,7 +113,8 @@ export default function Redes() {
         <p className="muted lado-frase">{fraseLado(campo)}</p>
       </Cartao>
 
-      <LeituraSemanal estado={leitura} />
+      <PlanoSemana estado={leitura} />
+      <LeituraSemanal estado={leitura} campo={campo} onRegistar={usarManchete} />
 
       <Cartao titulo="Três públicos" nota="O mesmo círculo não se ganha com a mesma frase. Metade do país continua offline.">
         <div className="publicos">
@@ -115,7 +139,8 @@ export default function Redes() {
         nota="Uma linha por peça pública. O registo diz se favorece o cliente, o critica, ou é só um facto. Não é sondagem."
         acao={<Selo tipo="RASCUNHO" />}
       >
-        <form onSubmit={guardarRegisto} className="rede-form">
+        <form id="registo-peca" onSubmit={guardarRegisto} className="rede-form">
+          {avisoPeca && <p className="rede-aviso">{avisoPeca}</p>}
           <label>
             Canal
             <select value={rascunho.canal} onChange={(e) => setRascunho({ ...rascunho, canal: e.target.value })}>
@@ -142,7 +167,9 @@ export default function Redes() {
           </label>
           <label>
             Província
-            <input value={rascunho.provincia} onChange={(e) => setRascunho({ ...rascunho, provincia: e.target.value })} />
+            <select value={rascunho.provincia} onChange={(e) => setRascunho({ ...rascunho, provincia: e.target.value })}>
+              {PROVINCIAS.map((nome) => <option key={nome}>{nome}</option>)}
+            </select>
           </label>
           <label className="rede-texto">
             O que foi dito, em público
@@ -184,7 +211,43 @@ export default function Redes() {
   );
 }
 
-function LeituraSemanal({ estado }) {
+function PlanoSemana({ estado }) {
+  if (estado.carregando) {
+    return (
+      <Cartao titulo="Pauta da semana" nota="Espera as manchetes. Sem elas, não há meio recomendado." acao={<Selo tipo="RASCUNHO" />}>
+        <p className="muted">A recolher a leitura pública…</p>
+      </Cartao>
+    );
+  }
+  if (!estado.leitura) {
+    return (
+      <Cartao titulo="Pauta da semana" nota="Sem leitura, não há pauta." acao={<Selo tipo="RASCUNHO" />}>
+        <p>Não inventes assunto. Quando a leitura voltar, o tema com mais manchetes sugere uma frase por público.</p>
+      </Cartao>
+    );
+  }
+  const plano = planoDaSemana(estado.leitura.temas);
+  return (
+    <Cartao
+      titulo="Pauta da semana"
+      nota="Três frases, uma por público. A barra na leitura compara as manchetes recolhidas, não o país."
+      acao={<Selo tipo="RASCUNHO" />}
+    >
+      <p>{plano.nota}</p>
+      <div className="plano-meios">
+        {plano.meios.map((meio) => (
+          <article key={meio.id} className="publico">
+            <strong>{meio.nome}</strong>
+            <span>{meio.canal}</span>
+            <p>{meio.acao}</p>
+          </article>
+        ))}
+      </div>
+    </Cartao>
+  );
+}
+
+function LeituraSemanal({ estado, campo, onRegistar }) {
   const leitura = estado.leitura;
   const temas = leitura?.temas || [];
   const maximo = Math.max(...temas.map((t) => t.manchetes), 1);
@@ -192,8 +255,17 @@ function LeituraSemanal({ estado }) {
   const proxima = leitura?.proxima_em ? new Date(leitura.proxima_em) : null;
   const [tema, setTema] = useState("");
   const [origem, setOrigem] = useState("");
+  const [mencaoFiltro, setMencaoFiltro] = useState("");
   const [todas, setTodas] = useState(false);
-  const manchetes = (leitura?.manchetes || []).filter((item) => !tema || (item.temas || []).includes(tema));
+  const ladoEscolhido = termosDoLado(campo?.nosso).length + termosDoLado(campo?.adversario).length > 0;
+  const manchetes = (leitura?.manchetes || []).filter((item) => {
+    if (tema && !(item.temas || []).includes(tema)) return false;
+    if (!mencaoFiltro) return true;
+    const codigo = mencaoNoTexto(`${item.titulo || ""} ${item.fonte || ""}`, campo);
+    if (mencaoFiltro === "cliente") return codigo === "cliente" || codigo === "ambos";
+    if (mencaoFiltro === "adversario") return codigo === "adversario" || codigo === "ambos";
+    return codigo === mencaoFiltro;
+  });
   const visiveis = todas ? manchetes : manchetes.slice(0, 6);
   const canais = (leitura?.canais || []).filter((canal) => !origem || canal.lado === origem);
 
@@ -228,15 +300,30 @@ function LeituraSemanal({ estado }) {
               </button>
             ))}
           </div>
+          {ladoEscolhido && (
+            <div className="filtros-canal" role="group" aria-label="Menção aos lados">
+              <button type="button" className={`ghost${!mencaoFiltro ? " activa" : ""}`} onClick={() => setMencaoFiltro("")}>Todas</button>
+              <button type="button" className={`ghost${mencaoFiltro === "cliente" ? " activa" : ""}`} onClick={() => setMencaoFiltro(mencaoFiltro === "cliente" ? "" : "cliente")}>Nomeia o cliente</button>
+              <button type="button" className={`ghost${mencaoFiltro === "adversario" ? " activa" : ""}`} onClick={() => setMencaoFiltro(mencaoFiltro === "adversario" ? "" : "adversario")}>Nomeia o adversário</button>
+            </div>
+          )}
           <ul className="manchetes">
-            {visiveis.map((item) => (
-              <li key={item.ligacao || item.titulo}>
-                <a href={item.ligacao} target="_blank" rel="noreferrer">{item.titulo}</a>
-                <span>{item.fonte}</span>
-              </li>
-            ))}
+            {visiveis.map((item) => {
+              const mencao = mencaoNoTexto(`${item.titulo || ""} ${item.fonte || ""}`, campo);
+              const rotulo = rotuloMencao(mencao);
+              return (
+                <li key={item.ligacao || item.titulo}>
+                  <a href={item.ligacao} target="_blank" rel="noreferrer">{item.titulo}</a>
+                  <button type="button" className="ghost" onClick={() => onRegistar(item)}>Usar no registo</button>
+                  <span>
+                    {item.fonte}
+                    {rotulo ? ` · ${rotulo}` : ""}
+                  </span>
+                </li>
+              );
+            })}
           </ul>
-          {manchetes.length === 0 && <p className="muted">Nenhuma manchete desta semana cai nesse tema.</p>}
+          {manchetes.length === 0 && <p className="muted">Nenhuma manchete desta semana cai nesse filtro.</p>}
           {manchetes.length > 6 && (
             <button type="button" className="ghost" onClick={() => setTodas(!todas)}>
               {todas ? "Mostrar menos" : `Ver as ${manchetes.length} manchetes`}
