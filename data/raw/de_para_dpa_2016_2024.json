@@ -14,7 +14,8 @@
         { "nome": "Moxico Leste", "origem": "Desmembrada da Província do Moxico (Sede: Luau)" },
         { "nome": "Cuando", "origem": "Desmembrada da Província do Cuando Cubango (Sede: Mavinga)" }
       ]
-    }
+    },
+    "regra_votos": "A correspondência parte geometria e nomes. Não redistribui votos de 2022. Sem microdados municipais da CNE, nenhum município, comuna ou bairro recebe selo OFICIAL de votos. Províncias novas ou residuais da DPA 2024 ficam AUSENTE."
   },
   "correspondencias_provincias": [
     {

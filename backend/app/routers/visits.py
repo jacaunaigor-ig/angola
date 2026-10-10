@@ -31,7 +31,7 @@ def synchronize_visits(
     request: Request,
     user: Annotated[dict, Depends(field_user)],
 ):
-    if payload.campanha_id != user["campaign_id"]:
+    if str(payload.campanha_id) != user["campaign_id"]:
         raise HTTPException(status_code=403, detail="A campanha não corresponde ao token autenticado.")
 
     now = datetime.now(UTC)

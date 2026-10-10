@@ -105,6 +105,8 @@ def test_fastapi_contract_registers_health_auth_and_legacy_routes():
     assert "/api/whatsapp/queixas" in schema["paths"]
     assert "/api/territorio/contorno-nacional" in schema["paths"]
     assert "/api/territorio/geo-angola" in schema["paths"]
+    assert "/api/territorio/municipios" in schema["paths"]
+    assert "/api/territorio/local" in schema["paths"]
 
 
 def test_commercial_plans_entitlements_guard():
@@ -510,6 +512,7 @@ def test_unidades_ancoram_geometria_geo_angola_sem_inventar_dpa2024():
     assert luanda["properties"]["geometria_fonte"] == "geo_angola"
     assert luanda["properties"]["proveniencia_geometria"] == "OFICIAL"
     assert luanda["properties"]["proveniencia_dados"] == "OFICIAL"
+    assert luanda["properties"]["proveniencia_votos"] == "OFICIAL"
 
     dpa2024 = client.get("/api/territorio/unidades?versao=DPA_2024_21P&formato=geojson")
     assert dpa2024.status_code == 200
@@ -518,6 +521,7 @@ def test_unidades_ancoram_geometria_geo_angola_sem_inventar_dpa2024():
     assert icolo["geometry"]["type"] == "Point"
     assert icolo["properties"]["proveniencia_geometria"] == "SIMULADO"
     assert icolo["properties"]["proveniencia_dados"] == "SIMULADO"
+    assert icolo["properties"]["proveniencia_votos"] == "AUSENTE"
     huambo = next(f for f in dpa2024.json()["features"] if f["properties"]["nome"] == "Huambo")
     assert huambo["geometry"]["type"] in {"Polygon", "MultiPolygon"}
     assert huambo["properties"]["geometria_fonte"] == "geo_angola"
