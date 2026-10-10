@@ -343,7 +343,8 @@ export default function Comando({ dados, territorio, plano, setPlano, versao, se
   const linhas = useMemo(() => {
     const marcadas = territorio.features.map((f) => {
       const props = f.properties || {};
-      const formula = classificar(props.margem_apurada_perc, bastiao, oposicao);
+      const semVoto = props.proveniencia_votos === "AUSENTE";
+      const formula = semVoto ? null : classificar(props.margem_apurada_perc, bastiao, oposicao);
       const ajuste = ajustes[props.nome];
       return {
         ...props,
@@ -677,23 +678,31 @@ export default function Comando({ dados, territorio, plano, setPlano, versao, se
                     >
                       <td><strong>{row.nome}</strong></td>
                       <td>
-                        <span className={`zona ${row.zonamento_activo}`}>{rotuloZona(row.zonamento_activo)}</span>
+                        {row.proveniencia_votos === "AUSENTE" ? (
+                          "—"
+                        ) : (
+                          <span className={`zona ${row.zonamento_activo}`}>{rotuloZona(row.zonamento_activo)}</span>
+                        )}
                         {row.decisao_analista && <em className="marca-decisao">decisão</em>}
                       </td>
                       <td>
-                        {c ? (
+                        {c && (c[0] || c[1]) ? (
                           <span style={{ fontSize: "11px", fontWeight: "600" }}>
                             <span style={{ color: "var(--mpla)" }}>{c[0]}</span>–<span style={{ color: "var(--unita)" }}>{c[1]}</span>
                           </span>
                         ) : "—"}
                       </td>
                       <td>
-                        <span className={`badge badge-${(row.custo_logistico_dificuldade || "media").toLowerCase()}`}>
-                          {row.custo_logistico_fator ? `${row.custo_logistico_fator}×` : "1×"}
-                        </span>
+                        {row.proveniencia_votos === "AUSENTE" ? (
+                          "—"
+                        ) : (
+                          <span className={`badge badge-${(row.custo_logistico_dificuldade || "media").toLowerCase()}`}>
+                            {row.custo_logistico_fator ? `${row.custo_logistico_fator}×` : "1×"}
+                          </span>
+                        )}
                       </td>
                       <td className="num">
-                        <strong style={{ color: "var(--accent)" }}>{row.score}</strong>
+                        <strong style={{ color: "var(--accent)" }}>{row.score ?? "—"}</strong>
                       </td>
                     </tr>
                   );
