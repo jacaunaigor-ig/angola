@@ -760,8 +760,15 @@ tbody tr.activa {
 .temas-semana button.activo { background: rgba(245, 197, 24, 0.12); }
 .temas-semana i { display: block; height: 8px; border-radius: 99px; background: var(--accent); justify-self: stretch; }
 .manchetes, .canais { list-style: none; margin: 8px 0; padding: 0; }
-.manchetes li { padding: 8px 0; border-top: 1px solid var(--line); }
+.manchetes li {
+  display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; align-items: center;
+  padding: 8px 0; border-top: 1px solid var(--line);
+}
 .manchetes a { color: var(--text-bright); font-weight: 650; }
+.manchetes li span { grid-column: 1; }
+.plano-meios { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.plano-meios .publico { cursor: default; }
+.rede-aviso { grid-column: 1 / -1; margin: 0; color: var(--text-bright); }
 .manchetes span, .canais span { display: block; color: var(--muted); font-size: 12px; }
 .canais { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
 .canais a {
@@ -769,7 +776,7 @@ tbody tr.activa {
   background: var(--panel-2); color: var(--text-bright); text-decoration: none;
 }
 @media (max-width: 800px) {
-  .publicos, .rede-form, .canais, .lados { grid-template-columns: 1fr; }
+  .publicos, .rede-form, .canais, .lados, .plano-meios { grid-template-columns: 1fr; }
   .temas-semana button { grid-template-columns: 1fr 28px; }
   .temas-semana i { display: none; }
 }

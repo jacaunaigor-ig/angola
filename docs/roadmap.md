@@ -27,3 +27,21 @@ Ordenadas por impacto.
 1. Cliente de saída WhatsApp com modelos aprovados.
 2. Cruzamento municipal quando a CNE publicar microdados.
 3. Build EAS `preview` assinado para distribuição interna em Android de entrada.
+
+## Em curso: redes e mídia
+
+A leitura semanal conta palavras em manchetes públicas. Não é sondagem e não entra no Hondt nem no score.
+
+Entregue nesta etapa:
+
+- Pauta da semana: o tema com mais manchetes sugere uma frase por público (jovem urbano, bairro, interior), com selo `RASCUNHO`.
+- A manchete diz se nomeia o cliente ou o adversário escolhidos neste browser. O feed no servidor continua igual para qualquer partido.
+- Uma manchete passa ao registo local sem ser reescrita. A leitura a favor ou contra fica por decidir.
+- O classificador deixa de tratar «profundo» como fundo e deixa de marcar quase tudo como pacto por causa da palavra «candidato».
+
+A seguir, por esta ordem:
+
+1. Alargar a pesquisa de manchetes. Hoje o feed privilegia MPLA, UNITA, Lourenço e congresso.
+2. Guardar o registo de peças na campanha. Hoje fica só neste browser.
+3. Exportar o registo da semana em CSV.
+4. Separar os números de audiência por fonte e data. Hoje estão num parágrafo único.
