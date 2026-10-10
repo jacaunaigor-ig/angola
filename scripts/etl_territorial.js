@@ -5,7 +5,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { calcularZonamento, REGRAS_PADRAO } = require('../backend/src/services/zonamentoService');
+const { calcularZonamento, REGRAS_PADRAO } = require('../arquivo/api-node/src/services/zonamentoService');
 
 const ROOT_DIR = path.resolve(__dirname, '..');
 const RAW_DIR = path.join(ROOT_DIR, 'data', 'raw');

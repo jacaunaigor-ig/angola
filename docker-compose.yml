@@ -12,18 +12,18 @@ services:
       - "${PGPORT:-5432}:5432"
     volumes:
       - postgis_data:/var/lib/postgresql/data
-      # Scripts de migração e seeds executados por ordem alfabética no primeiro arranque:
-      - ./database/01_schema_postgis.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
-      - ./database/02_seed_angola_data.sql:/docker-entrypoint-initdb.d/02_seed.sql:ro
-      - ./database/03_seed_municipios_angola.sql:/docker-entrypoint-initdb.d/03_municipios.sql:ro
-      - ./database/04_carga_territorial_oficial.sql:/docker-entrypoint-initdb.d/04_carga_territorial.sql:ro
-      - ./database/05_migration_fastapi_evidence.sql:/docker-entrypoint-initdb.d/05_evidencias.sql:ro
-      - ./database/06_migration_fastapi_users.sql:/docker-entrypoint-initdb.d/06_usuarios.sql:ro
-      - ./database/05_audit_logs.sql:/docker-entrypoint-initdb.d/05_audit.sql:ro
-      - ./database/06_planos_comerciais.sql:/docker-entrypoint-initdb.d/06_planos.sql:ro
-      - ./database/07_migration_rls_multi_tenancy.sql:/docker-entrypoint-initdb.d/07_rls.sql:ro
-      - ./database/08_assinatura_ed25519.sql:/docker-entrypoint-initdb.d/08_ed25519.sql:ro
-      - ./database/09_canal_eleitor_queixas.sql:/docker-entrypoint-initdb.d/09_queixas.sql:ro
+      # Ordem alfabética do nome no contentor = ordem de aplicação. Um prefixo por ficheiro.
+      - ./database/01_schema_postgis.sql:/docker-entrypoint-initdb.d/01_schema_postgis.sql:ro
+      - ./database/02_seed_angola_data.sql:/docker-entrypoint-initdb.d/02_seed_angola_data.sql:ro
+      - ./database/03_seed_municipios_angola.sql:/docker-entrypoint-initdb.d/03_seed_municipios_angola.sql:ro
+      - ./database/04_carga_territorial_oficial.sql:/docker-entrypoint-initdb.d/04_carga_territorial_oficial.sql:ro
+      - ./database/05_evidencias.sql:/docker-entrypoint-initdb.d/05_evidencias.sql:ro
+      - ./database/06_usuarios.sql:/docker-entrypoint-initdb.d/06_usuarios.sql:ro
+      - ./database/07_auditoria.sql:/docker-entrypoint-initdb.d/07_auditoria.sql:ro
+      - ./database/08_planos_comerciais.sql:/docker-entrypoint-initdb.d/08_planos_comerciais.sql:ro
+      - ./database/09_rls.sql:/docker-entrypoint-initdb.d/09_rls.sql:ro
+      - ./database/10_ed25519.sql:/docker-entrypoint-initdb.d/10_ed25519.sql:ro
+      - ./database/11_queixas.sql:/docker-entrypoint-initdb.d/11_queixas.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s
@@ -73,10 +73,12 @@ services:
     networks:
       - rede_eleitoral
 
-  # 3b. Protótipo Streamlit. O cliente operacional é o serviço web.
+  # 3b. Protótipo Streamlit. Fora do arranque: a imagem de raiz já não existe.
+  # Para o voltar a construir, o contexto tem de ser prototipo/ e os dados montados à parte.
   war-room:
+    profiles: ["prototipo"]
     build:
-      context: .
+      context: ./prototipo
       dockerfile: Dockerfile
     container_name: angola_war_room
     restart: unless-stopped

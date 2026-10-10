@@ -46,7 +46,7 @@ Resultados por município e por mesa **não** estão no repositório e não são
 
 ## Decisões
 
-1. **Dois runtimes de API.** A API de produção é FastAPI (`backend/app`). A API Node em `backend/src` é legado mantido por compatibilidade.
+1. **Uma API de produção.** É FastAPI (`backend/app`). A API Node está arquivada em `arquivo/api-node` e não entra no arranque.
 2. **A API sobe sem base de dados.** Se o PostgreSQL falhar, as rotas de ficheiros (cartografia, Hondt, série) continuam e `/health/ready` devolve 503. Rotas de campanha respondem erro explícito.
 3. **Imagem Docker com layout do repositório.** A API importa `war_room/` e lê `data/raw/`, por isso o contexto de build é a raiz (`docker build -f backend/Dockerfile .`).
 4. **Ed25519 em vez de só SHA-256.** O hash prova integridade; a assinatura prova autoria.

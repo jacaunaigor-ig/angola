@@ -53,6 +53,24 @@ EXCEPTION
     WHEN duplicate_object THEN null;
 END $$;
 
+DO $$ BEGIN
+    CREATE TYPE proveniencia_dado AS ENUM ('OFICIAL', 'ESTIMADO', 'SIMULADO');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE nivel_territorial AS ENUM ('PAIS', 'PROVINCIA', 'MUNICIPIO', 'COMUNA_DISTRITO');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE tipo_relacao_dpa AS ENUM ('INALTERADA', 'DESMEMBRADA', 'REMANESCENTE', 'NOVA_UNIDADE', 'AJUSTADA');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
 -- 3. GESTÃO MULTI-TENANCY B2B (CAMPANHAS / PARTIDOS)
 CREATE TABLE IF NOT EXISTS campanhas (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -254,7 +272,7 @@ END;
 $$ LANGUAGE plpgsql STABLE;
 
 -- ==============================================================================
--- 11. TRILHA DE AUDITORIA (ver também database/05_audit_logs.sql)
+-- 11. TRILHA DE AUDITORIA (ver também database/07_auditoria.sql)
 -- ==============================================================================
 CREATE TABLE IF NOT EXISTS configuracoes_campanha (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -277,3 +295,115 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     dados_novos JSONB,
     criado_em TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
+
+-- Malha versionada. A carga 04 insere nestas tabelas; sem elas a base nova pára no meio.
+CREATE TABLE IF NOT EXISTS versoes_malha (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    codigo VARCHAR(50) UNIQUE NOT NULL,
+    nome VARCHAR(150) NOT NULL,
+    diploma_legal VARCHAR(150),
+    ano_vigencia INT NOT NULL,
+    total_provincias INT NOT NULL,
+    total_municipios INT NOT NULL,
+    ativo_para_campanha_2027 BOOLEAN NOT NULL DEFAULT FALSE,
+    criado_em TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp()
+);
+
+CREATE TABLE IF NOT EXISTS unidades_territoriais (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    versao_malha_id UUID NOT NULL REFERENCES versoes_malha(id) ON DELETE CASCADE,
+    codigo_oficial VARCHAR(50) NOT NULL,
+    nome VARCHAR(120) NOT NULL,
+    nome_normalizado VARCHAR(120) NOT NULL,
+    nivel_territorial nivel_territorial NOT NULL,
+    pai_id UUID REFERENCES unidades_territoriais(id) ON DELETE SET NULL,
+    centroide GEOGRAPHY(Point, 4326) NOT NULL,
+    geometria_delimitacao GEOMETRY(Geometry, 4326),
+    populacao_total INT,
+    populacao_18_mais INT,
+    populacao_jovem_18_35 INT,
+    juventude_perc NUMERIC(5,2),
+    eleitores_registados_cne INT,
+    proveniencia_dados proveniencia_dado NOT NULL DEFAULT 'OFICIAL',
+    fonte_referencia TEXT NOT NULL,
+    data_referencia DATE,
+    metadados JSONB,
+    criado_em TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
+    CONSTRAINT uk_versao_codigo UNIQUE (versao_malha_id, codigo_oficial)
+);
+
+CREATE TABLE IF NOT EXISTS correspondencia_territorial (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    unidade_origem_id UUID NOT NULL REFERENCES unidades_territoriais(id) ON DELETE CASCADE,
+    unidade_destino_id UUID NOT NULL REFERENCES unidades_territoriais(id) ON DELETE CASCADE,
+    tipo_relacao tipo_relacao_dpa NOT NULL DEFAULT 'INALTERADA',
+    percentual_reparticao_estimado NUMERIC(5,2) DEFAULT 100.00,
+    notas_explicativas TEXT,
+    criado_em TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp()
+);
+
+CREATE TABLE IF NOT EXISTS regras_zonamento (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    campanha_id UUID REFERENCES campanhas(id) ON DELETE CASCADE,
+    nome_regra VARCHAR(120) NOT NULL,
+    formula_codigo VARCHAR(60) NOT NULL DEFAULT 'MARGEM_BIDIRECIONAL_CNE_V1',
+    descricao_formula TEXT NOT NULL,
+    limiar_bastiao_margem NUMERIC(5,2) NOT NULL DEFAULT 15.00,
+    limiar_oposicao_margem NUMERIC(5,2) NOT NULL DEFAULT -15.00,
+    peso_demografia_jovem NUMERIC(4,2) NOT NULL DEFAULT 0.00,
+    peso_abstencao NUMERIC(4,2) NOT NULL DEFAULT 0.00,
+    padrao_sistema BOOLEAN NOT NULL DEFAULT FALSE,
+    ativo BOOLEAN NOT NULL DEFAULT TRUE,
+    criado_em TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_regras_zonamento_padrao
+    ON regras_zonamento (formula_codigo)
+    WHERE padrao_sistema;
+
+CREATE TABLE IF NOT EXISTS metricas_territoriais (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    unidade_territorial_id UUID NOT NULL REFERENCES unidades_territoriais(id) ON DELETE CASCADE,
+    eleicao_ano INT NOT NULL,
+    total_eleitores_aptos INT NOT NULL DEFAULT 0,
+    total_votantes INT NOT NULL DEFAULT 0,
+    abstencao_indice NUMERIC(5,4),
+    votos_partido_referencia INT NOT NULL DEFAULT 0,
+    votos_oposicao_referencia INT NOT NULL DEFAULT 0,
+    votos_partido_referencia_perc NUMERIC(5,2),
+    votos_oposicao_referencia_perc NUMERIC(5,2),
+    margem_apurada_perc NUMERIC(6,2),
+    zonamento_calculado tipo_zonamento NOT NULL,
+    regra_zonamento_id UUID REFERENCES regras_zonamento(id) ON DELETE SET NULL,
+    formula_explicativa TEXT NOT NULL,
+    proveniencia proveniencia_dado NOT NULL DEFAULT 'OFICIAL',
+    fonte_detalhada TEXT NOT NULL,
+    data_referencia DATE NOT NULL,
+    criado_em TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
+    CONSTRAINT uk_metrica_unidade_ano UNIQUE (unidade_territorial_id, eleicao_ano)
+);
+
+CREATE TABLE IF NOT EXISTS discursos_campanha (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    campanha_id UUID NOT NULL REFERENCES campanhas(id) ON DELETE CASCADE,
+    unidade_territorial_id UUID NOT NULL REFERENCES unidades_territoriais(id) ON DELETE CASCADE,
+    modelo_ia_utilizado VARCHAR(100) NOT NULL,
+    prompt_utilizado TEXT,
+    hook_abertura TEXT NOT NULL,
+    compromissos_propostas JSONB NOT NULL DEFAULT '[]',
+    bloco_juventude TEXT NOT NULL,
+    armadilhas_evitar JSONB NOT NULL DEFAULT '[]',
+    status_aprovacao VARCHAR(30) NOT NULL DEFAULT 'RASCUNHO'
+        CHECK (status_aprovacao IN ('RASCUNHO', 'EM_REVISAO', 'APROVADO', 'REJEITADO')),
+    responsavel_revisao VARCHAR(150),
+    comentarios_revisao TEXT,
+    aprovado_em TIMESTAMPTZ,
+    criado_em TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
+    atualizado_em TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp()
+);
+
+CREATE INDEX IF NOT EXISTS idx_unidades_versao ON unidades_territoriais(versao_malha_id);
+CREATE INDEX IF NOT EXISTS idx_unidades_nivel ON unidades_territoriais(nivel_territorial);
+CREATE INDEX IF NOT EXISTS idx_unidades_centroide_gist ON unidades_territoriais USING GIST(centroide);
+CREATE INDEX IF NOT EXISTS idx_metricas_unidade ON metricas_territoriais(unidade_territorial_id);
+CREATE INDEX IF NOT EXISTS idx_discursos_campanha_unidade ON discursos_campanha(campanha_id, unidade_territorial_id);

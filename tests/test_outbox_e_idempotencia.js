@@ -4,7 +4,7 @@
 const assert = require('assert');
 const { sqliteOutbox, STATUS_OUTBOX } = require('../mobile/src/services/sqliteOutbox');
 const { confirmarHttp200, extrairUuidsConfirmados } = require('../mobile/src/services/outboxSync');
-const { validarTimestampCampo } = require('../backend/src/utils/visitaTemporal');
+const { validarTimestampCampo } = require('../arquivo/api-node/src/utils/visitaTemporal');
 
 async function executar() {
   let passou = 0;

@@ -30,23 +30,18 @@ services:
       - key: CORS_ALLOWED_ORIGINS
         sync: false
 
-  # 2. War Room Executivo (Streamlit)
+  # 2. Sala de comando (React). O nginx faz proxy de /api para a API FastAPI.
   - type: web
     name: angola-war-room-dashboard
-    env: python
+    env: docker
     region: frankfurt
     plan: starter
-    buildCommand: pip install -r requirements.txt
-    startCommand: streamlit run app.py --server.port $PORT --server.address 0.0.0.0
+    dockerfilePath: ./web/Dockerfile
+    dockerContext: ./web
+    healthCheckPath: /
     envVars:
-      - key: PYTHON_VERSION
-        value: 3.11.9
-      - key: STREAMLIT_SERVER_HEADLESS
-        value: "true"
-      - key: API_BASE_URL
-        value: https://angola-geomarketing-api.onrender.com/api
-      - key: API_AUTH_TOKEN
-        sync: false
+      - key: API_UPSTREAM
+        value: angola-geomarketing-api:10000
 
   # 3. Simulador Mobile (Static Site)
   - type: web

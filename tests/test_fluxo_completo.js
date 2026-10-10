@@ -176,7 +176,7 @@ async function testarFluxoIntegrado() {
 
   // 8. TESTE DE DADOS TERRITORIAIS VERSIONADOS, ETL E ZONAMENTO TRANSPARENTE (ETAPA 1)
   console.log('\n--- ETAPA 8: DADOS TERRITORIAIS VERSIONADOS, ETL E ZONAMENTO TRANSPARENTE ---');
-  const { calcularZonamento, REGRAS_PADRAO } = require('../backend/src/services/zonamentoService');
+  const { calcularZonamento, REGRAS_PADRAO } = require('../arquivo/api-node/src/services/zonamentoService');
 
   // a. Validação do Relatório de Qualidade do ETL
   const reportPath = path.join(__dirname, '..', 'data', 'relatorio_qualidade_carga.json');
@@ -223,7 +223,7 @@ async function testarFluxoIntegrado() {
 
   // 9. TESTE DE DISCURSOS COM IA E FLUXO DE APROVAÇÃO (ETAPA 3)
   console.log('\n--- ETAPA 9: DISCURSOS COM IA E FLUXO DE APROVAÇÃO ---');
-  const aiSpeechService = require('../backend/src/services/aiSpeechService');
+  const aiSpeechService = require('../arquivo/api-node/src/services/aiSpeechService');
 
   // a. Geração de Discurso com IA e Garantia de Status Inicial RASCUNHO
   const mockContexto = {
@@ -276,7 +276,7 @@ async function testarFluxoIntegrado() {
 
   // 10. TESTE DE CONTROLE DE QUALIDADE DE CAMPO E ESTATÍSTICA AMOSTRAL (ETAPA 4)
   console.log('\n--- ETAPA 10: CONTROLE DE QUALIDADE DE CAMPO E ESTATÍSTICA AMOSTRAL ---');
-  const { calcularMargemErroAmostral } = require('../backend/src/services/estatisticaService');
+  const { calcularMargemErroAmostral } = require('../arquivo/api-node/src/services/estatisticaService');
 
   // a. Verificação de Amostra Reduzida (n < 30) Sinalizando Dados Exploratórios
   const statPequena = calcularMargemErroAmostral(15, 270000);
@@ -349,8 +349,8 @@ async function testarFluxoIntegrado() {
 
   // 12. TESTE DE SEGURANÇA, CONTAS, RBAC E PRIVACIDADE (ETAPA 6)
   console.log('\n--- ETAPA 12: SEGURANÇA, CONTAS, RBAC E PRIVACIDADE ---');
-  const jwt = require('../backend/node_modules/jsonwebtoken');
-  const { gerarToken } = require('../backend/src/middleware/auth');
+  const jwt = require('../arquivo/api-node/node_modules/jsonwebtoken');
+  const { gerarToken } = require('../arquivo/api-node/src/middleware/auth');
 
   // a. Existência da Política de Privacidade e Proteção de Dados
   const privPath = path.join(__dirname, '..', 'docs', 'privacidade.md');
@@ -388,7 +388,7 @@ async function testarFluxoIntegrado() {
 
   // 13. TESTE DE QUALIDADE, OBSERVABILIDADE, LOGS E DEMONSTRAÇÃO VENDÁVEL (ETAPA 7)
   console.log('\n--- ETAPA 13: QUALIDADE, OBSERVABILIDADE, LOGS E DEMONSTRAÇÃO VENDÁVEL ---');
-  const logger = require('../backend/src/utils/logger');
+  const logger = require('../arquivo/api-node/src/utils/logger');
 
   // a. Verificação de Existência do Pipeline de CI/CD
   const ciWorkflowPath = path.join(__dirname, '..', '.github', 'workflows', 'ci.yml');
@@ -417,7 +417,7 @@ async function testarFluxoIntegrado() {
   asserir('Logs operacionais são emitidos em JSON estruturado com timestamps ISO', jsonLogValido);
   asserir('Mecanismo de log mascara automaticamente senhas e tokens sensíveis', logSanitizadoCorretamente);
 
-  const { isUuid } = require('../backend/src/middleware/validator');
+  const { isUuid } = require('../arquivo/api-node/src/middleware/validator');
   asserir('UUID canónico é aceite (sem prefixo urn:uuid:)', isUuid('a2b3c4d5-e6f7-4a8b-9c0d-1e2f3a4b5c6d'));
   asserir('Identificador com prefixo urn:uuid: é rejeitado', !isUuid('urn:uuid:' + 'a2b3c4d5-e6f7-4a8b-9c0d-1e2f3a4b5c6d'));
 
@@ -434,7 +434,7 @@ async function testarFluxoIntegrado() {
   asserir('Healthcheck expõe métricas de observabilidade (uptime, heap de memória, pid)', mockHealthPayload.observabilidade.uptime_segundos > 0 && typeof mockHealthPayload.observabilidade.uso_memoria_heap_mb === 'number');
 
   console.log('\n--- ETAPA 14: PLANOS COMERCIAIS MUNICIPAL / PROVINCIAL / NACIONAL ---');
-  const planosSvc = require('../backend/src/services/planosComerciaisService');
+  const planosSvc = require('../arquivo/api-node/src/services/planosComerciaisService');
   asserir('Catálogo comercial publica 3 SKUs', planosSvc.listarPlanos().length === 3);
   asserir('Municipal bloqueia Dia D (porta de upgrade)', planosSvc.funcionalidadePermitida('MUNICIPAL', 'dia_d') === false);
   const scopedLua = planosSvc.filtrarFeatures(
