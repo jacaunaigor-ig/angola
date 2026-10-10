@@ -21,6 +21,7 @@ from war_room.assinatura_eleitoral import (
 )
 from war_room.custo_logistico import (
     calcular_indice_prioridade_completo,
+    classificar_zona,
 )
 from war_room.motor_hondt import (
     simular_hondt_provincial,
@@ -49,8 +50,8 @@ ROLE_FIELD = require_roles("ADMIN", "COORDENADOR", "BRIGADISTA")
 def _zone(votes_party: int, votes_opposition: int, valid: int, bastion: float = 15, opposition: float = -15):
     party_pct = round(votes_party / valid * 100, 2) if valid else 0.0
     opposition_pct = round(votes_opposition / valid * 100, 2) if valid else 0.0
-    margin = round(party_pct - opposition_pct, 2)
-    zone = "BASTIAO" if margin >= bastion and valid else "OPOSICAO" if margin <= opposition and valid else "CAMPO_BATALHA"
+    margin = round(party_pct - opposition_pct, 2) if valid else None
+    zone = classificar_zona(margin, bastion, opposition) if valid else "CAMPO_BATALHA"
     return {
         "zonamento": zone,
         "margem_perc": margin,
@@ -605,8 +606,8 @@ def territory_units(
         volatilidade = hondt_disputa_a.get("volatilidade_cadeira", "MEDIA")
 
         eleitores = cne_data.get("eleitores_registados") or 0
-        abstencao = cne_data.get("abstencao_perc") or 50.0
-        juventude = ine_data.get("jovens_perc_eleitorado") or 60.0
+        abstencao = cne_data.get("abstencao_perc")
+        juventude = ine_data.get("jovens_perc_eleitorado")
         prio_info = calcular_indice_prioridade_completo(
             eleitores_aptos=eleitores,
             margem_apurada_perc=stats["margem_perc"],
@@ -637,6 +638,8 @@ def territory_units(
             "hondt_votos_proxima_cadeira": votos_virar,
             "hondt_volatilidade_cadeira": volatilidade,
             "formula_prioridade": prio_info["formula_aplicada"],
+            "componentes_ausentes": prio_info.get("componentes_ausentes") or [],
+            "proveniencia_prioridade": prio_info.get("proveniencia", "ESTIMADO"),
             "proveniencia_dados": "OFICIAL" if cne_data else "SIMULADO",
         }
         features.append({**feature, "properties": feature_props})

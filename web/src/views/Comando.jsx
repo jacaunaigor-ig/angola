@@ -181,7 +181,7 @@ function PainelTerritorio({ foco, aoAbrirMunicipio, onDecidir, onNota }) {
           <strong className="score">{foco.score ?? "—"}<small> / 100</small></strong>
         </div>
 
-        {foco.potencial_voto !== undefined && (
+        {foco.potencial_voto != null && (
           <div className="score-breakdown">
             <div className="score-item">
               <div className="score-item-header">
@@ -195,17 +195,24 @@ function PainelTerritorio({ foco, aoAbrirMunicipio, onDecidir, onNota }) {
             <div className="score-item">
               <div className="score-item-header">
                 <span>Competitividade Hondt</span>
-                <strong>{foco.competitividade}</strong>
+                <strong>{foco.competitividade ?? "—"}</strong>
               </div>
               <div className="score-bar">
-                <i style={{ width: `${Math.min(foco.competitividade, 100)}%` }} />
+                <i style={{ width: `${Math.min(foco.competitividade || 0, 100)}%` }} />
               </div>
             </div>
           </div>
         )}
         <p className="muted" style={{ fontSize: "10.5px", margin: "4px 0 0" }}>
-          Fórmula: (Potencial × Competitividade Hondt) ÷ (Custo Logístico)^0.65
+          {foco.formula_prioridade || "Fórmula: (Potencial × Competitividade Hondt) ÷ 100 ÷ (Custo Logístico)^0.65"}
+          {foco.proveniencia_prioridade ? " " : ""}
+          {foco.proveniencia_prioridade && <Selo tipo={foco.proveniencia_prioridade} />}
         </p>
+        {Array.isArray(foco.componentes_ausentes) && foco.componentes_ausentes.length > 0 && (
+          <p className="muted" style={{ fontSize: "10.5px", margin: "4px 0 0" }}>
+            Em falta: {foco.componentes_ausentes.join(", ")}. Esses termos não entram no score.
+          </p>
+        )}
       </div>
 
       <DecisaoAnalista foco={foco} onDecidir={onDecidir} onNota={onNota} />
@@ -414,7 +421,7 @@ export default function Comando({ dados, territorio, plano, setPlano, versao, se
   const notaCamada = {
     zona: "A cor segue a margem de 2022, salvo quando o analista fixa a zona de operação.",
     margem: "Gradiente contínuo: azul/verde para vantagem do partido, vermelho para vantagem da oposição.",
-    score: "Prioridade integrada: ponderação de potencial de votos, disputa Hondt e acessibilidade logística.",
+    score: "Prioridade: (potencial × competitividade) ÷ 100 ÷ custo^0,65. Sem abstenção ou juventude, esses termos saem.",
     custo: "Classificação logística de acesso para deslocamento de brigadas e comícios.",
   }[camada];
 

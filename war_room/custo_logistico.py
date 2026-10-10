@@ -1,8 +1,8 @@
 """Matriz de Custo Logístico de Alcance e Índice Integrado de Prioridade Territorial.
 
-Fórmula política:
-    Score de Prioridade = (Potencial de Voto × Competitividade Eleitoral) / Custo Logístico de Alcance
-    Normalizado para escala 0 a 100.
+Fórmula política (a mesma que a sala mostra):
+    Score = (Potencial × Competitividade) ÷ 100 ÷ custo^0,65
+    Limitado a [5, 100]. Sem abstenção ou juventude, esses termos saem da conta.
 
 Fundamentação de Ciência Política e Logística Eleitoral de Angola:
 - A dispersão geográfica e a precariedade das vias terrestres (ex: Quando Cubango, Moxico, Leste)
@@ -13,8 +13,17 @@ Fundamentação de Ciência Política e Logística Eleitoral de Angola:
 
 from __future__ import annotations
 
+import math
 import unicodedata
 from typing import Any
+
+PESO_VOLUME = 0.55
+PESO_ABSTENCAO = 0.25
+PESO_JUVENTUDE = 0.20
+EXPOENTE_CUSTO = 0.65
+ESCALA_PRODUTO = 100.0
+SCORE_MINIMO = 5.0
+SCORE_MAXIMO = 100.0
 
 
 def _normalizar(texto: str) -> str:
@@ -163,81 +172,118 @@ def obter_custo_logistico(nome_ou_codigo: str) -> dict[str, Any]:
     chave = _normalizar(nome_ou_codigo)
     # Tenta casamento exato
     if chave in MATRIZ_CUSTO_LOGISTICO_PROVINCIAL:
-        return MATRIZ_CUSTO_LOGISTICO_PROVINCIAL[chave]
-    # Tenta substring (ex: 'provincia do huambo')
+        return {**MATRIZ_CUSTO_LOGISTICO_PROVINCIAL[chave], "mapeado": True}
     for prov, dados in MATRIZ_CUSTO_LOGISTICO_PROVINCIAL.items():
         if prov in chave or chave in prov:
-            return dados
-    # Default razoável para territórios desconhecidos
+            return {**dados, "mapeado": True}
     return {
         "fator_custo": 2.50,
         "dificuldade_acesso": "MEDIA",
         "modal_predominante": "Rodoviário",
         "descricao": "Estimativa logística padrão para território não mapeado individualmente.",
+        "mapeado": False,
     }
+
+
+def classificar_zona(margem_perc: float | None, bastiao: float = 15.0, oposicao: float = -15.0) -> str:
+    """Zonamento por margem: ≥ 15 bastião, ≤ −15 oposição, o resto disputa."""
+    margem = _numero(margem_perc)
+    if margem is None:
+        return "CAMPO_BATALHA"
+    if margem >= bastiao:
+        return "BASTIAO"
+    if margem <= oposicao:
+        return "OPOSICAO"
+    return "CAMPO_BATALHA"
+
+
+def _numero(valor: Any) -> float | None:
+    if valor is None:
+        return None
+    try:
+        n = float(valor)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(n):
+        return None
+    return n
+
+
+def _potencial(vol_score: float, abstencao: float | None, juventude: float | None) -> tuple[float, list[str]]:
+    partes: list[tuple[float, float]] = [(vol_score, PESO_VOLUME)]
+    ausentes: list[str] = []
+    if abstencao is None:
+        ausentes.append("abstencao_perc")
+    else:
+        partes.append((abstencao, PESO_ABSTENCAO))
+    if juventude is None:
+        ausentes.append("juventude_perc")
+    else:
+        partes.append((juventude, PESO_JUVENTUDE))
+    peso = sum(peso for _valor, peso in partes)
+    return sum(valor * peso for valor, peso in partes) / peso, ausentes
 
 
 def calcular_indice_prioridade_completo(
     eleitores_aptos: int,
     margem_apurada_perc: float,
-    abstencao_perc: float,
-    juventude_perc: float,
+    abstencao_perc: float | None,
+    juventude_perc: float | None,
     nome_territorio: str,
     votos_para_virar_cadeira: int | None = None,
-    max_eleitores_referencia: int = 4_652_250,  # Luanda 2022
+    max_eleitores_referencia: int = 4_652_250,
 ) -> dict[str, Any]:
-    """Calcula o índice de prioridade combinando:
+    """Prioridade: (potencial × competitividade) ÷ 100 ÷ custo^0,65.
 
-    1. Potencial de Voto: Volume de eleitores ajustado pelo reservatório (abstenção) e juventude
-    2. Competitividade: Margem estreita + volatilidade de Hondt
-    3. Custo Logístico de Alcance: Redutor baseado na matriz de infraestrutura
+    Abstenção ou juventude em falta não são preenchidas. Saem da conta e o selo baixa.
     """
     info_logistica = obter_custo_logistico(nome_territorio)
     fator_custo = float(info_logistica.get("fator_custo", 2.0))
 
-    # 1. Potencial Bruto de Voto (0-100)
-    # Pondera o volume de eleitores e o tamanho do reservatório não votante
     eleitores = max(0, int(eleitores_aptos or 0))
     vol_score = (eleitores / max(max_eleitores_referencia, 1)) * 100.0
-    abst = float(abstencao_perc or 50.0)
-    jov = float(juventude_perc or 60.0)
+    abst = _numero(abstencao_perc)
+    jov = _numero(juventude_perc)
+    potencial_voto, ausentes = _potencial(vol_score, abst, jov)
 
-    # IAR (Índice de Ativação do Reservatório):
-    # províncias com alta abstenção e juventude têm mais votos virgens a serem ativados
-    potencial_voto = vol_score * 0.55 + (abst * 0.25) + (jov * 0.20)
-
-    # 2. Competitividade Eleitoral (0-100)
-    margem_abs = abs(float(margem_apurada_perc or 0.0))
-    # Margem < 5% = competitividade altíssima (~90-100)
-    # Margem > 40% = competitividade residual (~10-20)
-    comp_margem = max(5.0, 100.0 - (margem_abs * 2.2))
-
-    # Se tivermos cálculo de Hondt (votos_para_virar_cadeira):
-    if votos_para_virar_cadeira is not None and eleitores > 0:
-        esforco_relativo = (votos_para_virar_cadeira / eleitores) * 100.0
-        # Se precisa de menos de 1% dos eleitores para virar deputado, bônus de competitividade
-        bonus_hondt = max(0.0, 30.0 - (esforco_relativo * 10.0))
-        competitividade = min(100.0, comp_margem * 0.75 + bonus_hondt)
+    margem = _numero(margem_apurada_perc)
+    if margem is None:
+        ausentes.append("margem_apurada_perc")
+        competitividade = None
+        score_final = None
+        formula = "Sem margem publicada. Não há score. Não se inventa competitividade."
     else:
-        competitividade = comp_margem
+        margem_abs = abs(margem)
+        comp_margem = max(5.0, 100.0 - (margem_abs * 2.2))
+        if votos_para_virar_cadeira is not None and eleitores > 0:
+            esforco_relativo = (votos_para_virar_cadeira / eleitores) * 100.0
+            bonus_hondt = max(0.0, 30.0 - (esforco_relativo * 10.0))
+            competitividade = min(100.0, comp_margem * 0.75 + bonus_hondt)
+        else:
+            competitividade = comp_margem
 
-    # 3. Índice Integrado: (Potencial × Competitividade) / Custo Logístico
-    # Normalização para escala 0 a 100
-    # O divisor fator_custo penaliza territórios caros de alcançar
-    numerador = (potencial_voto * 0.50) + (competitividade * 0.50)
-    # Fator de escala empírico para manter pontuações no intervalo [5, 100]
-    score_bruto = (numerador / (fator_custo ** 0.65)) * 1.35
-    score_final = max(5.0, min(100.0, round(score_bruto, 1)))
+        potencial_r = round(potencial_voto, 1)
+        comp_r = round(competitividade, 1)
+        score_bruto = (potencial_r * comp_r) / ESCALA_PRODUTO / (fator_custo ** EXPOENTE_CUSTO)
+        score_final = max(SCORE_MINIMO, min(SCORE_MAXIMO, round(score_bruto, 1)))
+        formula = (
+            f"Score = ({potencial_r} × {comp_r}) ÷ {int(ESCALA_PRODUTO)} ÷ "
+            f"{fator_custo}^{EXPOENTE_CUSTO} = {score_final}"
+        )
 
     return {
         "score_prioridade": score_final,
-        "potencial_voto": round(potencial_voto, 1),
-        "competitividade": round(competitividade, 1),
+        "potencial_voto": None if potencial_voto is None else round(potencial_voto, 1),
+        "competitividade": None if competitividade is None else round(competitividade, 1),
+        "abstencao_perc": abst,
+        "juventude_perc": jov,
+        "componentes_ausentes": ausentes,
+        "proveniencia": "ESTIMADO",
         "custo_logistico": {
             "fator": fator_custo,
             "dificuldade": info_logistica["dificuldade_acesso"],
             "modal": info_logistica["modal_predominante"],
             "descricao": info_logistica["descricao"],
         },
-        "formula_aplicada": f"Score = ({round(potencial_voto,1)} [Potencial] × {round(competitividade,1)} [Comp]) ÷ {fator_custo}^0.65 [Logística] = {score_final}",
+        "formula_aplicada": formula,
     }

@@ -194,7 +194,7 @@ def test_custo_logistico_and_priority_index():
     prio_cuando = calcular_indice_prioridade_completo(250000, 35.0, 56.0, 58.0, "Cuando Cubango")
 
     assert prio_luanda["score_prioridade"] > prio_cuando["score_prioridade"]
-    assert "Potencial" in prio_luanda["formula_aplicada"]
+    assert "÷ 100" in prio_luanda["formula_aplicada"]
 
 
 def test_ed25519_custody_chain_and_signature():

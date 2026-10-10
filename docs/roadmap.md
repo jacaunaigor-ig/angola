@@ -27,3 +27,7 @@ Ordenadas por impacto.
 1. Cliente de saída WhatsApp com modelos aprovados.
 2. Cruzamento municipal quando a CNE publicar microdados.
 3. Build EAS `preview` assinado para distribuição interna em Android de entrada.
+
+## Em curso: motor eleitoral
+
+A prioridade passa a ser a fórmula que a sala já escrevia: `(potencial × competitividade) ÷ 100 ÷ custo^0,65`. Sem abstenção ou juventude, esses termos saem. O Hondt de `war_room/` tem pytest contra os totais provinciais CNE 2022.

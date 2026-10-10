@@ -9,7 +9,7 @@ Plataforma B2B de inteligência territorial para campanhas eleitorais angolanas:
 1. **Honestidade dos dados.** Todo número mostra a origem: `OFICIAL` (CNE, INE), `ESTIMADO` (projecção documentada), `SIMULADO` (demonstração ou cenário) ou `PROVISORIO`. Nada é inventado para preencher lacunas; as lacunas ficam declaradas nos próprios ficheiros e no painel.
 2. **Privacidade (Lei n.º 22/11).** Coordenadas de campo são perturbadas em ~110 m, não se gravam nomes, BI nem preferências individuais, e o canal do eleitor **nunca** consulta o caderno eleitoral. Telefones são mascarados e guardados só como hash.
 3. **IA propõe, pessoa decide.** Discursos são sempre `RASCUNHO`; promessas saem marcadas `[PROMESSA — REVISAR]` e exigem aprovação do comité.
-4. **Matemática auditável.** Zonamento: `margem = % partido − % oponente` (≥ 15 bastião, ≤ −15 oposição). Prioridade: `(potencial × competitividade Hondt) ÷ custo logístico^0,65`. As fórmulas aparecem na interface.
+4. **Matemática auditável.** Zonamento: `margem = % partido − % oponente` (≥ 15 bastião, ≤ −15 oposição). Prioridade: `(potencial × competitividade Hondt) ÷ 100 ÷ custo logístico^0,65`. Sem abstenção ou juventude, esses termos saem da conta. As fórmulas aparecem na interface.
 5. **Prova com valor jurídico.** Cada ata é assinada com Ed25519 no aparelho do delegado, leva o SHA-256 da fotografia e é verificada pela API antes de entrar.
 
 ## Arquitectura
