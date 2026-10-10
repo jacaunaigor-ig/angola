@@ -157,6 +157,8 @@ def test_unidades_2016_oficial_e_2024_nao_copia_acta_para_residual():
         assert residual["Huambo"]["proveniencia_dados"] == "OFICIAL"
         assert residual["Icolo e Bengo"]["proveniencia_dados"] == "SIMULADO"
         assert residual["Icolo e Bengo"]["proveniencia_geometria"] == "SIMULADO"
+        assert residual["Luanda"]["circulo_2016"] == "Luanda"
+        assert residual["Luanda"]["provincia"] == "Luanda"
 
 
 def test_municipio_comuna_bairro_nunca_oficial_sem_fonte_cne():

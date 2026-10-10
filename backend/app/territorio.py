@@ -272,6 +272,7 @@ def enriquecer_unidades(
             feature_props.update(
                 {
                     "proveniencia_dados": "SIMULADO",
+                    "provincia": props.get("provincia") or circulo,
                     "margem_circulo_perc": margem_circulo_2016(circulo, cne_lista),
                     "circulo_2016": circulo,
                     "aviso_grao": (
