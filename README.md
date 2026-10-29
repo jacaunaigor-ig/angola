@@ -60,6 +60,12 @@ Execute o `uvicorn` a partir de `backend/` com `PYTHONPATH` na raiz. O cliente o
 
 Com Docker: `cp .env.example .env`, defina `POSTGRES_PASSWORD` e `JWT_SECRET_KEY`, depois `docker compose up --build`. A sala de comando fica em `:3000`, a API em `:8000`.
 
+## Deploy gratuito no Render
+
+O `render.yaml` provisiona a API, a sala React, o simulador móvel e PostgreSQL no plano gratuito. No primeiro deploy, a API habilita PostGIS e o hook aplica as migrations `database/01`–`database/11` em ordem. Não é necessário configurar cartão para recursos gratuitos.
+
+Limitações do plano: o PostgreSQL gratuito expira após 30 dias, os serviços web podem dormir por inatividade e o armazenamento local de evidências não é persistente. Faça cópias de segurança e não use este ambiente para dados de produção.
+
 ## O que a plataforma faz
 
 | Área | Entrega | Onde |

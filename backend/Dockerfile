@@ -13,10 +13,11 @@ RUN pip install --no-cache-dir -r requirements.txt \
     && useradd --create-home --uid 10001 appuser
 
 COPY backend/app ./app
-COPY backend/boot.py backend/create_user.py ./
+COPY backend/boot.py backend/bootstrap_database.py backend/create_user.py ./
 COPY war_room /srv/war_room
 COPY data/raw /srv/data/raw
 COPY geo_angola /srv/geo_angola
+COPY database /srv/database
 
 # Evidências (fotos de atas) vivem fora do PostgreSQL; monte um volume aqui.
 RUN mkdir -p /srv/data/storage && chown -R appuser /srv/data/storage

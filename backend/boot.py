@@ -2,7 +2,6 @@ import logging
 
 import psycopg
 import uvicorn
-
 from app.settings import get_settings
 
 
@@ -13,6 +12,7 @@ def main() -> None:
             settings.database_url,
             connect_timeout=settings.database_connect_timeout,
         ) as connection:
+            connection.execute("CREATE EXTENSION IF NOT EXISTS postgis")
             connection.execute("SELECT PostGIS_Full_Version()").fetchone()
     except psycopg.Error as exc:
         logging.basicConfig(level=logging.ERROR)
