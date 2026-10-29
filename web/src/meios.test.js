@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { canalDaFonte, mencaoNoTexto, planoDaSemana } from "./campanha.js";
+import { canalDaFonte, mencaoNoTexto, planoDoDia } from "./campanha.js";
 
 const campo = {
   nosso: { partido: "UNITA", nome: "Adalberto Costa Júnior", estado: "ANUNCIADO" },
@@ -23,17 +23,19 @@ test("Outro e lado vazio não marcam a palavra outro", () => {
   assert.equal(mencaoNoTexto("Outro jornal fala de água", neutro), "nenhum");
 });
 
-test("pauta usa o tema com mais manchetes e não inventa votos", () => {
-  const plano = planoDaSemana([
+test("pauta diária usa o tema mais citado sem inventar votos nem posts", () => {
+  const plano = planoDoDia([
     { id: "AGUA", nome: "Água", manchetes: 2 },
     { id: "LUZ", nome: "Luz", manchetes: 4 },
   ]);
   assert.equal(plano.temaId, "LUZ");
   assert.equal(plano.meios.length, 3);
   assert.match(plano.nota, /palavras, não votos/);
+  assert.match(plano.nota, /últimas 24 horas/);
+  assert.match(plano.nota, /não votos nem publicações nas redes sociais/);
   assert.equal(plano.meios.some((meio) => /sondagem|intenção de voto|percentagem/i.test(meio.acao)), false);
 
-  const vazio = planoDaSemana([]);
+  const vazio = planoDoDia([]);
   assert.equal(vazio.temaId, "");
   assert.match(vazio.nota, /Não há pauta/);
   assert.match(vazio.meios[2].acao, /rádio/i);

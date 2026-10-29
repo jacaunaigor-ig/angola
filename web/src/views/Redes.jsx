@@ -10,7 +10,7 @@ import {
   fraseLado,
   leituraPorId,
   mencaoNoTexto,
-  planoDaSemana,
+  planoDoDia,
   publicoPorId,
   rotuloMencao,
   temaConhecido,
@@ -87,8 +87,8 @@ export default function Redes() {
         <p className="eyebrow">Para a venda</p>
         <h2>O GPS cabe em qualquer lado político</h2>
         <p>
-          A sala não é do MPLA nem da UNITA. Quem compra escolhe o partido; a CNE, o mapa e as manchetes
-          ficam iguais. A ferramenta lê o adversário. Não escreve a campanha dele.
+          A sala não é de um partido. Quem compra escolhe o lado; a CNE, o mapa e as fontes públicas
+          ficam iguais. A leitura acompanha notícias abertas, não contas privadas nem opinião de eleitores.
         </p>
       </section>
 
@@ -113,8 +113,8 @@ export default function Redes() {
         <p className="muted lado-frase">{fraseLado(campo)}</p>
       </Cartao>
 
-      <PlanoSemana estado={leitura} />
-      <LeituraSemanal estado={leitura} campo={campo} onRegistar={usarManchete} />
+      <PlanoDiario estado={leitura} />
+      <LeituraDiaria estado={leitura} campo={campo} onRegistar={usarManchete} />
 
       <Cartao titulo="Três públicos" nota="O mesmo círculo não se ganha com a mesma frase. Metade do país continua offline.">
         <div className="publicos">
@@ -211,26 +211,26 @@ export default function Redes() {
   );
 }
 
-function PlanoSemana({ estado }) {
+function PlanoDiario({ estado }) {
   if (estado.carregando) {
     return (
-      <Cartao titulo="Pauta da semana" nota="Espera as manchetes. Sem elas, não há meio recomendado." acao={<Selo tipo="RASCUNHO" />}>
+      <Cartao titulo="Pauta de hoje" nota="A pauta usa apenas manchetes públicas das últimas 24 horas." acao={<Selo tipo="RASCUNHO" />}>
         <p className="muted">A recolher a leitura pública…</p>
       </Cartao>
     );
   }
   if (!estado.leitura) {
     return (
-      <Cartao titulo="Pauta da semana" nota="Sem leitura, não há pauta." acao={<Selo tipo="RASCUNHO" />}>
+      <Cartao titulo="Pauta de hoje" nota="Sem leitura, não há pauta." acao={<Selo tipo="RASCUNHO" />}>
         <p>Não inventes assunto. Quando a leitura voltar, o tema com mais manchetes sugere uma frase por público.</p>
       </Cartao>
     );
   }
-  const plano = planoDaSemana(estado.leitura.temas);
+  const plano = planoDoDia(estado.leitura.temas);
   return (
     <Cartao
-      titulo="Pauta da semana"
-      nota="Três frases, uma por público. A barra na leitura compara as manchetes recolhidas, não o país."
+      titulo="Pauta de hoje"
+      nota="Três sugestões para o dia, uma por público. São rascunhos baseados nas manchetes recolhidas, não representam a opinião do país."
       acao={<Selo tipo="RASCUNHO" />}
     >
       <p>{plano.nota}</p>
@@ -247,12 +247,14 @@ function PlanoSemana({ estado }) {
   );
 }
 
-function LeituraSemanal({ estado, campo, onRegistar }) {
+function LeituraDiaria({ estado, campo, onRegistar }) {
   const leitura = estado.leitura;
   const temas = leitura?.temas || [];
   const maximo = Math.max(...temas.map((t) => t.manchetes), 1);
   const quando = leitura?.gerada_em ? new Date(leitura.gerada_em) : null;
   const proxima = leitura?.proxima_em ? new Date(leitura.proxima_em) : null;
+  const totalManchetes = leitura?.total_manchetes ?? leitura?.manchetes?.length ?? 0;
+  const totalFontes = new Set((leitura?.manchetes || []).map((item) => item.fonte).filter(Boolean)).size;
   const [tema, setTema] = useState("");
   const [origem, setOrigem] = useState("");
   const [mencaoFiltro, setMencaoFiltro] = useState("");
@@ -271,22 +273,36 @@ function LeituraSemanal({ estado, campo, onRegistar }) {
 
   return (
     <Cartao
-      titulo="Leitura da semana"
-      nota="Uma vez por semana, para qualquer lista. Palavras nas manchetes públicas, não uma sondagem."
+      titulo="Leitura pública diária"
+      nota="Cache renovada ao abrir após 24 horas, com opção de atualização manual. A fonte é imprensa pública; isto não é monitorização direta de posts ou métricas das redes sociais."
       acao={<Selo tipo="ESTIMADO" />}
     >
       <Aviso>{estado.erro}</Aviso>
       {leitura?.aviso && <Aviso tipo="info">{leitura.aviso}</Aviso>}
-      {estado.carregando && <p className="muted">A recolher as manchetes públicas…</p>}
+      <button
+        type="button"
+        className="ghost"
+        onClick={estado.atualizar}
+        disabled={estado.carregando || estado.atualizando}
+      >
+        {estado.atualizando ? "A atualizar…" : "Atualizar agora"}
+      </button>
+      {estado.carregando && <p className="muted">A recolher as manchetes públicas das últimas 24 horas…</p>}
       {leitura && (
         <>
           <p className="muted">
-            {quando ? `Feita em ${quando.toLocaleDateString("pt-PT")}.` : ""}
-            {proxima ? ` A próxima automática é ${proxima.toLocaleDateString("pt-PT")}.` : ""}
-            {leitura.em_cache ? " Esta semana já estava guardada." : ""}
+            {quando ? `Atualizada em ${quando.toLocaleString("pt-AO", { dateStyle: "short", timeStyle: "short", timeZone: "Africa/Luanda" })}.` : ""}
+            {proxima && !leitura.aviso ? ` Pode ser renovada após ${proxima.toLocaleString("pt-AO", { dateStyle: "short", timeStyle: "short", timeZone: "Africa/Luanda" })}.` : ""}
+            {leitura.em_cache ? " A mostrar a última leitura guardada." : ""}
           </p>
           <p>{leitura.nota}</p>
-          <div className="temas-semana">
+          <div className="leitura-resumo" aria-label="Resumo das manchetes">
+            <strong>{totalManchetes}</strong>
+            <span>{leitura.aviso ? "manchetes na última leitura" : "manchetes na janela de 24 horas"}</span>
+            <strong>{totalFontes}</strong>
+            <span>{totalFontes === 1 ? "fonte" : "fontes identificadas"}</span>
+          </div>
+          <div className="temas-dia">
             {temas.map((item) => (
               <button
                 key={item.id}
@@ -317,13 +333,14 @@ function LeituraSemanal({ estado, campo, onRegistar }) {
                   <button type="button" className="ghost" onClick={() => onRegistar(item)}>Usar no registo</button>
                   <span>
                     {item.fonte}
+                    {item.publicada_em && ` · ${new Date(item.publicada_em).toLocaleString("pt-AO", { dateStyle: "short", timeStyle: "short", timeZone: "Africa/Luanda" })}`}
                     {rotulo ? ` · ${rotulo}` : ""}
                   </span>
                 </li>
               );
             })}
           </ul>
-          {manchetes.length === 0 && <p className="muted">Nenhuma manchete desta semana cai nesse filtro.</p>}
+          {manchetes.length === 0 && <p className="muted">Nenhuma manchete das últimas 24 horas corresponde a este filtro.</p>}
           {manchetes.length > 6 && (
             <button type="button" className="ghost" onClick={() => setTodas(!todas)}>
               {todas ? "Mostrar menos" : `Ver as ${manchetes.length} manchetes`}

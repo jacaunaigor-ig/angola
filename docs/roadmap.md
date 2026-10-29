@@ -31,11 +31,12 @@
 
 ## Em curso: redes e mídia
 
-A leitura semanal conta palavras em manchetes públicas. Não é sondagem e não entra no Hondt nem no score.
+A leitura diária conta palavras em manchetes públicas das últimas 24 horas. Não é monitorização direta de redes sociais nem sondagem, e não entra no Hondt nem no score.
 
 Entregue nesta etapa:
 
-- Pauta da semana: o tema com mais manchetes sugere uma frase por público (jovem urbano, bairro, interior), com selo `RASCUNHO`.
+- Pauta do dia: o tema com mais manchetes sugere uma frase por público (jovem urbano, bairro, interior), com selo `RASCUNHO`.
+- Cache renovada ao acessar após 24 horas, botão de actualização manual e hora de publicação visível nas manchetes.
 - A manchete diz se nomeia o cliente ou o adversário escolhidos neste browser. O feed no servidor continua igual para qualquer partido.
 - Uma manchete passa ao registo local sem ser reescrita. A leitura a favor ou contra fica por decidir.
 - O classificador deixa de tratar «profundo» como fundo e deixa de marcar quase tudo como pacto por causa da palavra «candidato».

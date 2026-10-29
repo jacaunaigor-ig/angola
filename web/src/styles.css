@@ -751,14 +751,21 @@ tbody tr.activa {
 }
 .rede-lista span { display: block; color: var(--muted); font-size: 12px; }
 .rede-lista p { margin: 4px 0 0; }
-.temas-semana { display: grid; gap: 6px; margin: 10px 0; }
-.temas-semana button {
+.temas-dia { display: grid; gap: 6px; margin: 10px 0; }
+.temas-dia button {
   display: grid; grid-template-columns: 160px 28px 1fr; gap: 8px; align-items: center;
   width: 100%; text-align: left; font: inherit; font-size: 13px; color: var(--text-bright);
   background: transparent; border: 0; border-radius: 8px; padding: 4px 6px; cursor: pointer;
 }
-.temas-semana button.activo { background: rgba(245, 197, 24, 0.12); }
-.temas-semana i { display: block; height: 8px; border-radius: 99px; background: var(--accent); justify-self: stretch; }
+.temas-dia button.activo { background: rgba(245, 197, 24, 0.12); }
+.temas-dia i { display: block; height: 8px; border-radius: 99px; background: var(--accent); justify-self: stretch; }
+.leitura-resumo {
+  display: grid; grid-template-columns: auto 1fr auto 1fr; gap: 8px 10px;
+  align-items: center; margin: 10px 0; padding: 10px 12px;
+  background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px;
+}
+.leitura-resumo strong { color: var(--accent); font: 700 18px var(--font-mono); }
+.leitura-resumo span { color: var(--muted); font-size: 12px; }
 .manchetes, .canais { list-style: none; margin: 8px 0; padding: 0; }
 .manchetes li {
   display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; align-items: center;
@@ -777,8 +784,9 @@ tbody tr.activa {
 }
 @media (max-width: 800px) {
   .publicos, .rede-form, .canais, .lados, .plano-meios { grid-template-columns: 1fr; }
-  .temas-semana button { grid-template-columns: 1fr 28px; }
-  .temas-semana i { display: none; }
+  .leitura-resumo { grid-template-columns: auto 1fr; }
+  .temas-dia button { grid-template-columns: 1fr 28px; }
+  .temas-dia i { display: none; }
 }
 
 .badge {

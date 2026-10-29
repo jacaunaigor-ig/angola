@@ -168,14 +168,14 @@ export function temaConhecido(id) {
   return TEMAS.some(([codigo]) => codigo === id) ? id : "OUTRO";
 }
 
-export function planoDaSemana(temas) {
+export function planoDoDia(temas) {
   const lista = Array.isArray(temas) ? temas.filter((tema) => tema && tema.manchetes > 0) : [];
   if (!lista.length) {
     return {
       temaId: "",
       tema: "",
       manchetes: 0,
-      nota: "Sem manchetes classificadas esta semana. Não há pauta. Não inventes assunto.",
+      nota: "Sem manchetes classificadas nas últimas 24 horas. Não há pauta. Não inventes assunto.",
       meios: PUBLICOS.map((publico) => ({
         id: publico.id,
         nome: publico.nome,
@@ -190,7 +190,7 @@ export function planoDaSemana(temas) {
     temaId: topo.id,
     tema: topo.nome || topo.id,
     manchetes: topo.manchetes,
-    nota: `O tema com mais manchetes públicas é ${topo.nome || topo.id} (${topo.manchetes}). Isto conta palavras, não votos. A frase fica em rascunho até uma pessoa a aprovar.`,
+    nota: `O tema mais citado nas manchetes públicas das últimas 24 horas é ${topo.nome || topo.id} (${topo.manchetes}). Isto conta palavras, não votos nem publicações nas redes sociais. A frase fica em rascunho até uma pessoa a aprovar.`,
     meios: PUBLICOS.map((publico) => ({
       id: publico.id,
       nome: publico.nome,

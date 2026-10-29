@@ -30,7 +30,7 @@ O mapa e a série 2012–2022 ficam abaixo desta faixa.
 
 ## Redes e mídia
 
-A leitura semanal é a mesma para qualquer lista: manchetes públicas, com proveniência estimada. A pauta da semana é um rascunho por público. Nomear o cliente ou o adversário acontece só neste browser e não altera o mapa nem as cadeiras.
+A leitura diária é a mesma para qualquer lista: manchetes de imprensa pública publicadas nas últimas 24 horas, com proveniência estimada e horário de publicação. O cache é renovado ao acessar após 24 horas e também pode ser atualizado manualmente. A pauta do dia é um rascunho por público. Esta versão não monitora posts, alcance ou sentimento em redes sociais, nem lê contas ou grupos privados; não é sondagem. Nomear o cliente ou o adversário acontece só neste browser e não altera o mapa nem as cadeiras.
 
 ## Estado
 

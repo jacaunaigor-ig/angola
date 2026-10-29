@@ -1,4 +1,4 @@
-"""Leitura pública semanal: manchetes abertas e canais conhecidos. Não é sondagem."""
+"""Leitura pública diária: manchetes abertas e canais conhecidos. Não é sondagem."""
 
 from __future__ import annotations
 
@@ -9,12 +9,13 @@ import unicodedata
 import urllib.request
 import xml.etree.ElementTree as ET
 from datetime import UTC, datetime, timedelta
+from email.utils import parsedate_to_datetime
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-CACHE = ROOT / "data" / "cache" / "leitura_semanal.json"
-DIAS = 7
-LIMITE = 18
+CACHE = ROOT / "data" / "cache" / "leitura_diaria.json"
+DIAS = 1
+LIMITE = 30
 FEED = (
     "https://news.google.com/rss/search?q=Angola+"
     "(MPLA+OR+UNITA+OR+elei%C3%A7%C3%B5es+OR+Louren%C3%A7o+OR+congresso)"
@@ -56,12 +57,36 @@ def _sem_acento(texto: str) -> str:
     return "".join(c for c in base if unicodedata.category(c) != "Mn").lower()
 
 
-def extrair_itens(xml_bytes: bytes, limite: int = LIMITE) -> list[dict]:
+def _data_publicacao(valor: str) -> datetime | None:
+    if not valor:
+        return None
+    try:
+        momento = parsedate_to_datetime(valor)
+    except (TypeError, ValueError, OverflowError):
+        return None
+    if momento.tzinfo is None:
+        return momento.replace(tzinfo=UTC)
+    return momento.astimezone(UTC)
+
+
+def extrair_itens(
+    xml_bytes: bytes,
+    limite: int = LIMITE,
+    agora: datetime | None = None,
+) -> list[dict]:
     raiz = ET.fromstring(xml_bytes)
+    agora = agora or datetime.now(UTC)
+    if agora.tzinfo is None:
+        agora = agora.replace(tzinfo=UTC)
+    limite_inferior = agora - timedelta(days=DIAS)
     itens = []
     for no in raiz.findall("./channel/item"):
         titulo = html.unescape(no.findtext("title") or "").strip()
         if not titulo:
+            continue
+        quando = (no.findtext("pubDate") or "").strip()
+        publicada_em = _data_publicacao(quando)
+        if publicada_em is None or not limite_inferior <= publicada_em <= agora:
             continue
         fonte = ""
         origem = no.find("source")
@@ -79,12 +104,12 @@ def extrair_itens(xml_bytes: bytes, limite: int = LIMITE) -> list[dict]:
             "titulo": titulo,
             "fonte": fonte or "Imprensa",
             "ligacao": (no.findtext("link") or "").strip(),
-            "quando": (no.findtext("pubDate") or "").strip(),
+            "quando": quando,
+            "publicada_em": publicada_em.isoformat(),
             "temas": temas_do_texto(f"{titulo} {fonte}"),
         })
-        if len(itens) >= limite:
-            break
-    return itens
+    itens.sort(key=lambda item: item["publicada_em"], reverse=True)
+    return itens[:limite]
 
 
 def _tem_termo(plano: str, chave: str) -> bool:
@@ -114,12 +139,15 @@ def contar_temas(itens: list[dict]) -> list[dict]:
 def leitura_valida(gerada_em: str, agora: datetime | None = None, dias: int = DIAS) -> bool:
     try:
         momento = datetime.fromisoformat(gerada_em)
-    except ValueError:
+    except (TypeError, ValueError):
         return False
     if momento.tzinfo is None:
         momento = momento.replace(tzinfo=UTC)
     agora = agora or datetime.now(UTC)
-    return agora - momento < timedelta(days=dias)
+    if agora.tzinfo is None:
+        agora = agora.replace(tzinfo=UTC)
+    idade = agora - momento.astimezone(UTC)
+    return timedelta(0) <= idade < timedelta(days=dias)
 
 
 def _ler_cache() -> dict | None:
@@ -137,7 +165,7 @@ def _gravar_cache(payload: dict) -> None:
 
 
 def _descarregar(url: str = FEED) -> bytes:
-    pedido = urllib.request.Request(url, headers={"User-Agent": "GPS-Eleitoral-Angola/leitura-semanal"})
+    pedido = urllib.request.Request(url, headers={"User-Agent": "GPS-Eleitoral-Angola/leitura-diaria"})
     with urllib.request.urlopen(pedido, timeout=20) as resposta:
         return resposta.read()
 
@@ -157,7 +185,7 @@ def montar_leitura(forcar: bool = False, descarregar=_descarregar) -> dict:
 
     try:
         itens = extrair_itens(descarregar())
-    except Exception as exc:
+    except (OSError, ET.ParseError) as exc:
         if cache:
             cache["em_cache"] = True
             cache["aviso"] = "A rede falhou. Esta é a última leitura guardada."
@@ -170,11 +198,14 @@ def montar_leitura(forcar: bool = False, descarregar=_descarregar) -> dict:
         "gerada_em": agora.isoformat(),
         "proxima_em": (agora + timedelta(days=DIAS)).isoformat(),
         "dias": DIAS,
+        "janela_horas": 24,
+        "total_manchetes": len(itens),
         "em_cache": False,
         "proveniencia": "MANCHETES_PUBLICAS",
         "nota": (
-            "Contagem de palavras nas manchetes públicas da semana. "
-            "Não é sondagem e não lê contas privadas."
+            "Contagem de palavras em manchetes públicas publicadas nas últimas 24 horas. "
+            "Não mede publicações, alcance ou sentimento nas redes sociais; não é sondagem "
+            "e não lê contas ou grupos privados."
         ),
         "fonte_feed": "Google Notícias, pesquisa pública sobre Angola",
         "estudo_audiencia": (
