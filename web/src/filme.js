@@ -1,9 +1,3 @@
-export const CREDENCIAIS_DEMO = {
-  campanha_id: "a0000000-0000-0000-0000-000000000001",
-  email: "analista@campanha.ao",
-  senha: "senha-segura-2027",
-};
-
 export const PASSOS_FILME = [
   {
     aba: "comando",

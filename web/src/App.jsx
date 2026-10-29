@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import ErrorBoundary from "./components/ErrorBoundary.jsx";
 import {
   IconeAngolaEmblema,
@@ -17,7 +17,7 @@ import {
 } from "./components/Icones.jsx";
 import FilmeNarra from "./components/FilmeNarra.jsx";
 import { Aviso, Selo } from "./components/ui.jsx";
-import { CREDENCIAIS_DEMO, PASSOS_FILME } from "./filme.js";
+import { PASSOS_FILME } from "./filme.js";
 import { useDadosGlobais, useTerritorio } from "./hooks/useDadosBase.js";
 import { useSessao } from "./hooks/useSessao.js";
 import Comando from "./views/Comando.jsx";
@@ -106,7 +106,6 @@ export default function App() {
   });
   const [passoFilme, setPassoFilme] = useState(0);
   const [filmeAuto, setFilmeAuto] = useState(true);
-  const filmeLoginFeito = useRef(false);
 
   useEffect(() => {
     function aoMudarHash() {
@@ -127,21 +126,11 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!filme || filmeLoginFeito.current || sessao.ativa) return undefined;
-    filmeLoginFeito.current = true;
-    sessao
-      .entrar(CREDENCIAIS_DEMO)
-      .then(() => {
-        sessionStorage.removeItem(CONSULTA_KEY);
-        setConsulta(false);
-        setPedirLogin(false);
-      })
-      .catch(() => {
-        sessionStorage.setItem(CONSULTA_KEY, "1");
-        setConsulta(true);
-      });
-    return undefined;
-  }, [filme, sessao]);
+    if (!filme || sessao.ativa || consulta) return;
+    sessionStorage.setItem(CONSULTA_KEY, "1");
+    setConsulta(true);
+    setPedirLogin(false);
+  }, [filme, sessao.ativa, consulta]);
 
   useEffect(() => {
     if (!filme) return undefined;
@@ -216,6 +205,11 @@ export default function App() {
         onFilme={() => {
           setFilmeAuto(true);
           setPassoFilme(0);
+          setPedirLogin(false);
+          if (!sessao.ativa) {
+            sessionStorage.setItem(CONSULTA_KEY, "1");
+            setConsulta(true);
+          }
           setFilme(true);
         }}
       />

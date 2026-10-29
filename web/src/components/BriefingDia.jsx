@@ -35,6 +35,9 @@ export default function BriefingDia({ linhas, onEscolher }) {
           <p className="muted">
             {disputa.length} círculos em disputa · {fmtInt(linhas.reduce((s, r) => s + (Number(r.eleitores_cne) || 0), 0))} eleitores no âmbito
           </p>
+          <p className="briefing-contexto">
+            Base eleitoral CNE 2022 · prioridades analíticas, não alertas de operação em tempo real.
+          </p>
         </div>
         <button className="primary" type="button" onClick={descarregar}>
           Exportar CSV

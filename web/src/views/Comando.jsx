@@ -410,6 +410,7 @@ export default function Comando({ dados, territorio, plano, setPlano, versao, se
     ? (escala === "provincias" ? linhas : linhasLocais).find((l) => l.nome === selecionado.nome) || selecionado
     : visiveis[0] || (escala === "provincias" ? linhas[0] : linhasLocais[0]);
   const aCarregar = territorio.carregando || (verMunicipios && malhaMunicipios.carregando) || (escala === "local" && malhaLocal.carregando);
+  const semDados = !aCarregar && linhas.length === 0;
   const notaMalha = escala === "local" ? malhaLocal.nota : malhaMunicipios.nota;
 
   const notaCamada = {
@@ -428,19 +429,19 @@ export default function Comando({ dados, territorio, plano, setPlano, versao, se
 
       {escala === "provincias" && (
       <section className="kpis" aria-label="Indicadores nacionais">
-        <Kpi rotulo="Eleitorado 2022" valor={fmtInt(soma("eleitores_cne"))} selo="OFICIAL" carregando={aCarregar} />
-        <Kpi rotulo="População Total" valor={fmtInt(soma("populacao_total"))} selo="ESTIMADO" carregando={aCarregar} />
+        <Kpi rotulo="Eleitorado 2022" valor={semDados ? "—" : fmtInt(soma("eleitores_cne"))} selo="OFICIAL" carregando={aCarregar} />
+        <Kpi rotulo="População Total" valor={semDados ? "—" : fmtInt(soma("populacao_total"))} selo="ESTIMADO" carregando={aCarregar} />
         <article className="kpi kpi-bastiao">
           <span>Bastiões <Selo tipo="OFICIAL" /></span>
-          <strong className={aCarregar ? "skeleton" : ""}>{aCarregar ? "\u00a0" : contagem.BASTIAO || 0}</strong>
+          <strong className={aCarregar ? "skeleton" : ""}>{aCarregar ? "\u00a0" : semDados ? "—" : contagem.BASTIAO || 0}</strong>
         </article>
         <article className="kpi kpi-batalha">
           <span>Em Disputa <Selo tipo="OFICIAL" /></span>
-          <strong className={aCarregar ? "skeleton" : ""}>{aCarregar ? "\u00a0" : contagem.CAMPO_BATALHA || 0}</strong>
+          <strong className={aCarregar ? "skeleton" : ""}>{aCarregar ? "\u00a0" : semDados ? "—" : contagem.CAMPO_BATALHA || 0}</strong>
         </article>
         <article className="kpi kpi-oposicao">
           <span>Oposição <Selo tipo="OFICIAL" /></span>
-          <strong className={aCarregar ? "skeleton" : ""}>{aCarregar ? "\u00a0" : contagem.OPOSICAO || 0}</strong>
+          <strong className={aCarregar ? "skeleton" : ""}>{aCarregar ? "\u00a0" : semDados ? "—" : contagem.OPOSICAO || 0}</strong>
         </article>
       </section>
       )}
