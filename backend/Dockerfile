@@ -20,7 +20,8 @@ COPY geo_angola /srv/geo_angola
 COPY database /srv/database
 
 # Evidências (fotos de atas) vivem fora do PostgreSQL; monte um volume aqui.
-RUN mkdir -p /srv/data/storage && chown -R appuser /srv/data/storage
+RUN mkdir -p /srv/data/storage /srv/data/cache \
+    && chown -R appuser /srv/data/storage /srv/data/cache
 VOLUME ["/srv/data/storage"]
 
 USER appuser
