@@ -17,11 +17,36 @@
 
 1. **Votos por município e por bairro.** A sala mostra 158 municípios, 558 comunas (geoBoundaries) e 428 bairros OSM. A CNE de 2022 não publicou este nível. A margem no painel é a do círculo provincial.
 2. **Resposta ao eleitor não sai para a Meta.** O webhook devolve o texto, mas o envio pela Cloud API depende de `WHATSAPP_ACCESS_TOKEN` e de um cliente de saída.
-3. **APK.** O perfil `preview` está definido. O build na nuvem Expo exige `eas login` e um `projectId` UUID — o valor actual em `mobile/app.json` é um marcador, não uma conta Expo.
-4. **DPA 2024.** A malha municipal aberta tem 158 unidades, não os 325 municípios da lei nova. Não foram desenhados polígonos em falta.
+3. **Painéis executivos do protótipo.** `prototipo/pages/1_Paineis_Executivos.py` ainda usa dados simulados; a sala operacional é `web/`.
+4. **APK.** O perfil `preview` está definido. O build na nuvem Expo exige conta e `eas login`; o `projectId` actual em `mobile/app.json` é um marcador, não uma conta Expo.
+5. **DPA 2024.** A malha municipal aberta tem 158 unidades, não os 325 municípios da lei nova. Não foram desenhados polígonos em falta.
 
 ## Ordem sugerida
 
-1. Quando a CNE publicar microdados, cruzar votos municipais — não inventar números.
-2. Cliente de saída WhatsApp com modelos aprovados.
-3. `eas login` e substituir `extra.eas.projectId` por o UUID do projecto, depois `npx eas-cli build -p android --profile preview`.
+1. Alargar a pesquisa de manchetes, hoje concentrada em MPLA, UNITA, Lourenço e congresso.
+2. Guardar o registo de peças na campanha e exportá-lo em CSV; separar métricas de audiência por fonte e data.
+3. Implementar o cliente de saída WhatsApp com modelos aprovados.
+4. Integrar microdados municipais apenas quando publicados pela CNE; não inventar resultados.
+5. Configurar a conta EAS, substituir `extra.eas.projectId` pelo UUID real e gerar um APK `preview` assinado.
+
+## Em curso: redes e mídia
+
+A leitura semanal conta palavras em manchetes públicas. Não é sondagem e não entra no Hondt nem no score.
+
+Entregue nesta etapa:
+
+- Pauta da semana: o tema com mais manchetes sugere uma frase por público (jovem urbano, bairro, interior), com selo `RASCUNHO`.
+- A manchete diz se nomeia o cliente ou o adversário escolhidos neste browser. O feed no servidor continua igual para qualquer partido.
+- Uma manchete passa ao registo local sem ser reescrita. A leitura a favor ou contra fica por decidir.
+- O classificador deixa de tratar «profundo» como fundo e deixa de marcar quase tudo como pacto por causa da palavra «candidato».
+
+A seguir, por esta ordem:
+
+1. Alargar a pesquisa de manchetes. Hoje o feed privilegia MPLA, UNITA, Lourenço e congresso.
+2. Guardar o registo de peças na campanha. Hoje fica só neste browser.
+3. Exportar o registo da semana em CSV.
+4. Separar os números de audiência por fonte e data. Hoje estão num parágrafo único.
+
+## Em curso: grão territorial e sync de visitas
+
+Município, comuna e bairro não herdam a acta provincial de 2022. A DPA 2024 só mantém votos OFICIAL nas províncias inalteradas. A sync FastAPI confirma lote idempotente, GPS a ~110 m e resposta sem nome, BI ou telefone.

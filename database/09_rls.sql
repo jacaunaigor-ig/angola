@@ -1,5 +1,5 @@
 -- ==============================================================================
--- MIGRATION 07: ISOLAMENTO MULTI-TENANCY E ROW-LEVEL SECURITY (RLS)
+-- MIGRATION 09: ISOLAMENTO MULTI-TENANCY E ROW-LEVEL SECURITY (RLS)
 -- Garante que campanhas e partidos nunca tenham dados misturados, mesmo sob
 -- falhas acidentais de cláusulas WHERE em consultas analíticas ou de campo.
 -- ==============================================================================

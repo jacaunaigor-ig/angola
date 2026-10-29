@@ -43,9 +43,9 @@ CANAIS = [
 TEMAS = (
     ("EMPREGO", "Emprego jovem", ("emprego", "desemprego", "jovem", "juventude")),
     ("AGUA", "Água", ("agua",)),
-    ("LUZ", "Luz", ("luz", "energia", "electricidade")),
-    ("FUNDO", "Petróleo e fundo", ("petroleo", "fundo", "gas ", "mineral")),
-    ("PACTO", "Pacto e congresso", ("pacto", "alternancia", "congresso", "candidato")),
+    ("LUZ", "Luz", ("luz", "luzes", "energia", "electricidade")),
+    ("FUNDO", "Petróleo e fundo", ("petroleo", "fundo", "gas", "mineral")),
+    ("PACTO", "Pacto e congresso", ("pacto", "alternancia", "congresso")),
     ("CASA", "Casa e bairro", ("habitacao", "demol", "bairro", "musseque")),
     ("SEGURANCA", "Segurança", ("seguranca", "policia", "atentado")),
 )
@@ -60,7 +60,7 @@ def extrair_itens(xml_bytes: bytes, limite: int = LIMITE) -> list[dict]:
     raiz = ET.fromstring(xml_bytes)
     itens = []
     for no in raiz.findall("./channel/item"):
-        titulo = html.unescape((no.findtext("title") or "")).strip()
+        titulo = html.unescape(no.findtext("title") or "").strip()
         if not titulo:
             continue
         fonte = ""
@@ -87,9 +87,18 @@ def extrair_itens(xml_bytes: bytes, limite: int = LIMITE) -> list[dict]:
     return itens
 
 
+def _tem_termo(plano: str, chave: str) -> bool:
+    termo = _sem_acento(chave).strip()
+    if not termo:
+        return False
+    if " " in termo:
+        return termo in plano
+    return re.search(rf"(?<!\w){re.escape(termo)}(?!\w)", plano) is not None
+
+
 def temas_do_texto(texto: str) -> list[str]:
     plano = _sem_acento(texto)
-    return [codigo for codigo, _nome, chaves in TEMAS if any(chave in plano for chave in chaves)]
+    return [codigo for codigo, _nome, chaves in TEMAS if any(_tem_termo(plano, chave) for chave in chaves)]
 
 
 def contar_temas(itens: list[dict]) -> list[dict]:

@@ -20,9 +20,6 @@ from war_room.assinatura_eleitoral import (
     montar_digest_canonico_ata,
     verificar_assinatura_ed25519,
 )
-from war_room.custo_logistico import (
-    calcular_indice_prioridade_completo,
-)
 from war_room.motor_hondt import (
     simular_hondt_provincial,
 )
@@ -554,14 +551,6 @@ def geo_angola_malha(arquivo: str = "simplificado"):
     return FileResponse(source, media_type="application/geo+json")
 
 
-NOTA_MALHA_LOCAL = (
-    "158 municípios e 558 comunas da geoBoundaries (não é a DPA 2024 de 325 municípios). "
-    "Bairros são pontos OpenStreetMap, só onde a comunidade os mapeou — 156 em Luanda. "
-    "A CNE de 2022 publicou o círculo provincial, não o município, a comuna nem o bairro. "
-    "A cor desta malha não é voto."
-)
-
-
 def _chave_nome(valor: str | None) -> str:
     texto = unicodedata.normalize("NFKD", valor or "")
     return "".join(caracter for caracter in texto if not unicodedata.combining(caracter)).casefold().strip()
@@ -606,27 +595,46 @@ def _filtrar_nome(features: list, campo: str, valor: str) -> list:
     return [feature for feature in features if _chave_nome((feature.get("properties") or {}).get(campo)) == chave]
 
 
+def _unir_features_por_nome(base: list, adicionais: list) -> list:
+    nomes = {_chave_nome((feature.get("properties") or {}).get("nome")) for feature in base}
+    unidas = list(base)
+    for feature in adicionais:
+        nome = _chave_nome((feature.get("properties") or {}).get("nome"))
+        if nome not in nomes:
+            unidas.append(feature)
+            nomes.add(nome)
+    return unidas
+
+
 @router.get("/territorio/municipios")
 def territory_municipalities(provincia: str | None = None):
-    """Polígonos municipais. Sem votos: a CNE não publicou este nível."""
+    """Polígonos geoBoundaries e catálogo operacional, sem votos municipais da CNE."""
+    from ..territorio import colecao_municipios
+
     features = list(_coleccao_geo("municipios_geoboundaries.geojson").get("features") or [])
     if not features:
         raise HTTPException(status_code=404, detail="Malha municipal indisponível.")
+    catalogo = colecao_municipios()
     if provincia:
         features = _filtrar_nome(features, "provincia", provincia)
+        catalogo["features"] = _filtrar_nome(catalogo["features"], "provincia", provincia)
     return {
         "type": "FeatureCollection",
-        "nota": NOTA_MALHA_LOCAL,
+        "nota": catalogo["nota"],
         "proveniencia_geometria": "OFICIAL",
         "proveniencia_votos": "AUSENTE",
         "total": len(features),
         "features": [_com_circulo(feature) for feature in features],
+        "catalogo_operacional": catalogo,
     }
 
 
 @router.get("/territorio/local")
 def territory_local(municipio: str = Query(..., min_length=1)):
-    """Comunas do município e bairros OSM dentro dele."""
+    """Malha de comunas e bairros geoBoundaries/OSM complementada por catálogo operacional."""
+    from ..territorio import colecao_local
+
+    operacionais = colecao_local(municipio)
     comunas = _filtrar_nome(
         list(_coleccao_geo("comunas_geoboundaries.geojson").get("features") or []),
         "municipio",
@@ -637,20 +645,20 @@ def territory_local(municipio: str = Query(..., min_length=1)):
         "municipio",
         municipio,
     )
-    if not comunas and not bairros:
-        raise HTTPException(status_code=404, detail=f"Sem comuna nem bairro para {municipio}.")
+    comunas = _unir_features_por_nome(
+        [_com_circulo(feature) for feature in comunas],
+        operacionais["comunas"]["features"],
+    )
+    bairros = _unir_features_por_nome(
+        [_com_circulo(feature) for feature in bairros],
+        operacionais["bairros"]["features"],
+    )
     return {
-        "municipio": municipio,
-        "nota": NOTA_MALHA_LOCAL,
+        "municipio": operacionais.get("municipio", municipio),
+        "nota": operacionais["nota"],
         "proveniencia_votos": "AUSENTE",
-        "comunas": {
-            "type": "FeatureCollection",
-            "features": [_com_circulo(feature) for feature in comunas],
-        },
-        "bairros": {
-            "type": "FeatureCollection",
-            "features": [_com_circulo(feature) for feature in bairros],
-        },
+        "comunas": {"type": "FeatureCollection", "features": comunas},
+        "bairros": {"type": "FeatureCollection", "features": bairros},
     }
 
 
@@ -680,67 +688,20 @@ def territory_units(
     geojson = _read_json(source)
     if not geojson or not isinstance(geojson.get("features"), list):
         raise HTTPException(status_code=503, detail="Arquivo territorial indisponível ou inválido.")
+
+    from ..territorio import enriquecer_unidades
+
     cne = _read_json(RAW / "resultados_eleitorais_cne_2022.json", {}).get("provincias", [])
     ine = _read_json(RAW / "populacao_projecoes_ine.json", {}).get("provincias", [])
-    cne_by_code = {item.get("codigo_cne"): item for item in cne}
-    ine_by_code = {item.get("codigo_ine"): item for item in ine}
-    features = []
-    for feature in geojson["features"]:
-        feature = _ancorar_geometria(feature)
-        props = feature.get("properties", {})
-        cne_data = cne_by_code.get(props.get("codigo_dpa"), {})
-        ine_data = ine_by_code.get(props.get("codigo_dpa"), {})
-        votos_a = cne_data.get("votos_partido_a", 0)
-        votos_b = cne_data.get("votos_partido_b", 0)
-        votos_val = cne_data.get("votos_validos", 0)
-        stats = _zone(votos_a, votos_b, votos_val)
-
-        nome_unidade = props.get("nome") or props.get("provincia") or "Território"
-        hondt_res = (
-            simular_hondt_provincial(votos_a, votos_b, max(0, votos_val - (votos_a + votos_b)), "Nosso Partido", "Oposição")
-            if (votos_a or votos_b)
-            else {"assentos": {}, "disputa_proxima_cadeira": {}}
-        )
-        hondt_disputa_a = hondt_res.get("disputa_proxima_cadeira", {}).get("Nosso Partido", {})
-        votos_virar = hondt_disputa_a.get("votos_para_proximo_assento")
-        volatilidade = hondt_disputa_a.get("volatilidade_cadeira", "MEDIA")
-
-        eleitores = cne_data.get("eleitores_registados") or 0
-        abstencao = cne_data.get("abstencao_perc") or 50.0
-        juventude = ine_data.get("jovens_perc_eleitorado") or 60.0
-        prio_info = calcular_indice_prioridade_completo(
-            eleitores_aptos=eleitores,
-            margem_apurada_perc=stats["margem_perc"],
-            abstencao_perc=abstencao,
-            juventude_perc=juventude,
-            nome_territorio=nome_unidade,
-            votos_para_virar_cadeira=votos_virar,
-        )
-
-        feature_props = {
-            **props,
-            "populacao_total": ine_data.get("populacao_total"),
-            "populacao_18_mais": ine_data.get("populacao_18_mais"),
-            "juventude_perc": juventude,
-            "eleitores_cne": eleitores,
-            "abstencao_perc": abstencao,
-            "margem_apurada_perc": stats["margem_perc"],
-            "zonamento": stats["zonamento"],
-            "formula_explicativa": stats["formula_aplicada"],
-            "score_prioridade": prio_info["score_prioridade"],
-            "potencial_voto": prio_info["potencial_voto"],
-            "competitividade": prio_info["competitividade"],
-            "custo_logistico_fator": prio_info["custo_logistico"]["fator"],
-            "custo_logistico_dificuldade": prio_info["custo_logistico"]["dificuldade"],
-            "custo_logistico_modal": prio_info["custo_logistico"]["modal"],
-            "custo_logistico_descricao": prio_info["custo_logistico"]["descricao"],
-            "hondt_deputados": hondt_res.get("assentos", {}),
-            "hondt_votos_proxima_cadeira": votos_virar,
-            "hondt_volatilidade_cadeira": volatilidade,
-            "formula_prioridade": prio_info["formula_aplicada"],
-            "proveniencia_dados": "OFICIAL" if cne_data else "SIMULADO",
-        }
-        features.append({**feature, "properties": feature_props})
+    de_para = _read_json(RAW / "de_para_dpa_2016_2024.json", {})
+    features = enriquecer_unidades(
+        geojson,
+        versao=versao,
+        cne_lista=cne,
+        ine_lista=ine,
+        de_para=de_para,
+        ancorar=_ancorar_geometria,
+    )
 
     ambito = nomes_no_ambito(plano_codigo, territorio)
     if not ambito.get("irrestrito"):
@@ -750,7 +711,7 @@ def territory_units(
         return {
             "type": "FeatureCollection",
             "name": f"malha_{versao}",
-            "proveniencia": "OFICIAL",
+            "proveniencia": "OFICIAL" if "2016" in versao else "MISTO",
             "features": features,
         }
     return {

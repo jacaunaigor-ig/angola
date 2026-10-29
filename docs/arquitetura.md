@@ -15,7 +15,7 @@ O núcleo analítico não importa nada de web nem de base de dados. Isso permite
 
 ## Fluxos principais
 
-**Zonamento.** `GET /api/territorio/unidades` cruza a malha DPA com os resultados CNE 2022 e as projecções INE, calcula a margem, o Hondt do círculo e o score integrado. O cliente pode reclassificar com outros limiares sem nova chamada.
+**Zonamento.** `GET /api/territorio/unidades` cruza a malha DPA com os resultados CNE 2022 e as projecções INE só no círculo provincial comparável a 2016. Municípios, comunas, bairros e províncias novas/residuais da DPA 2024 ficam `proveniencia_votos=AUSENTE` — o de-para não reparte votos. O cliente pode reclassificar limiares sem nova chamada.
 
 **Dia D.** O delegado fotografa a ata, o aparelho calcula o SHA-256, monta a cadeia canónica `local|mesa|votos…|foto|data|lon|lat` e assina com Ed25519 (chave guardada no `SecureStore`). A API refaz a cadeia, verifica a assinatura (HTTP 400 se falhar) e só então grava. Sem rede, a ata fica assinada numa fila local e a interface diz que **não foi transmitida**.
 
@@ -37,16 +37,17 @@ O núcleo analítico não importa nada de web nem de base de dados. Isso permite
 
 | Selo | Significado | Exemplo |
 | --- | --- | --- |
-| `OFICIAL` | Publicado por CNE ou INE | Totais nacionais 2012, 2017 e 2022 |
-| `ESTIMADO` | Projecção ou agregação documentada | População por província |
-| `SIMULADO` | Demonstração ou cenário | Assembleias de exemplo, choques de Hondt |
+| `OFICIAL` | Publicado por CNE ou INE | Totais nacionais 2012, 2017 e 2022; círculos provinciais 2022 |
+| `ESTIMADO` | Projecção ou agregação documentada | População por província / município |
+| `SIMULADO` | Demonstração ou cenário | Assembleias de exemplo, choques de Hondt, centróide DPA 2024 |
 | `PROVISORIO` | Apuramento parcial | Recortes provinciais de 2017 (97,82 % das mesas) |
+| `AUSENTE` | Sem fonte no grão pedido | Município, comuna, bairro; províncias novas ou residuais da DPA 2024 |
 
-Resultados por município e por mesa **não** estão no repositório e não são inventados.
+Resultados por município e por mesa **não** estão no repositório e não são inventados. O de-para DPA parte geometria, não votos. `GET /api/territorio/municipios` e `GET /api/territorio/local` devolvem sempre `proveniencia_votos=AUSENTE` enquanto `data/raw/README.md` não tiver uma linha isolada `FONTE_CNE_MUNICIPAL=SIM`.
 
 ## Decisões
 
-1. **Uma API.** A produção é FastAPI (`backend/app`). A API Express está em `arquivo/api-node/` e o CI já não a executa. O schema que o Docker aplica é `database/*.sql`.
+1. **Uma API de produção.** A produção é FastAPI (`backend/app`). A API Express está arquivada em `arquivo/api-node/`, fora do arranque e do CI. O schema que o Docker aplica está em `database/*.sql`.
 2. **A API sobe sem base de dados.** Se o PostgreSQL falhar, as rotas de ficheiros (cartografia, Hondt, série) continuam e `/health/ready` devolve 503. Rotas de campanha respondem erro explícito.
 3. **Imagem Docker com layout do repositório.** A API importa `war_room/` e lê `data/raw/`, por isso o contexto de build é a raiz (`docker build -f backend/Dockerfile .`).
 4. **Ed25519 em vez de só SHA-256.** O hash prova integridade; a assinatura prova autoria.

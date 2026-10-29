@@ -4,6 +4,7 @@
 const assert = require('assert');
 const { sqliteOutbox, STATUS_OUTBOX } = require('../mobile/src/services/sqliteOutbox');
 const { confirmarHttp200, extrairUuidsConfirmados } = require('../mobile/src/services/outboxSync');
+const { validarTimestampCampo } = require('../arquivo/api-node/src/utils/visitaTemporal');
 
 async function executar() {
   let passou = 0;
@@ -19,6 +20,24 @@ async function executar() {
   };
 
   sqliteOutbox._resetParaTestes();
+  const agora = Date.parse('2026-10-29T12:00:00.000Z');
+  asserir(
+    'Aceita timestamp de campo dentro da janela de sincronização',
+    validarTimestampCampo({ registado_em: new Date(agora).toISOString() }, agora).aceite
+  );
+  asserir(
+    'Rejeita timestamp muito futuro',
+    validarTimestampCampo({
+      registado_em: new Date(agora + 16 * 60 * 1000).toISOString(),
+    }, agora).codigo === 'DATA_FUTURA'
+  );
+  asserir(
+    'Exige justificativa para sincronização offline superior a sete dias',
+    validarTimestampCampo({
+      registado_em: new Date(agora - 8 * 24 * 60 * 60 * 1000).toISOString(),
+    }, agora).codigo === 'OFFLINE_SUPERIOR_7_DIAS'
+  );
+
   const uuid = sqliteOutbox.gerarUuidVisita();
   asserir('Gera UUID v4 com 36 caracteres', typeof uuid === 'string' && uuid.length === 36);
   asserir('UUID contém o marcador de versão 4', uuid[14] === '4');

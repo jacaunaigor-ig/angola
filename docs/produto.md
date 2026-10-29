@@ -28,6 +28,10 @@ Três perguntas, nesta ordem:
 
 O mapa e a série 2012–2022 ficam abaixo desta faixa.
 
+## Redes e mídia
+
+A leitura semanal é a mesma para qualquer lista: manchetes públicas, com proveniência estimada. A pauta da semana é um rascunho por público. Nomear o cliente ou o adversário acontece só neste browser e não altera o mapa nem as cadeiras.
+
 ## Estado
 
 - `consulta` — dados CNE/INE, sem atas nem discursos

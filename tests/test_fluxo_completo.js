@@ -349,7 +349,7 @@ async function testarFluxoIntegrado() {
 
   // 12. TESTE DE SEGURANÇA, CONTAS, RBAC E PRIVACIDADE (ETAPA 6)
   console.log('\n--- ETAPA 12: SEGURANÇA, CONTAS, RBAC E PRIVACIDADE ---');
-  const jwt = require('jsonwebtoken');
+  const jwt = require('../arquivo/api-node/node_modules/jsonwebtoken');
   const { gerarToken } = require('../arquivo/api-node/src/middleware/auth');
 
   // a. Existência da Política de Privacidade e Proteção de Dados

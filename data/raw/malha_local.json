@@ -1,0 +1,31 @@
+{
+  "metadados": {
+    "titulo": "Malha local operacional (comunas e bairros) sem votos da CNE",
+    "proveniencia_votos": "AUSENTE",
+    "proveniencia_geometria": "OSM / referência geográfica",
+    "nota": "Comunas e bairros sem acta da CNE. Traçado de referência geográfica (OSM / sede). O círculo provincial de 2022, quando indicado, é da província inteira. Não inventa microdados municipais.",
+    "cobertura": "Luanda (distritos urbanos históricos e bairros de referência). Os restantes municípios devolvem colecção vazia."
+  },
+  "municipios": {
+    "Luanda": {
+      "provincia": "Luanda",
+      "comunas": [
+        {"nome": "Ingombota", "centroide": [13.23, -8.813], "fonte": "osm", "proveniencia_geometria": "OSM"},
+        {"nome": "Maianga", "centroide": [13.234, -8.83], "fonte": "osm", "proveniencia_geometria": "OSM"},
+        {"nome": "Rangel", "centroide": [13.25, -8.82], "fonte": "osm", "proveniencia_geometria": "OSM"},
+        {"nome": "Samba", "centroide": [13.22, -8.86], "fonte": "osm", "proveniencia_geometria": "OSM"},
+        {"nome": "Sambizanga", "centroide": [13.245, -8.8], "fonte": "osm", "proveniencia_geometria": "OSM"}
+      ],
+      "bairros": [
+        {"nome": "Kinaxixi", "centroide": [13.224, -8.818], "fonte": "osm", "proveniencia_geometria": "OSM"},
+        {"nome": "Maculusso", "centroide": [13.228, -8.822], "fonte": "osm", "proveniencia_geometria": "OSM"},
+        {"nome": "Ilha do Cabo", "centroide": [13.27, -8.78], "fonte": "osm", "proveniencia_geometria": "OSM"},
+        {"nome": "Rocha Pinto", "centroide": [13.255, -8.855], "fonte": "osm", "proveniencia_geometria": "OSM"},
+        {"nome": "Prenda", "centroide": [13.248, -8.835], "fonte": "osm", "proveniencia_geometria": "OSM"},
+        {"nome": "Marçal", "centroide": [13.24, -8.825], "fonte": "osm", "proveniencia_geometria": "OSM"},
+        {"nome": "Alvalade", "centroide": [13.215, -8.83], "fonte": "osm", "proveniencia_geometria": "OSM"},
+        {"nome": "Terra Nova", "centroide": [13.255, -8.81], "fonte": "osm", "proveniencia_geometria": "OSM"}
+      ]
+    }
+  }
+}
