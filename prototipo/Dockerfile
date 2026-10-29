@@ -14,13 +14,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Instalar dependências Python
-COPY requirements.txt .
+COPY prototipo/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copiar ficheiros da aplicação
-COPY app.py .
-COPY api_client.py .
-COPY pages/ ./pages/
+# Copiar ficheiros da aplicação (contexto de build = raiz do repositório)
+COPY prototipo/app.py .
+COPY prototipo/api_client.py .
+COPY prototipo/pages/ ./pages/
+COPY prototipo/.streamlit/ ./.streamlit/
+COPY war_room/ ./war_room/
 COPY data/ ./data/
 COPY angola_populacional/ ./angola_populacional/
 

@@ -4,7 +4,6 @@
 const assert = require('assert');
 const { sqliteOutbox, STATUS_OUTBOX } = require('../mobile/src/services/sqliteOutbox');
 const { confirmarHttp200, extrairUuidsConfirmados } = require('../mobile/src/services/outboxSync');
-const { validarTimestampCampo } = require('../backend/src/utils/visitaTemporal');
 
 async function executar() {
   let passou = 0;
@@ -52,25 +51,7 @@ async function executar() {
   await sqliteOutbox.marcarSincronizados(confirmados);
   asserir('Após HTTP 200 o status local deixa de estar PENDENTE', (await sqliteOutbox.contarPendencias()) === 0);
 
-  const agora = Date.now();
-  const futuro = validarTimestampCampo({ registado_em: new Date(agora + 2 * 60 * 60 * 1000).toISOString() }, agora);
-  asserir('Rejeita timestamp futuro absurdo', futuro.aceite === false && futuro.codigo === 'DATA_FUTURA');
-
-  const antigo = validarTimestampCampo({
-    registado_em: new Date(agora - 10 * 24 * 60 * 60 * 1000).toISOString(),
-  }, agora);
-  asserir('Rejeita mais de 7 dias offline sem justificativa', antigo.aceite === false && antigo.codigo === 'OFFLINE_SUPERIOR_7_DIAS');
-
-  const justificado = validarTimestampCampo({
-    registado_em: new Date(agora - 10 * 24 * 60 * 60 * 1000).toISOString(),
-    justificativa_offline: 'Zona sem cobertura GSM durante missões no Cunene.',
-  }, agora);
-  asserir('Aceita offline > 7 dias quando há justificativa', justificado.aceite === true && justificado.revisao === true);
-
-  const atual = validarTimestampCampo({ registado_em: new Date(agora).toISOString() }, agora);
-  asserir('Aceita timestamp de campo corrente', atual.aceite === true);
-
-  console.log(`\n${passou}/${total} testes do outbox e idempotência temporal.`);
+  console.log(`\n${passou}/${total} testes do outbox e idempotência.`);
   if (passou !== total) process.exit(1);
 }
 

@@ -15,15 +15,13 @@
 
 ## Lacunas conhecidas
 
-Ordenadas por impacto.
-
-1. **Resposta ao eleitor não sai para a Meta.** O webhook devolve o texto, mas o envio pela Cloud API depende de `WHATSAPP_ACCESS_TOKEN` e de um cliente de saída.
-2. **Resultados municipais.** Só existem totais nacionais e círculos provinciais de 2022. Sem municípios, o score não distingue bairros.
-3. **Painéis executivos.** `pages/1_Paineis_Executivos.py` continua em Streamlit e com dados simulados.
-4. **EAS cloud build.** O perfil `preview` gera APK; o build na nuvem Expo exige conta e `eas login`.
+1. **Votos por município e por bairro.** A sala mostra 158 municípios, 558 comunas (geoBoundaries) e 428 bairros OSM. A CNE de 2022 não publicou este nível. A margem no painel é a do círculo provincial.
+2. **Resposta ao eleitor não sai para a Meta.** O webhook devolve o texto, mas o envio pela Cloud API depende de `WHATSAPP_ACCESS_TOKEN` e de um cliente de saída.
+3. **APK.** O perfil `preview` está definido. O build na nuvem Expo exige `eas login` e um `projectId` UUID — o valor actual em `mobile/app.json` é um marcador, não uma conta Expo.
+4. **DPA 2024.** A malha municipal aberta tem 158 unidades, não os 325 municípios da lei nova. Não foram desenhados polígonos em falta.
 
 ## Ordem sugerida
 
-1. Cliente de saída WhatsApp com modelos aprovados.
-2. Cruzamento municipal quando a CNE publicar microdados.
-3. Build EAS `preview` assinado para distribuição interna em Android de entrada.
+1. Quando a CNE publicar microdados, cruzar votos municipais — não inventar números.
+2. Cliente de saída WhatsApp com modelos aprovados.
+3. `eas login` e substituir `extra.eas.projectId` por o UUID do projecto, depois `npx eas-cli build -p android --profile preview`.

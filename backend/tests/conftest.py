@@ -8,7 +8,7 @@ import psycopg
 import pytest
 from fastapi.testclient import TestClient
 
-# `app.py` at the repository root shares a name with the backend package.
+# O pacote `app` é backend/app. O Streamlit está em prototipo/ e não colide com este nome.
 backend_root = str(Path(__file__).resolve().parents[1])
 if backend_root in sys.path:
     sys.path.remove(backend_root)
@@ -31,6 +31,8 @@ FIELD_ID = UUID("d0000000-0000-0000-0000-000000000002")
 def test_database_url():
     url = os.getenv("TEST_DATABASE_URL")
     if not url:
+        if os.getenv("REQUIRE_POSTGIS_TESTS", "").lower() in {"1", "true", "yes"}:
+            pytest.fail("CI exige TEST_DATABASE_URL com PostgreSQL/PostGIS isolado.")
         pytest.skip("Integração real requer TEST_DATABASE_URL apontando para um banco PostGIS isolado.")
     database_name = url.rsplit("/", 1)[-1].split("?", 1)[0]
     if not database_name.endswith("_test"):

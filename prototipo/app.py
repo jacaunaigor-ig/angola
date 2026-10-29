@@ -12,7 +12,14 @@ import plotly.graph_objects as go
 from datetime import datetime
 from typing import Optional
 
-from api_client import ApiClient
+import sys
+
+from api_client import ApiClient, raiz_projeto
+
+RAIZ = raiz_projeto()
+if RAIZ not in sys.path:
+    sys.path.insert(0, RAIZ)
+
 from war_room.anomalias_campo import (
     analisar_integridade_campo,
     visitas_demonstracao_risco,
@@ -630,7 +637,7 @@ with aba_mapa:
     st.subheader("🗺️ Cartografia Tática e Camadas Coropléticas de Angola")
     st.markdown(f"**Malha Ativa:** `{versao_selecionada}` • **Fonte:** `{proveniencia_unidades}` • **SRID:** 4326")
 
-    serie_path = os.path.join(os.path.dirname(__file__), "data", "raw", "serie_historica_eleicoes_cne.json")
+    serie_path = os.path.join(RAIZ, "data", "raw", "serie_historica_eleicoes_cne.json")
     with st.expander("Série histórica nacional — eleições de 2012, 2017 e 2022", expanded=True):
         if not os.path.isfile(serie_path):
             st.warning("Ficheiro da série histórica não encontrado em data/raw.")

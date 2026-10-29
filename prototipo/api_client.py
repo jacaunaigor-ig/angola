@@ -14,6 +14,17 @@ from typing import Dict, Any, Optional, Tuple
 API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000/api")
 TIMEOUT_SECONDS = 3.5
 
+
+def raiz_projeto() -> str:
+    """Raiz do repositório (dados e war_room) ou /app na imagem Docker."""
+    aqui = os.path.dirname(os.path.abspath(__file__))
+    for candidato in (aqui, os.path.dirname(aqui)):
+        if os.path.isdir(os.path.join(candidato, "data", "raw")) and os.path.isdir(
+            os.path.join(candidato, "war_room")
+        ):
+            return candidato
+    return os.path.dirname(aqui)
+
 class ApiClient:
     def __init__(self, base_url: str = API_BASE_URL):
         self.base_url = base_url.rstrip("/")
@@ -116,7 +127,7 @@ class ApiClient:
 
         # Fallback local em data/raw/ com etiquetação de proveniência
         raw_file = "malha_angola_dpa2024.geojson" if "2024" in versao else "malha_angola_dpa2016.geojson"
-        local_path = os.path.join(os.path.dirname(__file__), "data", "raw", raw_file)
+        local_path = os.path.join(raiz_projeto(), "data", "raw", raw_file)
         
         if os.path.exists(local_path):
             with open(local_path, "r", encoding="utf-8") as f:

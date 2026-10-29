@@ -10,7 +10,7 @@
 import nacl from 'tweetnacl';
 import * as SecureStore from 'expo-secure-store';
 import * as Crypto from 'expo-crypto';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 
 const KEY_ED25519_SECRET = 'delegado_ed25519_secret_key';
 const KEY_ED25519_PUBLIC = 'delegado_ed25519_public_key';

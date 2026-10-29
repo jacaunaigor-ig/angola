@@ -25,5 +25,5 @@ Mensagens curtas no formato `tipo(área): resumo` (`feat`, `fix`, `docs`, `refac
 
 ## Ambiente
 
-- Execute `uvicorn` a partir de `backend/` com `PYTHONPATH` apontando para a raiz. Na raiz, `app.py` (Streamlit) colide com o pacote `app`.
+- Execute `uvicorn` a partir de `backend/` com `PYTHONPATH` apontando para a raiz. O Streamlit vive em `prototipo/` e não partilha o nome do pacote `app`.
 - Não faça commit de `.env`, `data/storage/` nem de ambientes virtuais.

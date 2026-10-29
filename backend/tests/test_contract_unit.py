@@ -46,6 +46,106 @@ def test_demo_credentials_issue_token_without_database():
         assert recusado.status_code == 401
 
 
+def test_demo_credentials_are_disabled_in_staging():
+    from fastapi.testclient import TestClient
+
+    app = create_app(
+        Settings(
+            app_env="staging",
+            jwt_secret_key="a-long-test-secret-key-that-is-at-least-32-chars",
+            cors_allowed_origins="http://localhost:5173",
+        ),
+        require_database=False,
+    )
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/auth/token",
+            json={
+                "campanha_id": "a0000000-0000-0000-0000-000000000001",
+                "email": "analista@campanha.ao",
+                "senha": "senha-segura-2027",
+            },
+        )
+        queixas = client.get("/api/whatsapp/queixas")
+        verify_webhook = client.get(
+            "/api/whatsapp/webhook",
+            params={
+                "hub.mode": "subscribe",
+                "hub.verify_token": "dev-eleitor-2027",
+                "hub.challenge": "12345",
+            },
+        )
+        simulacao = client.post("/api/whatsapp/simular", json={"texto": "QUEIXA agua"})
+    assert response.status_code == 401
+    assert queixas.status_code == 401
+    assert verify_webhook.status_code == 403
+    assert simulacao.status_code == 404
+
+
+def test_whatsapp_persistence_outage_is_reported_in_production():
+    import hashlib
+    import hmac
+    import json
+
+    from app.routers import whatsapp
+    from fastapi.testclient import TestClient
+
+    with whatsapp._lock:
+        whatsapp._queixas.clear()
+        whatsapp._vistos.clear()
+
+    settings = Settings(
+        app_env="production",
+        jwt_secret_key="a-long-test-secret-key-that-is-at-least-32-chars",
+        cors_allowed_origins="http://localhost:3000",
+        whatsapp_app_secret="whatsapp-test-secret",
+    )
+    app = create_app(settings, require_database=False)
+    body = json.dumps(
+        {
+            "entry": [{
+                "changes": [{
+                    "value": {
+                        "messages": [{
+                            "from": "244923111222",
+                            "id": "wamid-outage-test",
+                            "text": {"body": "QUEIXA agua Viana sem água"},
+                        }]
+                    }
+                }]
+            }]
+        }
+    ).encode()
+    signature = "sha256=" + hmac.new(
+        settings.whatsapp_app_secret.encode(), body, hashlib.sha256
+    ).hexdigest()
+
+    with TestClient(app) as client:
+        webhook = client.post(
+            "/api/whatsapp/webhook",
+            content=body,
+            headers={"X-Hub-Signature-256": signature, "Content-Type": "application/json"},
+        )
+        assert webhook.status_code == 503
+        token = create_access_token(
+            {
+                "id": UUID("d0000000-0000-0000-0000-000000000001"),
+                "campanha_id": UUID("a0000000-0000-0000-0000-000000000001"),
+                "email": "analista@example.test",
+                "perfil": "ANALISTA",
+            },
+            settings,
+        )
+        queue = client.get(
+            "/api/whatsapp/queixas",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert queue.status_code == 503
+
+    assert "wamid-outage-test" not in whatsapp._vistos
+    assert not whatsapp._queixas
+
+
 def test_cors_rejects_wildcard_origin():
     with pytest.raises(ValueError, match="wildcard não é permitido"):
         Settings(cors_allowed_origins="*")
@@ -521,6 +621,38 @@ def test_unidades_ancoram_geometria_geo_angola_sem_inventar_dpa2024():
     huambo = next(f for f in dpa2024.json()["features"] if f["properties"]["nome"] == "Huambo")
     assert huambo["geometry"]["type"] in {"Polygon", "MultiPolygon"}
     assert huambo["properties"]["geometria_fonte"] == "geo_angola"
+
+
+def test_malha_local_nao_inventa_votos():
+    from fastapi.testclient import TestClient
+
+    app = create_app(
+        Settings(
+            app_env="test",
+            jwt_secret_key="secret-key-at-least-32-chars-long!",
+            cors_allowed_origins="http://localhost:3000",
+        )
+    )
+    client = TestClient(app)
+    municipios = client.get("/api/territorio/municipios")
+    assert municipios.status_code == 200
+    corpo = municipios.json()
+    assert corpo["proveniencia_votos"] == "AUSENTE"
+    assert corpo["total"] == 158
+    luanda = next(f for f in corpo["features"] if f["properties"]["nome"] == "Luanda")
+    assert luanda["properties"]["proveniencia_votos"] == "AUSENTE"
+    assert "votos_partido_a" not in luanda["properties"]
+    assert luanda["properties"]["provincia"] == "Luanda"
+    assert isinstance(luanda["properties"]["margem_circulo_perc"], (int, float))
+
+    local = client.get("/api/territorio/local", params={"municipio": "Luanda"})
+    assert local.status_code == 200
+    nomes = {f["properties"]["nome"] for f in local.json()["comunas"]["features"]}
+    assert {"Maianga", "Rangel", "Sambizanga", "Cazenga"} <= nomes
+    assert local.json()["bairros"]["features"]
+    bairro = local.json()["bairros"]["features"][0]["properties"]
+    assert bairro["fonte"] == "OpenStreetMap"
+    assert bairro["proveniencia_votos"] == "AUSENTE"
 
 
 def test_submissao_de_ata_grava_colunas_ed25519_no_insert():

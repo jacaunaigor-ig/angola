@@ -45,7 +45,7 @@ def issue_token(payload: LoginRequest, request: Request):
     ):
         return _token_payload(user, request)
 
-    if settings.app_env != "production" and credenciais_de_demonstracao(
+    if settings.app_env in {"development", "test"} and credenciais_de_demonstracao(
         payload.campaign_id, payload.email, payload.password
     ):
         return _token_payload(DEMO_USER, request)

@@ -5,7 +5,7 @@ const {
   funcionalidadePermitida,
   listarPlanos,
   nomesNoAmbito,
-} = require('../backend/src/services/planosComerciaisService');
+} = require('../arquivo/api-node/src/services/planosComerciaisService');
 
 function asserir(desc, cond) {
   if (!cond) {

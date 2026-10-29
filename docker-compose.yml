@@ -77,7 +77,7 @@ services:
   war-room:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: prototipo/Dockerfile
     container_name: angola_war_room
     restart: unless-stopped
     environment:

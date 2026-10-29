@@ -1754,12 +1754,14 @@ html_template = """<!DOCTYPE html>
 </html>
 """
 
-# Salvar como apresentacao_cliente.html e demo_cliente.html na raiz do projeto
-out_path = ROOT / "apresentacao_cliente.html"
+# HTML comercial fica em comercial/; a sala React copia uma versão para web/public.
+comercial = ROOT / "comercial"
+comercial.mkdir(parents=True, exist_ok=True)
+out_path = comercial / "apresentacao_cliente.html"
 with open(out_path, "w", encoding="utf-8") as f:
     f.write(html_template)
 
-demo_path = ROOT / "demo_cliente.html"
+demo_path = comercial / "demo_cliente.html"
 shutil.copyfile(out_path, demo_path)
 
 web_public_demo = ROOT / "web" / "public" / "demo.html"

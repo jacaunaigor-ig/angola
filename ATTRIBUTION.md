@@ -5,10 +5,10 @@ software (`LICENSE`) **não** substitui as obrigações abaixo.
 
 ## geoBoundaries (malha administrativa de Angola)
 
-Os ficheiros em `geo_angola/` (incluindo `geoBoundaries-AGO-ADM1*` e derivados
-simplificados) provêm do projecto [geoBoundaries](https://www.geoboundaries.org/).
+Os ficheiros em `geo_angola/` (incluindo `geoBoundaries-AGO-ADM1*`, `municipios_geoboundaries.geojson`, `comunas_geoboundaries.geojson` e derivados) provêm do projecto [geoBoundaries](https://www.geoboundaries.org/).
 
-- Licença do produto de dados: **Creative Commons Attribution 4.0 International (CC BY 4.0)**
+- Licença do produto de dados: **Creative Commons Attribution 4.0 International (CC BY 4.0)**. O recorte ADM2/ADM3 usado aqui vem marcado como domínio público na API geoBoundaries (fonte Wikimedia Commons / geoBoundaries), build `9469f09`.
+- Municípios: 158 (ADM2). Comunas: 558 (ADM3). Não é a lista da DPA 2024.
 - Citação obrigatória:
 
   Runfola, D. et al. (2020). geoBoundaries: A global database of political
@@ -28,8 +28,7 @@ O mapa de fundo da sala de comando usa mosaicos **OpenStreetMap**.
 - Licença da base de dados: **ODbL 1.0** — https://opendatacommons.org/licenses/odbl/
 - Atribuição exigida pelo Leaflet/OSM já aparece no canto do mapa.
 
-A malha vetorial de Angola **não** é copiada da API do OSM; o fundo de ruas é
-servido pelos mosaicos públicos e permanece separado das geometrias `geo_angola`.
+A malha vetorial de províncias, municípios e comunas **não** é copiada da API do OSM. Os bairros em `geo_angola/bairros_osm.geojson` são pontos `place=suburb|neighbourhood|quarter` obtidos do Overpass, licenciados em **ODbL**. O fundo de ruas é servido pelos mosaicos públicos.
 
 ## Fontes oficiais angolanas
 

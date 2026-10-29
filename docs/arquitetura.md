@@ -21,7 +21,7 @@ O núcleo analítico não importa nada de web nem de base de dados. Isso permite
 
 **Evidências.** `POST /api/evidencias/presigned-upload` devolve um URL `PUT` com `expires` e `signature` (HMAC-SHA256 da chave de armazenamento, 15 min). O ficheiro é imutável: um segundo envio dá 409. A leitura exige sessão da mesma campanha. A interface é a de um bucket S3/R2, e trocar o armazenamento não muda os clientes.
 
-**Canal do eleitor.** O webhook valida `X-Hub-Signature-256` quando `WHATSAPP_APP_SECRET` existe (obrigatório em produção). Responde com assembleias de exemplo e grava queixas em `queixas_eleitor` (RLS, retenção 90 dias). Telefones ficam mascarados (`***222`) e guardados como HMAC. Sem PostgreSQL, a fila fica em memória só para demonstração.
+**Canal do eleitor.** O webhook valida `X-Hub-Signature-256` quando `WHATSAPP_APP_SECRET` existe (obrigatório fora de desenvolvimento/testes). Responde com assembleias de exemplo e grava queixas em `queixas_eleitor` (RLS, retenção 90 dias). Telefones ficam mascarados (`***222`) e guardados como HMAC. A fila em memória existe só em desenvolvimento/testes; em staging/produção a indisponibilidade da base responde `503`, permitindo que o provedor repita a entrega sem confirmar uma gravação perdida.
 
 **Apuramento em tempo real.** `GET /api/dia-d/stream` envia Server-Sent Events à sala de comando sempre que uma ata da campanha autenticada é aceite. O nginx desliga o buffering nesse caminho.
 
@@ -30,7 +30,7 @@ O núcleo analítico não importa nada de web nem de base de dados. Isso permite
 - JWT com emissor, expiração e perfis `ADMIN`, `ANALISTA`, `COORDENADOR`, `BRIGADISTA`, `LEITOR`.
 - Isolamento por campanha com Row-Level Security; cada transacção define `app.current_campanha_id`.
 - Limite de pedidos por IP (`429` com `Retry-After`), CORS com origens explícitas (sem `*`), pedidos com `X-Request-ID`.
-- Em produção: segredo JWT de desenvolvimento é recusado, simulador do canal desligado, queixas só para perfis de análise.
+- Em staging/produção: credenciais de demonstração e simulador do canal são desligados, webhook exige segredos configurados e queixas só são acessíveis a perfis autorizados.
 - Planos comerciais controlam funcionalidades (`402` quando o plano não inclui).
 
 ## Proveniência dos dados
@@ -46,7 +46,7 @@ Resultados por município e por mesa **não** estão no repositório e não são
 
 ## Decisões
 
-1. **Dois runtimes de API.** A API de produção é FastAPI (`backend/app`). A API Node em `backend/src` é legado mantido por compatibilidade.
+1. **Uma API.** A produção é FastAPI (`backend/app`). A API Express está em `arquivo/api-node/` e o CI já não a executa. O schema que o Docker aplica é `database/*.sql`.
 2. **A API sobe sem base de dados.** Se o PostgreSQL falhar, as rotas de ficheiros (cartografia, Hondt, série) continuam e `/health/ready` devolve 503. Rotas de campanha respondem erro explícito.
 3. **Imagem Docker com layout do repositório.** A API importa `war_room/` e lê `data/raw/`, por isso o contexto de build é a raiz (`docker build -f backend/Dockerfile .`).
 4. **Ed25519 em vez de só SHA-256.** O hash prova integridade; a assinatura prova autoria.

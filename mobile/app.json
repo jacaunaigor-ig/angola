@@ -5,10 +5,6 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
-    "splash": {
-      "resizeMode": "contain",
-      "backgroundColor": "#080D1A"
-    },
     "assetBundlePatterns": [
       "**/*"
     ],
@@ -53,6 +49,13 @@
         {
           "photosPermission": "Pré-visualização da fotografia da ata antes da assinatura digital.",
           "cameraPermission": "Fotografar a Ata de Apuramento oficial da mesa de voto."
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "resizeMode": "contain",
+          "backgroundColor": "#080D1A"
         }
       ]
     ],

@@ -4,6 +4,7 @@ import json
 import logging
 import queue
 import re
+import unicodedata
 from datetime import UTC, datetime
 from functools import lru_cache
 from pathlib import Path
@@ -551,6 +552,106 @@ def geo_angola_malha(arquivo: str = "simplificado"):
     if not source.is_file():
         raise HTTPException(status_code=404, detail=f"Arquivo {nome} não encontrado na pasta geo_angola.")
     return FileResponse(source, media_type="application/geo+json")
+
+
+NOTA_MALHA_LOCAL = (
+    "158 municípios e 558 comunas da geoBoundaries (não é a DPA 2024 de 325 municípios). "
+    "Bairros são pontos OpenStreetMap, só onde a comunidade os mapeou — 156 em Luanda. "
+    "A CNE de 2022 publicou o círculo provincial, não o município, a comuna nem o bairro. "
+    "A cor desta malha não é voto."
+)
+
+
+def _chave_nome(valor: str | None) -> str:
+    texto = unicodedata.normalize("NFKD", valor or "")
+    return "".join(caracter for caracter in texto if not unicodedata.combining(caracter)).casefold().strip()
+
+
+@lru_cache(maxsize=4)
+def _coleccao_geo(nome: str) -> dict:
+    dados = _read_json(GEO_ANGOLA / nome) or {}
+    if not isinstance(dados.get("features"), list):
+        return {"type": "FeatureCollection", "features": []}
+    return dados
+
+
+@lru_cache(maxsize=1)
+def _circulos_cne() -> dict:
+    provincias = (_read_json(RAW / "resultados_eleitorais_cne_2022.json", {}) or {}).get("provincias", [])
+    circulos = {}
+    for item in provincias:
+        votos_a = item.get("votos_partido_a") or 0
+        votos_b = item.get("votos_partido_b") or 0
+        validos = item.get("votos_validos") or 0
+        stats = _zone(votos_a, votos_b, validos)
+        circulos[_chave_nome(item.get("provincia"))] = {
+            "margem_circulo_perc": stats["margem_perc"],
+            "zonamento_circulo": stats["zonamento"],
+            "proveniencia_circulo": "OFICIAL",
+        }
+    return circulos
+
+
+def _com_circulo(feature: dict) -> dict:
+    props = dict(feature.get("properties") or {})
+    circulo = _circulos_cne().get(_chave_nome(props.get("provincia")))
+    if circulo:
+        props.update(circulo)
+    props["proveniencia_votos"] = "AUSENTE"
+    return {**feature, "properties": props}
+
+
+def _filtrar_nome(features: list, campo: str, valor: str) -> list:
+    chave = _chave_nome(valor)
+    return [feature for feature in features if _chave_nome((feature.get("properties") or {}).get(campo)) == chave]
+
+
+@router.get("/territorio/municipios")
+def territory_municipalities(provincia: str | None = None):
+    """Polígonos municipais. Sem votos: a CNE não publicou este nível."""
+    features = list(_coleccao_geo("municipios_geoboundaries.geojson").get("features") or [])
+    if not features:
+        raise HTTPException(status_code=404, detail="Malha municipal indisponível.")
+    if provincia:
+        features = _filtrar_nome(features, "provincia", provincia)
+    return {
+        "type": "FeatureCollection",
+        "nota": NOTA_MALHA_LOCAL,
+        "proveniencia_geometria": "OFICIAL",
+        "proveniencia_votos": "AUSENTE",
+        "total": len(features),
+        "features": [_com_circulo(feature) for feature in features],
+    }
+
+
+@router.get("/territorio/local")
+def territory_local(municipio: str = Query(..., min_length=1)):
+    """Comunas do município e bairros OSM dentro dele."""
+    comunas = _filtrar_nome(
+        list(_coleccao_geo("comunas_geoboundaries.geojson").get("features") or []),
+        "municipio",
+        municipio,
+    )
+    bairros = _filtrar_nome(
+        list(_coleccao_geo("bairros_osm.geojson").get("features") or []),
+        "municipio",
+        municipio,
+    )
+    if not comunas and not bairros:
+        raise HTTPException(status_code=404, detail=f"Sem comuna nem bairro para {municipio}.")
+    return {
+        "municipio": municipio,
+        "nota": NOTA_MALHA_LOCAL,
+        "proveniencia_votos": "AUSENTE",
+        "comunas": {
+            "type": "FeatureCollection",
+            "features": [_com_circulo(feature) for feature in comunas],
+        },
+        "bairros": {
+            "type": "FeatureCollection",
+            "features": [_com_circulo(feature) for feature in bairros],
+        },
+    }
 
 
 @router.get("/territorio/unidades")

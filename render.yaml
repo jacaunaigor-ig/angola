@@ -36,8 +36,8 @@ services:
     env: python
     region: frankfurt
     plan: starter
-    buildCommand: pip install -r requirements.txt
-    startCommand: streamlit run app.py --server.port $PORT --server.address 0.0.0.0
+    buildCommand: pip install -r prototipo/requirements.txt
+    startCommand: streamlit run prototipo/app.py --server.port $PORT --server.address 0.0.0.0
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.9
