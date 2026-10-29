@@ -70,6 +70,39 @@ def test_proposta_comercial_exige_meio_de_contacto():
     assert "e-mail ou telefone" in response.json()["detail"]
 
 
+def test_discursos_sem_base_de_dados_respondem_com_indisponibilidade_clara():
+    from fastapi.testclient import TestClient
+
+    app = create_app(
+        Settings(
+            app_env="test",
+            jwt_secret_key="a-long-test-secret-key-that-is-at-least-32-chars",
+            cors_allowed_origins="http://localhost:5173",
+        ),
+        require_database=False,
+    )
+    with TestClient(app) as client:
+        login = client.post(
+            "/api/auth/token",
+            json={
+                "campanha_id": "a0000000-0000-0000-0000-000000000001",
+                "email": "analista@campanha.ao",
+                "senha": "senha-segura-2027",
+            },
+        )
+        headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+        gerar = client.post(
+            "/api/discursos/gerar",
+            json={"municipio": "Luanda"},
+            headers=headers,
+        )
+        historico = client.get("/api/discursos/historico/Luanda", headers=headers)
+
+    assert gerar.status_code == 503
+    assert "base de dados" in gerar.json()["detail"]
+    assert historico.status_code == 503
+
+
 def test_demo_credentials_are_disabled_in_staging():
     from fastapi.testclient import TestClient
 
@@ -470,9 +503,8 @@ def test_canal_eleitor_recusa_caderno_e_agrega_queixa_sem_telefone():
 
 
 def test_ticket_de_evidencia_assinado_expira_e_isola_campanhas(tmp_path, monkeypatch):
-    from fastapi.testclient import TestClient
-
     from app import storage
+    from fastapi.testclient import TestClient
 
     monkeypatch.setattr(storage, "STORAGE_ROOT", tmp_path)
     settings = Settings(

@@ -391,7 +391,7 @@ export default function App() {
           {aba === "redes" && <Redes />}
           {aba === "planos" && <Planos planos={dados.planos} plano={plano} setPlano={mudarPlano} />}
           {aba === "discurso" && <Discursos plano={plano} sessao={sessao} />}
-          {aba === "eleitor" && <Eleitor />}
+          {aba === "eleitor" && <Eleitor sessao={sessao} plano={plano} />}
         </ErrorBoundary>
       </div>
 

@@ -21,6 +21,7 @@
 4. **APK.** O perfil `preview` está definido. O build na nuvem Expo exige conta e `eas login`; o `projectId` actual em `mobile/app.json` é um marcador, não uma conta Expo.
 5. **DPA 2024.** A malha municipal aberta tem 158 unidades, não os 325 municípios da lei nova. Não foram desenhados polígonos em falta.
 6. **Pedidos comerciais.** O protocolo de proposta é volátil, sem notificação e sem fila de atendimento. Antes de recolher contactos reais, integrar persistência/CRM, acesso administrativo, prazo de retenção e confirmação de consentimento.
+7. **Canal do eleitor.** O webhook de entrada grava relatos, mas o envio de respostas pela WhatsApp Cloud API ainda não existe. Antes de anunciar atendimento público, implementar envio idempotente, templates aprovados, tratamento de falhas e fluxo de encaminhamento humano.
 
 ## Ordem sugerida
 

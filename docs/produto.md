@@ -36,6 +36,12 @@ A aplicação não contém sondagens presidenciais. A vista Presidencial mostra 
 
 A leitura diária é a mesma para qualquer lista: manchetes de imprensa pública publicadas nas últimas 24 horas, com proveniência estimada e horário de publicação. O cache é renovado ao acessar após 24 horas e também pode ser atualizado manualmente. A pauta do dia é um rascunho por público. Esta versão não monitora posts, alcance ou sentimento em redes sociais, nem lê contas ou grupos privados; não é sondagem. Nomear o cliente ou o adversário acontece só neste browser e não altera o mapa nem as cadeiras.
 
+## Discursos e canal do eleitor
+
+Discursos exigem sessão autorizada e base de dados: a geração grava rascunhos na campanha, permite consultar histórico e regista revisão/aprovação com responsável. O contexto usa carências agregadas das visitas no município e a classificação territorial; sem visitas, o sistema informa a ausência. O modelo utilizado (Anthropic ou fallback heurístico) é apresentado; nenhum texto é publicação automática.
+
+O painel Eleitor exige sessão da campanha e consulta contagens agregadas de queixas no âmbito dessa campanha. O simulador de mensagens existe apenas em desenvolvimento local, não no deploy público. A recepção pelo webhook depende da configuração Meta; a resposta automática de saída pela Cloud API ainda não está implementada. Sem credenciais e validação, não anunciar número ou atendimento oficial.
+
 ## Estado
 
 - `consulta` — dados CNE/INE, sem atas nem discursos

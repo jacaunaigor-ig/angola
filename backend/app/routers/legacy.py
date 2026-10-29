@@ -44,6 +44,16 @@ ROLE_REVIEW = require_roles("ADMIN", "ANALISTA")
 ROLE_FIELD = require_roles("ADMIN", "COORDENADOR", "BRIGADISTA")
 
 
+def _speech_pool(request: Request):
+    pool = getattr(request.app.state, "db_pool", None)
+    if pool is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Discursos de campanha exigem uma base de dados disponível.",
+        )
+    return pool
+
+
 def _zone(votes_party: int, votes_opposition: int, valid: int, bastion: float = 15, opposition: float = -15):
     party_pct = round(votes_party / valid * 100, 2) if valid else 0.0
     opposition_pct = round(votes_opposition / valid * 100, 2) if valid else 0.0
@@ -1044,8 +1054,14 @@ def list_legal_cases(
     return {"sucesso": True, "total": len(rows), "casos": rows}
 
 
-def _speech_draft(municipio: str, zone: str, concerns: list[str], settings) -> dict:
+def _speech_draft(
+    municipio: str,
+    zone: str,
+    concerns: list[str],
+    settings,
+) -> tuple[dict, str]:
     draft = None
+    modelo_utilizado = "heuristico_auditado_v1"
     if settings.anthropic_api_key:
         try:
             response = Anthropic(api_key=settings.anthropic_api_key).messages.create(
@@ -1071,6 +1087,26 @@ def _speech_draft(municipio: str, zone: str, concerns: list[str], settings) -> d
                         draft = json.loads(json_match.group(0))
                     except json.JSONDecodeError:
                         draft = None
+            compromisso_valido = (
+                isinstance(draft, dict)
+                and isinstance(draft.get("compromissos_propostas"), list)
+                and all(
+                    isinstance(item, dict)
+                    and isinstance(item.get("texto_proposta"), str)
+                    for item in draft["compromissos_propostas"]
+                )
+            )
+            if (
+                isinstance(draft, dict)
+                and isinstance(draft.get("hook_abertura"), str)
+                and isinstance(draft.get("tom_adotado"), str)
+                and compromisso_valido
+                and isinstance(draft.get("bloco_juventude"), str)
+                and isinstance(draft.get("armadilhas_a_evitar"), list)
+            ):
+                modelo_utilizado = settings.ai_model
+            else:
+                draft = None
         except Exception as exc:
             logger.warning("Falha ao consultar API Anthropic para discurso: %s", exc)
             draft = None
@@ -1089,7 +1125,7 @@ def _speech_draft(municipio: str, zone: str, concerns: list[str], settings) -> d
     for item in draft.get("compromissos_propostas", []):
         if not item.get("texto_proposta", "").startswith("[PROMESSA — REVISAR]"):
             item["texto_proposta"] = f"[PROMESSA — REVISAR] {item.get('texto_proposta', '')}".strip()
-    return draft
+    return draft, modelo_utilizado
 
 
 @router.post("/discursos/gerar", status_code=201)
@@ -1104,7 +1140,7 @@ def generate_speech(
     campaign = payload.campanha_id or UUID(user["campaign_id"])
     if str(campaign) != user["campaign_id"]:
         raise HTTPException(status_code=403, detail="A campanha não corresponde ao token autenticado.")
-    with request.app.state.db_pool.connection() as connection:
+    with _speech_pool(request).connection() as connection:
         with connection.transaction():
             connection.execute(
                 "SELECT set_config('app.current_campanha_id', %s, true)",
@@ -1112,16 +1148,32 @@ def generate_speech(
             )
             territory = connection.execute(
                 """
-                SELECT municipio, provincia,
+                SELECT lv.municipio, lv.provincia,
                        coalesce(sum(total_eleitores_aptos), 0) AS eleitores,
-                       mode() WITHIN GROUP (ORDER BY zonamento_historico) AS zona
-                FROM locais_voto WHERE lower(municipio) = lower(%s)
-                GROUP BY municipio, provincia
+                       mode() WITHIN GROUP (ORDER BY lv.zonamento_historico) AS zona,
+                       (
+                           SELECT ut.id
+                           FROM unidades_territoriais ut
+                           JOIN unidades_territoriais provincia ON provincia.id = ut.pai_id
+                           WHERE lower(ut.nome) = lower(lv.municipio)
+                             AND ut.nivel_territorial = 'MUNICIPIO'
+                             AND lower(provincia.nome) = lower(lv.provincia)
+                           ORDER BY ut.criado_em DESC
+                           LIMIT 1
+                       ) AS unidade_territorial_id
+                FROM locais_voto lv
+                WHERE lower(lv.municipio) = lower(%s)
+                GROUP BY lv.municipio, lv.provincia
                 """,
                 (municipality,),
             ).fetchone()
             if not territory:
                 raise HTTPException(status_code=404, detail="Município não encontrado nos dados territoriais.")
+            if not territory["unidade_territorial_id"]:
+                raise HTTPException(
+                    status_code=404,
+                    detail="Município sem unidade territorial compatível com a sua província.",
+                )
             concerns = connection.execute(
                 """
                 SELECT concern AS dor FROM visitas_terreno vt
@@ -1132,7 +1184,7 @@ def generate_speech(
                 """,
                 (municipality, campaign),
             ).fetchall()
-            draft = _speech_draft(
+            draft, modelo_utilizado = _speech_draft(
                 municipality, territory["zona"] or "CAMPO_BATALHA",
                 [item["dor"] for item in concerns], request.app.state.settings,
             )
@@ -1143,13 +1195,12 @@ def generate_speech(
                     hook_abertura, compromissos_propostas, bloco_juventude,
                     armadilhas_evitar, status_aprovacao
                 ) VALUES (
-                    %s, (SELECT id FROM unidades_territoriais WHERE lower(nome) = lower(%s) LIMIT 1),
-                    %s, %s, %s, %s, %s, 'RASCUNHO'
+                    %s, %s, %s, %s, %s, %s, %s, 'RASCUNHO'
                 ) RETURNING id, status_aprovacao, criado_em
                 """,
                 (
-                    campaign, municipality,
-                    request.app.state.settings.ai_model if request.app.state.settings.anthropic_api_key else "heuristico_auditado_v1",
+                    campaign, territory["unidade_territorial_id"],
+                    modelo_utilizado,
                     draft["hook_abertura"], json.dumps(draft["compromissos_propostas"]),
                     draft["bloco_juventude"], json.dumps(draft["armadilhas_a_evitar"]),
                 ),
@@ -1160,8 +1211,9 @@ def generate_speech(
         "municipio": territory["municipio"],
         "provincia": territory["provincia"],
         "zonamento": territory["zona"],
-        "modelo_ia": request.app.state.settings.ai_model if request.app.state.settings.anthropic_api_key else "heuristico_auditado_v1",
-        "provedor": "anthropic" if request.app.state.settings.anthropic_api_key else "heuristico",
+        "modelo_ia": modelo_utilizado,
+        "provedor": "anthropic" if modelo_utilizado != "heuristico_auditado_v1" else "heuristico",
+        "dores_territoriais": [item["dor"] for item in concerns],
         "status_aprovacao": "RASCUNHO",
         **draft,
         "criado_em": row["criado_em"],
@@ -1176,7 +1228,7 @@ def update_speech_status(
     request: Request,
     user: Annotated[dict, Depends(ROLE_REVIEW)],
 ):
-    with request.app.state.db_pool.connection() as connection:
+    with _speech_pool(request).connection() as connection:
         with connection.transaction():
             connection.execute(
                 "SELECT set_config('app.current_campanha_id', %s, true)",
@@ -1203,7 +1255,7 @@ def update_speech_status(
 
 @router.get("/discursos/historico/{municipio}")
 def speech_history(municipio: str, request: Request, user: Annotated[dict, Depends(ROLE_REVIEW)]):
-    with request.app.state.db_pool.connection() as connection:
+    with _speech_pool(request).connection() as connection:
         connection.execute(
             "SELECT set_config('app.current_campanha_id', %s, true)",
             (str(user["campaign_id"]),),
@@ -1223,7 +1275,7 @@ def speech_history(municipio: str, request: Request, user: Annotated[dict, Depen
 
 @router.get("/discurso-territorializado/{municipio}")
 def territorial_speech(municipio: str, request: Request, user: Annotated[dict, Depends(ROLE_REVIEW)]):
-    with request.app.state.db_pool.connection() as connection:
+    with _speech_pool(request).connection() as connection:
         connection.execute(
             "SELECT set_config('app.current_campanha_id', %s, true)",
             (str(user["campaign_id"]),),
@@ -1240,12 +1292,14 @@ def territorial_speech(municipio: str, request: Request, user: Annotated[dict, D
         ).fetchone()
     if not territory:
         raise HTTPException(status_code=404, detail="Município não encontrado.")
-    draft = _speech_draft(municipio, territory["zona"] or "CAMPO_BATALHA", [], request.app.state.settings)
+    draft, modelo_utilizado = _speech_draft(
+        municipio, territory["zona"] or "CAMPO_BATALHA", [], request.app.state.settings
+    )
     return {
         "sucesso": True,
         "municipio": municipio,
         "status_aprovacao": "RASCUNHO",
-        "modelo_ia_utilizado": request.app.state.settings.ai_model if request.app.state.settings.anthropic_api_key else "heuristico_auditado_v1",
+        "modelo_ia_utilizado": modelo_utilizado,
         "dados_eleitorais": {
             "total_eleitores": territory["eleitores"],
             "zonamento_predominante": territory["zona"],
