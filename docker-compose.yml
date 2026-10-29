@@ -78,8 +78,8 @@ services:
   war-room:
     profiles: ["prototipo"]
     build:
-      context: ./prototipo
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: prototipo/Dockerfile
     container_name: angola_war_room
     restart: unless-stopped
     environment:

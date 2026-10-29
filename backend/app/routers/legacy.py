@@ -4,6 +4,7 @@ import json
 import logging
 import queue
 import re
+import unicodedata
 from datetime import UTC, datetime
 from functools import lru_cache
 from pathlib import Path
@@ -550,6 +551,117 @@ def geo_angola_malha(arquivo: str = "simplificado"):
     return FileResponse(source, media_type="application/geo+json")
 
 
+def _chave_nome(valor: str | None) -> str:
+    texto = unicodedata.normalize("NFKD", valor or "")
+    return "".join(caracter for caracter in texto if not unicodedata.combining(caracter)).casefold().strip()
+
+
+@lru_cache(maxsize=4)
+def _coleccao_geo(nome: str) -> dict:
+    dados = _read_json(GEO_ANGOLA / nome) or {}
+    if not isinstance(dados.get("features"), list):
+        return {"type": "FeatureCollection", "features": []}
+    return dados
+
+
+@lru_cache(maxsize=1)
+def _circulos_cne() -> dict:
+    provincias = (_read_json(RAW / "resultados_eleitorais_cne_2022.json", {}) or {}).get("provincias", [])
+    circulos = {}
+    for item in provincias:
+        votos_a = item.get("votos_partido_a") or 0
+        votos_b = item.get("votos_partido_b") or 0
+        validos = item.get("votos_validos") or 0
+        stats = _zone(votos_a, votos_b, validos)
+        circulos[_chave_nome(item.get("provincia"))] = {
+            "margem_circulo_perc": stats["margem_perc"],
+            "zonamento_circulo": stats["zonamento"],
+            "proveniencia_circulo": "OFICIAL",
+        }
+    return circulos
+
+
+def _com_circulo(feature: dict) -> dict:
+    props = dict(feature.get("properties") or {})
+    circulo = _circulos_cne().get(_chave_nome(props.get("provincia")))
+    if circulo:
+        props.update(circulo)
+    props["proveniencia_votos"] = "AUSENTE"
+    return {**feature, "properties": props}
+
+
+def _filtrar_nome(features: list, campo: str, valor: str) -> list:
+    chave = _chave_nome(valor)
+    return [feature for feature in features if _chave_nome((feature.get("properties") or {}).get(campo)) == chave]
+
+
+def _unir_features_por_nome(base: list, adicionais: list) -> list:
+    nomes = {_chave_nome((feature.get("properties") or {}).get("nome")) for feature in base}
+    unidas = list(base)
+    for feature in adicionais:
+        nome = _chave_nome((feature.get("properties") or {}).get("nome"))
+        if nome not in nomes:
+            unidas.append(feature)
+            nomes.add(nome)
+    return unidas
+
+
+@router.get("/territorio/municipios")
+def territory_municipalities(provincia: str | None = None):
+    """Polígonos geoBoundaries e catálogo operacional, sem votos municipais da CNE."""
+    from ..territorio import colecao_municipios
+
+    features = list(_coleccao_geo("municipios_geoboundaries.geojson").get("features") or [])
+    if not features:
+        raise HTTPException(status_code=404, detail="Malha municipal indisponível.")
+    catalogo = colecao_municipios()
+    if provincia:
+        features = _filtrar_nome(features, "provincia", provincia)
+        catalogo["features"] = _filtrar_nome(catalogo["features"], "provincia", provincia)
+    return {
+        "type": "FeatureCollection",
+        "nota": catalogo["nota"],
+        "proveniencia_geometria": "OFICIAL",
+        "proveniencia_votos": "AUSENTE",
+        "total": len(features),
+        "features": [_com_circulo(feature) for feature in features],
+        "catalogo_operacional": catalogo,
+    }
+
+
+@router.get("/territorio/local")
+def territory_local(municipio: str = Query(..., min_length=1)):
+    """Malha de comunas e bairros geoBoundaries/OSM complementada por catálogo operacional."""
+    from ..territorio import colecao_local
+
+    operacionais = colecao_local(municipio)
+    comunas = _filtrar_nome(
+        list(_coleccao_geo("comunas_geoboundaries.geojson").get("features") or []),
+        "municipio",
+        municipio,
+    )
+    bairros = _filtrar_nome(
+        list(_coleccao_geo("bairros_osm.geojson").get("features") or []),
+        "municipio",
+        municipio,
+    )
+    comunas = _unir_features_por_nome(
+        [_com_circulo(feature) for feature in comunas],
+        operacionais["comunas"]["features"],
+    )
+    bairros = _unir_features_por_nome(
+        [_com_circulo(feature) for feature in bairros],
+        operacionais["bairros"]["features"],
+    )
+    return {
+        "municipio": operacionais.get("municipio", municipio),
+        "nota": operacionais["nota"],
+        "proveniencia_votos": "AUSENTE",
+        "comunas": {"type": "FeatureCollection", "features": comunas},
+        "bairros": {"type": "FeatureCollection", "features": bairros},
+    }
+
+
 @router.get("/territorio/unidades")
 def territory_units(
     request: Request,
@@ -608,22 +720,6 @@ def territory_units(
         "total": len(features),
         "unidades": [feature["properties"] for feature in features],
     }
-
-
-@router.get("/territorio/municipios")
-def territory_municipalities():
-    """Malha operacional de municípios. Sem votos OFICIAL — a CNE 2022 só publicou círculos."""
-    from ..territorio import colecao_municipios
-
-    return colecao_municipios()
-
-
-@router.get("/territorio/local")
-def territory_local(municipio: str = Query(..., min_length=2, max_length=120)):
-    """Comunas e bairros de um município. Sem acta CNE neste nível."""
-    from ..territorio import colecao_local
-
-    return colecao_local(municipio)
 
 
 @router.get("/dia-d/apuramento-paralelo")

@@ -3,11 +3,11 @@ import React, { Component } from "react";
 export default class ErrorBoundary extends Component {
   constructor(props) {
     super(props);
-    this.state = { falhou: false };
+    this.state = { falhou: false, mensagem: "" };
   }
 
-  static getDerivedStateFromError() {
-    return { falhou: true };
+  static getDerivedStateFromError(erro) {
+    return { falhou: true, mensagem: erro?.message || "Erro de interface." };
   }
 
   componentDidCatch(erro, info) {
@@ -20,7 +20,7 @@ export default class ErrorBoundary extends Component {
       <main className="page">
         <section className="card" role="alert">
           <h2>Esta secção falhou ao abrir</h2>
-          <p className="muted">Os dados não foram alterados. Recarregue a página; se persistir, avise a equipa técnica.</p>
+          <p className="muted">{this.state.mensagem}</p>
           <button className="primary" type="button" onClick={() => window.location.reload()}>
             Recarregar
           </button>

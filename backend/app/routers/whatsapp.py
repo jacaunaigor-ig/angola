@@ -1,7 +1,8 @@
 """Webhook do canal WhatsApp do eleitor e fila de queixas para a sala de comando.
 
 As queixas vão para PostgreSQL (`queixas_eleitor`) com retenção de 90 dias.
-Se a base estiver indisponível, cai para uma fila em memória (demonstração / testes).
+A fila em memória só é usada em desenvolvimento/testes; produção falha com 503
+se não conseguir persistir, para que o provedor possa repetir a entrega.
 """
 
 from __future__ import annotations
@@ -20,6 +21,8 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import PlainTextResponse
 from fastapi.security import HTTPAuthorizationCredentials
+from psycopg import Error
+from psycopg_pool import PoolTimeout
 
 from war_room.canal_eleitor import (
     carregar_assembleias_publicas,
@@ -60,6 +63,10 @@ def _pool(request: Request | None):
     return getattr(request.app.state, "db_pool", None)
 
 
+def _memoria_permitida(request: Request | None) -> bool:
+    return request is not None and request.app.state.settings.app_env in {"development", "test"}
+
+
 def _payload_queixa(leitura: dict[str, Any], telefone: str, segredo: str) -> dict[str, Any]:
     return {
         **leitura["queixa"],
@@ -78,6 +85,9 @@ def _registar_queixa(
 ) -> None:
     registo = _payload_queixa(leitura, telefone, segredo)
     pool = _pool(request)
+    if pool is None and not _memoria_permitida(request):
+        logger.error("Queixa recusada: PostgreSQL indisponível fora do modo de demonstração.")
+        raise HTTPException(status_code=503, detail="Persistência de queixas indisponível.")
     if pool is not None:
         try:
             with pool.connection() as connection:
@@ -109,14 +119,22 @@ def _registar_queixa(
                         ),
                     )
             return
-        except Exception:
-            logger.exception("Falha a gravar queixa no PostgreSQL; a usar fila em memória.")
+        except (Error, PoolTimeout) as exc:
+            logger.exception("Falha a gravar queixa no PostgreSQL.")
+            if not _memoria_permitida(request):
+                    raise HTTPException(status_code=503, detail="Persistência de queixas indisponível.") from exc
     with _lock:
         _queixas.append(registo)
 
 
-def _ler_queixas(request: Request | None, campanha_id: str | None) -> list[dict[str, Any]]:
+def _ler_queixas(
+    request: Request | None,
+    campanha_id: str | None,
+) -> tuple[list[dict[str, Any]], str]:
     pool = _pool(request)
+    if pool is None and not _memoria_permitida(request):
+        logger.error("Leitura de queixas recusada: PostgreSQL indisponível fora do modo de demonstração.")
+        raise HTTPException(status_code=503, detail="Persistência de queixas indisponível.")
     if pool is not None:
         try:
             with pool.connection() as connection:
@@ -139,29 +157,34 @@ def _ler_queixas(request: Request | None, campanha_id: str | None) -> list[dict[
                     """,
                     (MAX_QUEIXAS,),
                 ).fetchall()
-            return [
-                {
-                    "municipio": row["municipio"],
-                    "categoria": row["categoria"],
-                    "descricao": row["descricao"],
-                    "telefone_mascarado": row["telefone_mascarado"],
-                    "proveniencia": row["proveniencia"],
-                    "criado_em": row["criado_em"].isoformat() if hasattr(row["criado_em"], "isoformat") else str(row["criado_em"]),
-                }
-                for row in rows
-            ]
-        except Exception:
-            logger.exception("Falha a ler queixas no PostgreSQL; a usar fila em memória.")
+            return (
+                [
+                    {
+                        "municipio": row["municipio"],
+                        "categoria": row["categoria"],
+                        "descricao": row["descricao"],
+                        "telefone_mascarado": row["telefone_mascarado"],
+                        "proveniencia": row["proveniencia"],
+                        "criado_em": row["criado_em"].isoformat() if hasattr(row["criado_em"], "isoformat") else str(row["criado_em"]),
+                    }
+                    for row in rows
+                ],
+                "postgres",
+            )
+        except (Error, PoolTimeout) as exc:
+            logger.exception("Falha a ler queixas no PostgreSQL.")
+            if not _memoria_permitida(request):
+                raise HTTPException(status_code=503, detail="Persistência de queixas indisponível.") from exc
     with _lock:
-        return list(_queixas)
+        return list(_queixas), "memoria"
 
 
 def acesso_painel(
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)],
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> dict | None:
-    """Em produção a leitura das queixas exige sessão de analista; em desenvolvimento fica aberta."""
-    if settings.app_env != "production":
+    """Fora de desenvolvimento/testes, a leitura das queixas exige sessão autorizada."""
+    if settings.app_env in {"development", "test"}:
         return None
     user = current_user(credentials, settings)
     if user["perfil"] not in PAPEIS_PAINEL:
@@ -172,7 +195,7 @@ def acesso_painel(
 def _verificar_assinatura_meta(settings: Settings, cabecalho: str, corpo: bytes) -> None:
     segredo = settings.whatsapp_app_secret
     if not segredo:
-        if settings.app_env == "production":
+        if settings.app_env not in {"development", "test"}:
             raise HTTPException(status_code=503, detail="Canal sem segredo da aplicação Meta configurado.")
         return
     esperado = "sha256=" + hmac.new(segredo.encode("utf-8"), corpo, hashlib.sha256).hexdigest()
@@ -187,7 +210,9 @@ def verificar_webhook(
     hub_verify_token: str = Query(alias="hub.verify_token"),
     hub_challenge: str = Query(alias="hub.challenge"),
 ):
-    esperado = settings.whatsapp_verify_token or (None if settings.app_env == "production" else "dev-eleitor-2027")
+    esperado = settings.whatsapp_verify_token or (
+        "dev-eleitor-2027" if settings.app_env in {"development", "test"} else None
+    )
     if hub_mode != "subscribe" or not esperado or not hmac.compare_digest(hub_verify_token, esperado):
         raise HTTPException(status_code=403, detail="Verificação do webhook recusada.")
     return PlainTextResponse(hub_challenge)
@@ -209,12 +234,13 @@ async def receber_webhook(request: Request, settings: Annotated[Settings, Depend
     for mensagem in extrair_mensagens_whatsapp(payload):
         with _lock:
             repetida = bool(mensagem["id"]) and mensagem["id"] in _vistos
-            _marcar_visto(mensagem["id"])
         if repetida:
             continue
         leitura = interpretar_mensagem(mensagem["texto"], locais)
         if leitura["intencao"] == "QUEIXA":
             _registar_queixa(leitura, mensagem["de"], settings.jwt_secret_key, request)
+        with _lock:
+            _marcar_visto(mensagem["id"])
         respostas.append(
             {
                 "para": mascarar_telefone(mensagem["de"]),
@@ -236,7 +262,7 @@ def listar_queixas(
     utilizador: Annotated[dict | None, Depends(acesso_painel)],
 ):
     campanha = utilizador["campaign_id"] if utilizador else None
-    copia = _ler_queixas(request, campanha)
+    copia, persistencia = _ler_queixas(request, campanha)
     agregadas: dict[tuple[str, str], int] = {}
     for item in copia:
         chave = (item["municipio"], item["categoria"])
@@ -244,7 +270,7 @@ def listar_queixas(
     return {
         "sucesso": True,
         "total": len(copia),
-        "persistencia": "postgres" if _pool(request) else "memoria",
+        "persistencia": persistencia,
         "retencao_dias": RETENCAO_DIAS,
         "agregado": [
             {"municipio": mun, "categoria": cat, "total": total}
@@ -271,7 +297,7 @@ def simular_mensagem(
     settings: Annotated[Settings, Depends(get_settings)],
 ):
     """Simulador do painel e dos testes; usa o mesmo interpretador do webhook. Desligado em produção."""
-    if settings.app_env == "production":
+    if settings.app_env not in {"development", "test"}:
         raise HTTPException(status_code=404, detail="Not Found")
     texto = str(payload.get("texto") or "")[:600]
     telefone = str(payload.get("de") or "244900000000")

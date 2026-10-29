@@ -15,18 +15,19 @@
 
 ## Lacunas conhecidas
 
-Ordenadas por impacto.
-
-1. **Resposta ao eleitor não sai para a Meta.** O webhook devolve o texto, mas o envio pela Cloud API depende de `WHATSAPP_ACCESS_TOKEN` e de um cliente de saída.
-2. **Resultados municipais.** Só existem totais nacionais e círculos provinciais de 2022. Sem municípios, o score não distingue bairros.
-3. **Painéis executivos.** `prototipo/pages/1_Paineis_Executivos.py` continua em Streamlit e com dados simulados. A sala operacional é `web/`.
-4. **EAS cloud build.** O perfil `preview` gera APK; o build na nuvem Expo exige conta e `eas login`.
+1. **Votos por município e por bairro.** A sala mostra 158 municípios, 558 comunas (geoBoundaries) e 428 bairros OSM. A CNE de 2022 não publicou este nível. A margem no painel é a do círculo provincial.
+2. **Resposta ao eleitor não sai para a Meta.** O webhook devolve o texto, mas o envio pela Cloud API depende de `WHATSAPP_ACCESS_TOKEN` e de um cliente de saída.
+3. **Painéis executivos do protótipo.** `prototipo/pages/1_Paineis_Executivos.py` ainda usa dados simulados; a sala operacional é `web/`.
+4. **APK.** O perfil `preview` está definido. O build na nuvem Expo exige conta e `eas login`; o `projectId` actual em `mobile/app.json` é um marcador, não uma conta Expo.
+5. **DPA 2024.** A malha municipal aberta tem 158 unidades, não os 325 municípios da lei nova. Não foram desenhados polígonos em falta.
 
 ## Ordem sugerida
 
-1. Cliente de saída WhatsApp com modelos aprovados.
-2. Cruzamento municipal quando a CNE publicar microdados.
-3. Build EAS `preview` assinado para distribuição interna em Android de entrada.
+1. Alargar a pesquisa de manchetes, hoje concentrada em MPLA, UNITA, Lourenço e congresso.
+2. Guardar o registo de peças na campanha e exportá-lo em CSV; separar métricas de audiência por fonte e data.
+3. Implementar o cliente de saída WhatsApp com modelos aprovados.
+4. Integrar microdados municipais apenas quando publicados pela CNE; não inventar resultados.
+5. Configurar a conta EAS, substituir `extra.eas.projectId` pelo UUID real e gerar um APK `preview` assinado.
 
 ## Em curso: redes e mídia
 

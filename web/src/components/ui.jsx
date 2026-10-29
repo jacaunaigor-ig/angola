@@ -7,6 +7,7 @@ const SELOS = {
   SIMULADO: "Dado de demonstração ou cenário. Não usar como facto.",
   PROVISORIO: "Resultado parcial, ainda sem apuramento final.",
   RASCUNHO: "Texto gerado: exige revisão humana antes de uso.",
+  OSM: "Geometria da comunidade OpenStreetMap (ODbL). Não é cadastro oficial nem voto.",
 };
 
 /** Etiqueta de proveniência. A plataforma nunca mostra um número sem dizer de onde vem. */

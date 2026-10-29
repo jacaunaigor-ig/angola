@@ -4,6 +4,8 @@
 -- falhas acidentais de cláusulas WHERE em consultas analíticas ou de campo.
 -- ==============================================================================
 
+BEGIN;
+
 -- 1. Habilitação de RLS e FORCE RLS nas tabelas proprietárias de campanha
 ALTER TABLE IF EXISTS visitas_terreno ENABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS visitas_terreno FORCE ROW LEVEL SECURITY;
@@ -21,77 +23,64 @@ ALTER TABLE IF EXISTS evidencias_visitas ENABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS evidencias_visitas FORCE ROW LEVEL SECURITY;
 
 -- 2. Políticas RLS de isolamento por app.current_campanha_id
-DO $$ BEGIN
-    DROP POLICY IF EXISTS rls_visitas_campanha ON visitas_terreno;
-    CREATE POLICY rls_visitas_campanha ON visitas_terreno
-        FOR ALL
-        USING (
-            campanha_id = NULLIF(current_setting('app.current_campanha_id', true), '')::uuid
-            OR current_setting('app.is_super_admin', true) = 'true'
-        )
-        WITH CHECK (
-            campanha_id = NULLIF(current_setting('app.current_campanha_id', true), '')::uuid
-            OR current_setting('app.is_super_admin', true) = 'true'
-        );
-EXCEPTION WHEN OTHERS THEN null;
-END $$;
+DROP POLICY IF EXISTS rls_visitas_campanha ON visitas_terreno;
+CREATE POLICY rls_visitas_campanha ON visitas_terreno
+    FOR ALL
+    USING (
+        campanha_id = NULLIF(current_setting('app.current_campanha_id', true), '')::uuid
+        OR current_setting('app.is_super_admin', true) = 'true'
+    )
+    WITH CHECK (
+        campanha_id = NULLIF(current_setting('app.current_campanha_id', true), '')::uuid
+        OR current_setting('app.is_super_admin', true) = 'true'
+    );
 
-DO $$ BEGIN
-    DROP POLICY IF EXISTS rls_atas_campanha ON atas_apuramento;
-    CREATE POLICY rls_atas_campanha ON atas_apuramento
-        FOR ALL
-        USING (
-            campanha_id = NULLIF(current_setting('app.current_campanha_id', true), '')::uuid
-            OR current_setting('app.is_super_admin', true) = 'true'
-        )
-        WITH CHECK (
-            campanha_id = NULLIF(current_setting('app.current_campanha_id', true), '')::uuid
-            OR current_setting('app.is_super_admin', true) = 'true'
-        );
-EXCEPTION WHEN OTHERS THEN null;
-END $$;
+COMMIT;
 
-DO $$ BEGIN
-    DROP POLICY IF EXISTS rls_discursos_campanha ON discursos_campanha;
-    CREATE POLICY rls_discursos_campanha ON discursos_campanha
-        FOR ALL
-        USING (
-            campanha_id = NULLIF(current_setting('app.current_campanha_id', true), '')::uuid
-            OR current_setting('app.is_super_admin', true) = 'true'
-        )
-        WITH CHECK (
-            campanha_id = NULLIF(current_setting('app.current_campanha_id', true), '')::uuid
-            OR current_setting('app.is_super_admin', true) = 'true'
-        );
-EXCEPTION WHEN OTHERS THEN null;
-END $$;
+DROP POLICY IF EXISTS rls_atas_campanha ON atas_apuramento;
+CREATE POLICY rls_atas_campanha ON atas_apuramento
+    FOR ALL
+    USING (
+        campanha_id = NULLIF(current_setting('app.current_campanha_id', true), '')::uuid
+        OR current_setting('app.is_super_admin', true) = 'true'
+    )
+    WITH CHECK (
+        campanha_id = NULLIF(current_setting('app.current_campanha_id', true), '')::uuid
+        OR current_setting('app.is_super_admin', true) = 'true'
+    );
 
-DO $$ BEGIN
-    DROP POLICY IF EXISTS rls_casos_campanha ON casos_juridicos;
-    CREATE POLICY rls_casos_campanha ON casos_juridicos
-        FOR ALL
-        USING (
-            campanha_id = NULLIF(current_setting('app.current_campanha_id', true), '')::uuid
-            OR current_setting('app.is_super_admin', true) = 'true'
-        )
-        WITH CHECK (
-            campanha_id = NULLIF(current_setting('app.current_campanha_id', true), '')::uuid
-            OR current_setting('app.is_super_admin', true) = 'true'
-        );
-EXCEPTION WHEN OTHERS THEN null;
-END $$;
+DROP POLICY IF EXISTS rls_discursos_campanha ON discursos_campanha;
+CREATE POLICY rls_discursos_campanha ON discursos_campanha
+    FOR ALL
+    USING (
+        campanha_id = NULLIF(current_setting('app.current_campanha_id', true), '')::uuid
+        OR current_setting('app.is_super_admin', true) = 'true'
+    )
+    WITH CHECK (
+        campanha_id = NULLIF(current_setting('app.current_campanha_id', true), '')::uuid
+        OR current_setting('app.is_super_admin', true) = 'true'
+    );
 
-DO $$ BEGIN
-    DROP POLICY IF EXISTS rls_evidencias_campanha ON evidencias_visitas;
-    CREATE POLICY rls_evidencias_campanha ON evidencias_visitas
-        FOR ALL
-        USING (
-            campanha_id = NULLIF(current_setting('app.current_campanha_id', true), '')::uuid
-            OR current_setting('app.is_super_admin', true) = 'true'
-        )
-        WITH CHECK (
-            campanha_id = NULLIF(current_setting('app.current_campanha_id', true), '')::uuid
-            OR current_setting('app.is_super_admin', true) = 'true'
-        );
-EXCEPTION WHEN OTHERS THEN null;
-END $$;
+DROP POLICY IF EXISTS rls_casos_campanha ON casos_juridicos;
+CREATE POLICY rls_casos_campanha ON casos_juridicos
+    FOR ALL
+    USING (
+        campanha_id = NULLIF(current_setting('app.current_campanha_id', true), '')::uuid
+        OR current_setting('app.is_super_admin', true) = 'true'
+    )
+    WITH CHECK (
+        campanha_id = NULLIF(current_setting('app.current_campanha_id', true), '')::uuid
+        OR current_setting('app.is_super_admin', true) = 'true'
+    );
+
+DROP POLICY IF EXISTS rls_evidencias_campanha ON evidencias_visitas;
+CREATE POLICY rls_evidencias_campanha ON evidencias_visitas
+    FOR ALL
+    USING (
+        campanha_id = NULLIF(current_setting('app.current_campanha_id', true), '')::uuid
+        OR current_setting('app.is_super_admin', true) = 'true'
+    )
+    WITH CHECK (
+        campanha_id = NULLIF(current_setting('app.current_campanha_id', true), '')::uuid
+        OR current_setting('app.is_super_admin', true) = 'true'
+    );

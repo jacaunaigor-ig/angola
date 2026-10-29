@@ -56,7 +56,7 @@ cd backend; python -m uvicorn app.main:app --port 8000
 cd web && npm install && npm run dev                    # http://localhost:5173
 ```
 
-Execute o `uvicorn` a partir de `backend/` com `PYTHONPATH` na raiz. O protótipo Streamlit está em `prototipo/` e não é o cliente operacional.
+Execute o `uvicorn` a partir de `backend/` com `PYTHONPATH` na raiz. O cliente operacional é `web/`; o protótipo Streamlit está em `prototipo/` e não colide com o pacote `app` da API.
 
 Com Docker: `cp .env.example .env`, defina `POSTGRES_PASSWORD` e `JWT_SECRET_KEY`, depois `docker compose up --build`. A sala de comando fica em `:3000`, a API em `:8000`.
 
@@ -87,15 +87,18 @@ Os testes de integração exigem uma base PostGIS isolada cujo nome termina em `
 ## Estrutura
 
 ```text
-backend/        API FastAPI (app/), testes e scripts de provisionamento
+backend/app/    API de produção (FastAPI)
 war_room/       Núcleo analítico em Python, sem dependência de web
-web/            Sala de comando React (hooks/, components/, views/)
-mobile/         App Expo: campo, Dia D, assinatura Ed25519, EAS (APK)
+web/            Sala de comando React — cliente operacional
+mobile/         App Expo: campo, Dia D, assinatura Ed25519
 data/raw/       Dados com proveniência; ver data/raw/README.md
 database/       Esquema PostGIS, seeds e migrations 01–11, por esta ordem
-docs/           Arquitectura, roadmap, privacidade, legal, auditoria, demo
-prototipo/      Protótipo Streamlit, fora do arranque operacional
-arquivo/api-node/  API Node arquivada
+geo_angola/     Malha administrativa, municípios, comunas e bairros OSM
+docs/           Arquitectura, roadmap, privacidade, legal, auditoria e demo
+comercial/      HTML de apresentação (gerado por scripts/)
+prototipo/      Streamlit antigo; não é o cliente operacional
+arquivo/api-node/  API Express antiga, fora do CI
+tests/          Testes do motor analítico, outbox móvel e arquivo Node
 ```
 
 ## Documentação

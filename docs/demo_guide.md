@@ -32,7 +32,7 @@ O preço é de **tabela**. A minuta formal prevalece (IVA, faseamento, add-ons d
 ## 🧭 Roteiro da Demonstração (Passo a Passo)
 
 ### Bloco 1: Honestidade dos Dados e Transparência Territorial (5 min)
-1. **Abrir a sala de comando (`web/`, no Render a imagem Docker da pasta `web/`):**
+1. **Abrir a sala de comando (`web/`, cliente operacional e imagem Docker publicada no Render).** O protótipo Streamlit continua em `prototipo/app.py`:
    - Apontar o selo no cabeçalho: se conectado à infraestrutura real, exibe `🟢 API ONLINE (PostGIS)`; se desconectado, exibe explicitamente `🟡 MODO DEMONSTRAÇÃO (DADOS AUDITADOS)`.
    - Ressaltar o **Princípio da Honestidade dos Dados**: cada número exibido possui selo de proveniência (`OFICIAL - CNE`, `OFICIAL - INE`, `ESTIMADO`).
 2. **Mapa Coroplético Interativo:**

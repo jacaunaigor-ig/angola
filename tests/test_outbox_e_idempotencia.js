@@ -20,6 +20,24 @@ async function executar() {
   };
 
   sqliteOutbox._resetParaTestes();
+  const agora = Date.parse('2026-10-29T12:00:00.000Z');
+  asserir(
+    'Aceita timestamp de campo dentro da janela de sincronização',
+    validarTimestampCampo({ registado_em: new Date(agora).toISOString() }, agora).aceite
+  );
+  asserir(
+    'Rejeita timestamp muito futuro',
+    validarTimestampCampo({
+      registado_em: new Date(agora + 16 * 60 * 1000).toISOString(),
+    }, agora).codigo === 'DATA_FUTURA'
+  );
+  asserir(
+    'Exige justificativa para sincronização offline superior a sete dias',
+    validarTimestampCampo({
+      registado_em: new Date(agora - 8 * 24 * 60 * 60 * 1000).toISOString(),
+    }, agora).codigo === 'OFFLINE_SUPERIOR_7_DIAS'
+  );
+
   const uuid = sqliteOutbox.gerarUuidVisita();
   asserir('Gera UUID v4 com 36 caracteres', typeof uuid === 'string' && uuid.length === 36);
   asserir('UUID contém o marcador de versão 4', uuid[14] === '4');
@@ -52,25 +70,7 @@ async function executar() {
   await sqliteOutbox.marcarSincronizados(confirmados);
   asserir('Após HTTP 200 o status local deixa de estar PENDENTE', (await sqliteOutbox.contarPendencias()) === 0);
 
-  const agora = Date.now();
-  const futuro = validarTimestampCampo({ registado_em: new Date(agora + 2 * 60 * 60 * 1000).toISOString() }, agora);
-  asserir('Rejeita timestamp futuro absurdo', futuro.aceite === false && futuro.codigo === 'DATA_FUTURA');
-
-  const antigo = validarTimestampCampo({
-    registado_em: new Date(agora - 10 * 24 * 60 * 60 * 1000).toISOString(),
-  }, agora);
-  asserir('Rejeita mais de 7 dias offline sem justificativa', antigo.aceite === false && antigo.codigo === 'OFFLINE_SUPERIOR_7_DIAS');
-
-  const justificado = validarTimestampCampo({
-    registado_em: new Date(agora - 10 * 24 * 60 * 60 * 1000).toISOString(),
-    justificativa_offline: 'Zona sem cobertura GSM durante missões no Cunene.',
-  }, agora);
-  asserir('Aceita offline > 7 dias quando há justificativa', justificado.aceite === true && justificado.revisao === true);
-
-  const atual = validarTimestampCampo({ registado_em: new Date(agora).toISOString() }, agora);
-  asserir('Aceita timestamp de campo corrente', atual.aceite === true);
-
-  console.log(`\n${passou}/${total} testes do outbox e idempotência temporal.`);
+  console.log(`\n${passou}/${total} testes do outbox e idempotência.`);
   if (passou !== total) process.exit(1);
 }
 

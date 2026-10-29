@@ -198,7 +198,9 @@ def test_municipio_comuna_bairro_nunca_oficial_sem_fonte_cne():
 def test_municipio_nao_herda_margem_provincial_como_oficial():
     with _client() as client:
         talatona = next(
-            f for f in client.get("/api/territorio/municipios").json()["features"] if f["properties"]["nome"] == "Talatona"
+            f
+            for f in client.get("/api/territorio/municipios").json()["catalogo_operacional"]["features"]
+            if f["properties"]["nome"] == "Talatona"
         )
         props = talatona["properties"]
         assert props["proveniencia_votos"] == "AUSENTE"
