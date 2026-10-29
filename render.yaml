@@ -5,9 +5,10 @@ services:
   # 1. Backend RESTful API (FastAPI)
   - type: web
     name: angola-geomarketing-api
-    env: docker
+    runtime: docker
     region: frankfurt
-    plan: starter
+    plan: 0.5c-512mb
+    branch: feat/produto-venda
     # A API importa war_room/ e lê data/raw/: o contexto tem de ser a raiz do repositório.
     dockerfilePath: ./backend/Dockerfile
     dockerContext: .
@@ -26,16 +27,17 @@ services:
           name: angola-postgis-db
           property: connectionString
       - key: JWT_SECRET_KEY
-        sync: false
+        generateValue: true
       - key: CORS_ALLOWED_ORIGINS
-        sync: false
+        value: https://angola-war-room-dashboard.onrender.com
 
   # 2. Sala de comando (React). O nginx faz proxy de /api para a API FastAPI.
   - type: web
     name: angola-war-room-dashboard
-    env: docker
+    runtime: docker
     region: frankfurt
-    plan: starter
+    plan: 0.5c-512mb
+    branch: feat/produto-venda
     dockerfilePath: ./web/Dockerfile
     dockerContext: ./web
     healthCheckPath: /
@@ -46,9 +48,8 @@ services:
   # 3. Simulador Mobile (Static Site)
   - type: web
     name: angola-mobile-simulator
-    env: static
-    region: frankfurt
-    plan: free
+    runtime: static
+    branch: feat/produto-venda
     rootDir: mobile
     staticPublishPath: .
 
@@ -56,7 +57,7 @@ databases:
   # Base de Dados Gerenciada com PostGIS
   - name: angola-postgis-db
     region: frankfurt
-    plan: starter
+    plan: 0.5c-1g
     postgresMajorVersion: 16
     databaseName: angola_geomarketing
     user: angola_admin
