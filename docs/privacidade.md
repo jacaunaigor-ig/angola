@@ -33,6 +33,7 @@ A plataforma foi concebida sob os pilares de **Privacy by Design** (Privacidade 
 | **Terreno (Porta-a-Porta)** | Carências Prioritárias (`AGUA`, `LUZ`, etc.) | Elaboração de propostas de governo | Baixa | Classificação por categorias fechadas |
 | **Dia D (Atas)** | Fotografia da Ata Oficial da Mesa | Apuramento paralelo e fiscalização partidária | Média | Hash SHA-256 da imagem e dados tabulados |
 | **Sistema (Operadores)** | E-mail corporativo e senha | Autenticação no War Room | Alta | Senha criptografada com Bcrypt |
+| **Propostas comerciais** | Organização, contacto profissional, e-mail/telefone e observações | Responder a pedidos de proposta | Média | Não incluir dados pessoais ou preferências de eleitores; no deploy de demonstração o registo é volátil |
 
 ---
 
@@ -54,6 +55,8 @@ Para clientes B2B (partidos e coligações):
 3. **Canal WhatsApp (`queixas_eleitor`):**
    - Guarda-se só município, categoria, descrição, telefone mascarado e hash HMAC. Sem nome, BI ou número em claro.
    - A API apaga linhas com mais de **90 dias** em cada escrita e leitura (retenção contínua, não só no pós-pleito).
+4. **Pedidos de proposta comercial:**
+   - O formulário pede apenas dados profissionais para retorno. No deploy de demonstração, os pedidos ficam apenas na memória do processo, sem entrega por e-mail ou retenção garantida; usar dados fictícios.
 
 ---
 

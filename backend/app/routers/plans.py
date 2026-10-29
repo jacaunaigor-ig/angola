@@ -121,6 +121,11 @@ def submit_proposal_request(body: dict[str, Any] = Body(...)):
 
     if not organizacao or not contacto or not plano_codigo:
         raise HTTPException(status_code=400, detail="organizacao, contacto e plano são obrigatórios.")
+    if not str(email or "").strip() and not str(telefone or "").strip():
+        raise HTTPException(
+            status_code=400,
+            detail="Informe um e-mail ou telefone para receber retorno sobre a proposta.",
+        )
 
     plano = obter_plano(plano_codigo)
     if not plano:

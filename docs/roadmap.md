@@ -20,6 +20,7 @@
 3. **Painéis executivos do protótipo.** `prototipo/pages/1_Paineis_Executivos.py` ainda usa dados simulados; a sala operacional é `web/`.
 4. **APK.** O perfil `preview` está definido. O build na nuvem Expo exige conta e `eas login`; o `projectId` actual em `mobile/app.json` é um marcador, não uma conta Expo.
 5. **DPA 2024.** A malha municipal aberta tem 158 unidades, não os 325 municípios da lei nova. Não foram desenhados polígonos em falta.
+6. **Pedidos comerciais.** O protocolo de proposta é volátil, sem notificação e sem fila de atendimento. Antes de recolher contactos reais, integrar persistência/CRM, acesso administrativo, prazo de retenção e confirmação de consentimento.
 
 ## Ordem sugerida
 

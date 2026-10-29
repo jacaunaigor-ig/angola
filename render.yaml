@@ -40,6 +40,8 @@ services:
     envVars:
       - key: VITE_API_ORIGIN
         value: https://angola-geomarketing-api.onrender.com
+      - key: VITE_DEMO_MODE
+        value: "true"
     routes:
       - type: rewrite
         source: /*

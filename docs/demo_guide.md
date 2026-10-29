@@ -1,95 +1,37 @@
-# Roteiro de Demonstração Comercial e Venda B2B
-## Plataforma: GPS de Marketing Político — Angola 2027
+# Guia de demonstração comercial
 
-Este documento orienta os consultores e arquitetos de soluções durante apresentações ao vivo para lideranças partidárias, diretores de campanha e comitês eleitorais.
+## Posicionamento
 
----
+Apresente o GPS Eleitoral como uma plataforma de consulta territorial e apoio operacional em desenvolvimento. Separe claramente dados oficiais, estimativas e cenários. A demonstração pública permite explorar cartografia e resultados históricos sem login; não é uma instância apta a guardar dados reais de uma campanha.
 
-## 💶 Como vender: três SKUs (Municipal / Provincial / Nacional)
+Não afirme que a plataforma é a única do mercado, que produz sondagens, que monitora contas privadas/redes sociais, que envia mensagens pelo WhatsApp, que garante resultados eleitorais ou que tem certificação jurídica. Não prometa disponibilidade, suporte, SLA ou integração que não esteja formalmente contratada.
 
-O produto não se vende “como plataforma completa” a toda a gente. O consultor escolhe o âmbito **antes** de abrir o mapa.
+## Roteiro de 10 minutos
 
-| SKU | Quem compra | O que vê no War Room | Tabela ciclo 2027 |
-|---|---|---|---|
-| **Municipal** | Administrador municipal, coordenador de circunscrição | 1 município (mapa da província-mãe), porta-a-porta, dores, 15 discursos IA. Sem Dia D. | 4.800.000 AOA |
-| **Provincial** | Direcção provincial, lista de deputados | 1 província, invalidação de lotes, Dia D e casos jurídicos. | 18.500.000 AOA |
-| **Nacional / HQ** | Comissão nacional / coligação | 21 províncias, API, HQ, apuramento nacional. | 62.000.000 AOA (abertura) |
+1. **Entrada pública:** mostre os indicadores históricos, as fontes CNE/INE e o botão de demonstração sem login. Explique que os indicadores são do acervo disponível, não métricas em tempo real.
+2. **Mapa e dados:** compare a malha DPA 2016 (18 províncias) com a DPA 2024 (21). Deixe claro que os resultados oficiais completos por província disponíveis no produto são de 2022; não há resultados municipais completos de 2012, 2017 e 2022.
+3. **Projeção presidencial:** mostre a vista `#presidencial`. Os resultados da CNE são eleições gerais por lista; os cenários são extrapolações exploratórias, não sondagens, previsão oficial nem modelo de candidatos.
+4. **Redes e mídia:** demonstre a leitura diária de manchetes públicas. Não a descreva como monitoramento de posts, análise de alcance, sentimento de redes sociais ou pesquisa de opinião.
+5. **Planos:** mostre as capacidades e limites carregados do catálogo da API. O preço é referência por ciclo eleitoral; território, condições, impostos, suporte e entregáveis precisam constar da proposta formal.
+6. **Próximos passos:** recolha requisitos não sensíveis e proponha uma validação técnica antes de qualquer piloto. Não recolha dados de eleitores nesta demonstração.
 
-**Passo de venda (3 minutos):**
-1. Abrir a aba **0. Planos & Contratação** e mostrar a matriz.
-2. Na barra lateral, mudar o SKU ao vivo: Municipal Talatona → o mapa colapsa para Luanda; Provincial Huambo → só Huambo; Nacional → país inteiro.
-3. Tentar a aba Dia D no Municipal: a porta fecha com upgrade. É o momento de fechar o Provincial.
-4. Clicar **Gerar protocolo de proposta** (`PROP-2027-XXXX`) com o decisor na sala.
+## Limitações que devem ser comunicadas
 
-O preço é de **tabela**. A minuta formal prevalece (IVA, faseamento, add-ons de brigadistas).
+- O Render gratuito serve apenas para demonstração: serviços podem dormir, a base de dados gratuita tem prazo de expiração e os ficheiros locais não são persistentes.
+- O formulário de proposta gera um protocolo em memória. Não envia e-mail, não garante retenção depois de reinícios e não é um CRM. Use apenas dados de teste até existir armazenamento persistente, canal de notificação e processo de atendimento.
+- O simulador móvel é uma pré-visualização; a publicação de um APK/IPA e a configuração de uma conta EAS continuam pendentes.
+- O canal WhatsApp não envia respostas pela Cloud API sem credenciais e integração de saída configuradas.
+- O modelo de acesso e a proteção por campanha precisam de ser validados num ambiente de produção dedicado antes de inserir dados reais.
+- As projeções eleitorais não incorporam pesquisas ou dados individuais. Não use cenários simulados como evidência de intenção de voto.
 
-## 🎯 Proposta de Valor Única (Pitch de 2 Minutos)
+## Checklist antes da reunião
 
-> *"As eleições de 2027 em Angola serão decididas na margem de votos dos centros urbanos e no combate à abstenção no interior. A maioria das campanhas ainda usa planilhas dispersas e toma decisões às cegas. O nosso **GPS de Marketing Político** é a única plataforma militarmente estruturada para a realidade de Angola: opera 100% offline no terreno (mesmo em áreas sem sinal 4G), gera discursos territorializados fundamentados em carências reais e audita cada ata de voto com precisão GPS e criptografia SHA-256 no Dia D."*
+- Abrir a URL pública e confirmar que a API está disponível.
+- Verificar que o mapa e as fontes carregam e que os selos de proveniência estão visíveis.
+- Confirmar que `Planos` apresenta os limites retornados por `/api/planos`.
+- Não usar contas, palavras-passe, contactos ou dados de eleitores reais numa demonstração pública.
+- Se a reunião exigir Dia D, acesso autenticado ou operação móvel, preparar e testar um ambiente separado; não improvisar esses fluxos no deploy gratuito.
 
----
+## Critério para iniciar um piloto comercial
 
-## 🧭 Roteiro da Demonstração (Passo a Passo)
-
-### Bloco 1: Honestidade dos Dados e Transparência Territorial (5 min)
-1. **Abrir a sala de comando (`web/`, cliente operacional e imagem Docker publicada no Render).** O protótipo Streamlit continua em `prototipo/app.py`:
-   - Apontar o selo no cabeçalho: se conectado à infraestrutura real, exibe `🟢 API ONLINE (PostGIS)`; se desconectado, exibe explicitamente `🟡 MODO DEMONSTRAÇÃO (DADOS AUDITADOS)`.
-   - Ressaltar o **Princípio da Honestidade dos Dados**: cada número exibido possui selo de proveniência (`OFICIAL - CNE`, `OFICIAL - INE`, `ESTIMADO`).
-2. **Mapa Coroplético Interativo:**
-   - Alternar entre as divisões político-administrativas: mostrar como o sistema gerencia a transição histórica das **18 Províncias (DPA 2016)** para as **21 Províncias (DPA 2024)**, incluindo as novas províncias de *Icolo e Bengo*, *Moxico Leste* e *Cuando*.
-   - Alternar as camadas: *Zonamento Político*, *Abstenção 2022*, *Juventude (18-35 anos)*.
-3. **Zonamento com Fórmula Matemática Visível:**
-   - Abrir a barra lateral e mostrar que o zonamento **não é digitado à mão**.
-   - Alterar o slider do limiar de Bastião (de 15% para 10%) e mostrar o mapa recalculando instantaneamente.
-
----
-
-### Bloco 2: Priorização Tática e Simulador de Metas com Incerteza (4 min)
-1. **Aba "Priorização Territorial":**
-   - Demonstrar o cálculo dinâmico do **Índice de Prioridade (0-100)**: a liderança sabe exatamente onde o candidato deve investir o tempo e os recursos da campanha.
-   - Mostrar os botões de **Exportação para Excel (`.xlsx`) e CSV** em um clique.
-2. **Aba "Simulador de Metas":**
-   - Enfatizar o compromisso ético: **nunca vendemos um número mágico único**.
-   - Ajustar os sliders de variação de comparecimento e conversão de indecisos: mostrar os 3 cenários com intervalos de confiança (*Conservador*, *Base*, *Otimista*).
-
----
-
-### Bloco 3: Discursos com IA (Anthropic Claude) & Governança Humana (5 min)
-1. **Aba "Discursos com IA":**
-   - Selecionar uma província de oposição (ex: *Viana*) e depois um bastião (ex: *Huambo*).
-   - Mostrar a diferença imediata no tom estratégico sugerido pela IA.
-   - Enfatizar o selo: **`RASCUNHO — SUJEITO A REVISÃO HUMANA`** e as tags obrigatórias **`[PROMESSA — REVISAR]`**.
-   - Executar o fluxo ao vivo: preencher o nome do revisor e clicar em **"✅ Aprovar Discurso Oficial"**. Mostrar que a aprovação fica carimbada com data e autor.
-
----
-
-### Bloco 4: Operação de Campo Mobile Offline-First e Privacidade (4 min)
-1. **Abrir o Simulador Mobile (`mobile/preview.html`):**
-   - Mostrar os botões táteis grandes de humor: `🙂 Apoio`, `😐 Indeciso`, `🙁 Rejeição`.
-   - Mostrar o termo de **Consentimento e Retenção de Dados** visível na tela.
-   - Explicar a perturbação proposital de coordenadas GPS: a coordenada é agregada em ~100m para blindar a privacidade do eleitor e respeitar a Lei n.º 22/11 de Angola.
-   - Registrar uma visita em modo offline: mostrar o badge superior mudando para `🟡 1 Offline` e depois simular a sincronização atômica.
-
----
-
-### Bloco 5: Sala de Guerra do Dia D & Apuramento Paralelo (5 min)
-1. **Cadeia de Custódia Criptográfica:**
-   - Mostrar o escaneamento da ata gerando o hash duplo **SHA-256** (da foto e dos votos tabulados).
-2. **Geofencing como Alerta para Revisão Humana:**
-   - Simular um envio dentro da escola (48m) ➔ Status: `PENDENTE / VÁLIDO`.
-   - Simular um envio a 1.250m de distância ➔ Status: `ALERTA PARA REVISÃO HUMANA` (sem acusação de fraude, mas gerando protocolo formal para auditoria).
-3. **Criação de Caso Jurídico Estruturado:**
-   - Demonstrar o botão de acionamento jurídico gerando protocolo formal (`CASO-2027-XXX`) com advogado responsável atribuído e anexos.
-4. **Declaração de Cobertura e Incerteza:**
-   - Apontar o percentual de apuração com declaração explícita de incerteza enquanto a cobertura for parcial.
-
----
-
-## 🛡️ Principais Respostas a Objeções de Clientes
-
-- **Objeção 1: *"E se os brigadistas ficarem sem internet no interior?"***
-  - *Resposta:* "O aplicativo foi desenhado como Offline-First desde a primeira linha de código. A fila local usa SQLite/AsyncStorage com UUIDv4. Os dados ficam guardados no aparelho e sincronizam em lote atômico assim que houver conexão, sem perda ou duplicação."
-- **Objeção 2: *"A CNE pode proibir este sistema?"***
-  - *Resposta:* "Não. O sistema opera nos termos estritos da Lei Orgânica sobre as Eleições Gerais (Lei n.º 36/11). A ata fotografada é a via oficial que a lei garante por direito ao delegado de lista credenciado do partido. Nosso documento legal (`docs/legal.md`) respalda toda a operação."
-- **Objeção 3: *"Os dados de uma campanha podem vazar para outro partido?"***
-  - *Resposta:* "A arquitetura utiliza Row Level Security (RLS) diretamente no banco PostgreSQL e criptografia de senhas com Bcrypt e tokens JWT assinados. O isolamento multi-tenant é absoluto em nível de banco de dados."
+Antes do piloto, acordar por escrito o âmbito, os dados permitidos, o responsável pelo tratamento, os utilizadores, a retenção, o suporte, o preço e as condições de saída. Configurar armazenamento persistente, backups, monitorização, notificações e credenciais próprias do cliente; testar isolamento entre campanhas e recuperar um backup. Não tratar a demonstração gratuita como ambiente de produção.

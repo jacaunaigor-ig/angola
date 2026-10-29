@@ -46,6 +46,30 @@ def test_demo_credentials_issue_token_without_database():
         assert recusado.status_code == 401
 
 
+def test_proposta_comercial_exige_meio_de_contacto():
+    from fastapi.testclient import TestClient
+
+    app = create_app(
+        Settings(
+            app_env="test",
+            jwt_secret_key="a-long-test-secret-key-that-is-at-least-32-chars",
+            cors_allowed_origins="http://localhost:5173",
+        ),
+        require_database=False,
+    )
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/propostas",
+            json={
+                "organizacao": "Organização de teste",
+                "contacto": "Coordenação",
+                "plano": "MUNICIPAL",
+            },
+        )
+    assert response.status_code == 400
+    assert "e-mail ou telefone" in response.json()["detail"]
+
+
 def test_demo_credentials_are_disabled_in_staging():
     from fastapi.testclient import TestClient
 

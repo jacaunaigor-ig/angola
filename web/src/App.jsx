@@ -27,6 +27,7 @@ import Eleitor from "./views/Eleitor.jsx";
 import Entrada from "./views/Entrada.jsx";
 import Hondt from "./views/Hondt.jsx";
 import Planos from "./views/Planos.jsx";
+import Presidencial from "./views/Presidencial.jsx";
 import Redes from "./views/Redes.jsx";
 
 const CONSULTA_KEY = "warroom_consulta";
@@ -48,6 +49,7 @@ function laboratorioActivo() {
 const DECISAO = [
   ["comando", "Dashboard", "Mapa e campanha", IconeDashboard],
   ["hondt", "Hondt", "Cadeiras provinciais", IconeHondt],
+  ["presidencial", "Presidencial", "Cenários nacionais de voto", IconeHondt],
   ["diad", "Dia D", "Apuramento", IconeDiaD],
 ];
 const APOIO = [
@@ -160,7 +162,7 @@ export default function App() {
     ? false
     : modoDispositivo === "mobile" || (modoDispositivo === "auto" && isMobileScreen);
   const actual = ABAS.find(([id]) => id === aba) || ABAS[0];
-  const abaDeApoioActiva = APOIO.some(([id]) => id === aba);
+  const abaDeApoioActiva = APOIO.some(([id]) => id === aba) || aba === "presidencial";
   const emailSessao = sessao.utilizador?.email;
   const perfilSessao = sessao.utilizador?.perfil;
   const campanhaCurta = sessao.utilizador?.campanha_id
@@ -384,6 +386,7 @@ export default function App() {
           {aba === "hondt" && (
             <Hondt hondtGeral={dados.hondtGeral} contorno={dados.contorno} territorio={territorio} />
           )}
+          {aba === "presidencial" && <Presidencial serie={dados.serie?.serie} />}
           {aba === "diad" && <DiaD plano={plano} sessao={sessao} />}
           {aba === "redes" && <Redes />}
           {aba === "planos" && <Planos planos={dados.planos} plano={plano} setPlano={mudarPlano} />}
@@ -439,7 +442,7 @@ export default function App() {
           <div className="mobile-drawer-content" onClick={(e) => e.stopPropagation()}>
             <div className="mobile-drawer-header">
               <div>
-                <p className="eyebrow">Menu de Apoio</p>
+                <p className="eyebrow">Menu de Navegação</p>
                 <h3>Módulos & Configuração</h3>
               </div>
               <button
@@ -453,6 +456,21 @@ export default function App() {
             </div>
 
             <div className="mobile-drawer-grid">
+              <p className="nav-rotulo">Decisão</p>
+              {DECISAO.filter(([id]) => id === "presidencial").map(([id, nome, nota, Icone]) => (
+                <button
+                  key={id}
+                  type="button"
+                  className={`mobile-menu-card ${aba === id ? "activa" : ""}`}
+                  onClick={() => mudarAba(id)}
+                >
+                  <span className="menu-card-icon"><Icone size={20} /></span>
+                  <div>
+                    <strong>{nome}</strong>
+                    <p className="muted">{nota}</p>
+                  </div>
+                </button>
+              ))}
               <p className="nav-rotulo">Módulos de Apoio</p>
               {APOIO.map(([id, nome, nota, Icone]) => (
                 <button
